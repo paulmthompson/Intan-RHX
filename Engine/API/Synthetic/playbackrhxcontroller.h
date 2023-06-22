@@ -104,10 +104,10 @@ public:
     void clearTtlOut() override {}
     void resetSequencers() override {}
     void programStimReg(int, int, StimRegister, int) override {}
-    void uploadCommandList(const vector<unsigned int>&, AuxCmdSlot, int) override {}
+    void uploadCommandList(const std::vector<unsigned int>&, AuxCmdSlot, int) override {}
 
-    int findConnectedChips(vector<ChipType> &chipType, vector<int> &portIndex, vector<int> &commandStream,
-                           vector<int> &numChannelsOnPort, bool synthMaxChannels = false) override;
+    int findConnectedChips(std::vector<ChipType> &chipType, std::vector<int> &portIndex, std::vector<int> &commandStream,
+                           std::vector<int> &numChannelsOnPort, bool synthMaxChannels = false) override;
 
 private:
     unsigned int numWordsInFifo() override;

@@ -140,7 +140,7 @@ void DataFileManager::readLiveNotes(QFile* liveNotesFile)
     QTextStream inStream(liveNotesFile);
     QString line;
     while (inStream.readLineInto(&line, 2048)) {
-        string timeString = line.section(',', 1, 1).toStdString();
+        std::string timeString = line.section(',', 1, 1).toStdString();
         if (timeString.empty()) {
             liveNotes[timeString] = line.section(',', 2).toStdString();
         }
@@ -150,7 +150,7 @@ void DataFileManager::readLiveNotes(QFile* liveNotesFile)
 QString DataFileManager::getLastLiveNote()
 {
     if (liveNotes.empty()) return QString("");
-    map<string, string>::const_iterator p = liveNotes.find(dataFileReader->filePositionString().toStdString());
+    std::map<std::string, std::string>::const_iterator p = liveNotes.find(dataFileReader->filePositionString().toStdString());
     if (p != liveNotes.end()) {
         lastLiveNote = dataFileReader->filePositionString() + QString(": ") + QString::fromStdString(p->second);
     }

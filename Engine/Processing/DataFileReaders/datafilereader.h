@@ -36,8 +36,6 @@
 #include "signalsources.h"
 #include "datafilemanager.h"
 
-using namespace std;
-
 class DataFileManager;
 
 enum HeaderFileType {
@@ -79,7 +77,7 @@ struct HeaderFileGroup
     QString prefix;
     bool enabled;
     int numAmplifierChannels;
-    vector<HeaderFileChannel> channels;
+    std::vector<HeaderFileChannel> channels;
     int numChannels() const { return (int) channels.size(); }
 };
 
@@ -131,7 +129,7 @@ public:
 
     QString refChannelName;
 
-    vector<HeaderFileGroup> groups;
+    std::vector<HeaderFileGroup> groups;
     int numGroups() const { return (int) groups.size(); }
     int groupIndex(const QString& prefix) const;
     int numChannels() const;

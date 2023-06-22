@@ -32,10 +32,9 @@
 #define DATAFILEMANAGER_H
 
 #include <QString>
+#include <string>
 #include <vector>
 #include <map>
-
-using namespace std;
 
 struct IntanHeaderInfo;
 class DataFileReader;
@@ -82,15 +81,15 @@ protected:
     IntanHeaderInfo* info;
     DataFileReader* dataFileReader;
 
-    vector<vector<bool> > amplifierWasSaved;
-    vector<vector<bool> > dcAmplifierWasSaved;
-    vector<vector<bool> > stimWasSaved;
-    vector<vector<bool> > auxInputWasSaved;
-    vector<bool> supplyVoltageWasSaved;
-    vector<bool> analogInWasSaved;
-    vector<bool> analogOutWasSaved;
-    vector<bool> digitalInWasSaved;
-    vector<bool> digitalOutWasSaved;
+    std::vector<std::vector<bool> > amplifierWasSaved;
+    std::vector<std::vector<bool> > dcAmplifierWasSaved;
+    std::vector<std::vector<bool> > stimWasSaved;
+    std::vector<std::vector<bool> > auxInputWasSaved;
+    std::vector<bool> supplyVoltageWasSaved;
+    std::vector<bool> analogInWasSaved;
+    std::vector<bool> analogOutWasSaved;
+    std::vector<bool> digitalInWasSaved;
+    std::vector<bool> digitalOutWasSaved;
 
     int64_t totalNumSamples;
     int64_t readIndex;
@@ -99,20 +98,20 @@ protected:
 
     // Single data frame
     int32_t timeStamp;
-    vector<vector<uint16_t> > amplifierData;
-    vector<vector<uint16_t> > dcAmplifierData;
-    vector<vector<StimData> > stimData;
-    vector<vector<bool> > posStimAmplitudeFound;
-    vector<vector<bool> > negStimAmplitudeFound;
-    vector<vector<uint16_t> > auxInputData;
-    vector<uint16_t> supplyVoltageData;
-    vector<uint16_t> analogInData;
-    vector<uint16_t> analogOutData;
+    std::vector<std::vector<uint16_t> > amplifierData;
+    std::vector<std::vector<uint16_t> > dcAmplifierData;
+    std::vector<std::vector<StimData> > stimData;
+    std::vector<std::vector<bool> > posStimAmplitudeFound;
+    std::vector<std::vector<bool> > negStimAmplitudeFound;
+    std::vector<std::vector<uint16_t> > auxInputData;
+    std::vector<uint16_t> supplyVoltageData;
+    std::vector<uint16_t> analogInData;
+    std::vector<uint16_t> analogOutData;
     uint16_t digitalInData;
     uint16_t digitalOutData;
 
     // Live notes
-    map<string, string> liveNotes;
+    std::map<std::string, std::string> liveNotes;
     QString lastLiveNote;
 };
 
