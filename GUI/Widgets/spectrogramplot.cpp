@@ -65,7 +65,7 @@ SpectrogramPlot::~SpectrogramPlot()
     delete colorScale;
 }
 
-void SpectrogramPlot::setWaveform(const string& waveName_)
+void SpectrogramPlot::setWaveform(const std::string& waveName_)
 {
     if (waveName == waveName_) return;
 
@@ -578,7 +578,7 @@ bool SpectrogramPlot::saveMatFile(const QString& fileName) const
     matFileWriter.addRealScalar("sample_rate", state->sampleRate->getNumericValue());
 
     int fRange = fMaxIndex - fMinIndex + 1;
-    vector<float> frequencyVector(fRange);
+    std::vector<float> frequencyVector(fRange);
     for (int i = fMinIndex; i <= fMaxIndex; ++i) {
         frequencyVector[i - fMinIndex] = frequencyScale[i];
     }
@@ -588,8 +588,8 @@ bool SpectrogramPlot::saveMatFile(const QString& fileName) const
     }
 
     int numSamples = spectrogramMode ? ((numValidTStepsInSpectrogram + 1) * (fftSize / 2)) : fftSize;
-    vector<float> timeWaveform(numSamples);
-    vector<float> amplifierWaveform(numSamples);
+    std::vector<float> timeWaveform(numSamples);
+    std::vector<float> amplifierWaveform(numSamples);
     int64_t timeStampTimeZero = (int64_t) waveformTimeStampQueue[fftSize / 2];
     float waveformTimeStep = 1.0 / (double)state->sampleRate->getNumericValue();
     for (int i = 0; i < numSamples; ++i) {
@@ -604,12 +604,12 @@ bool SpectrogramPlot::saveMatFile(const QString& fileName) const
 
     if (spectrogramMode) {
         // Spectrogram display.
-        vector<float> timeVector(numValidTStepsInSpectrogram);
+        std::vector<float> timeVector(numValidTStepsInSpectrogram);
         for (int i = 0; i < numValidTStepsInSpectrogram; ++i) {
             timeVector[i] = i * (float) tStep;
         }
 
-        vector<vector<float> > psdArray(numValidTStepsInSpectrogram);
+        std::vector<std::vector<float> > psdArray(numValidTStepsInSpectrogram);
         int index = spectrogramFull ? tIndex : 0;
         for (int i = 0; i < numValidTStepsInSpectrogram; ++i) {
             psdArray[i].resize(fRange);
@@ -619,10 +619,10 @@ bool SpectrogramPlot::saveMatFile(const QString& fileName) const
             if (++index == tSize) index = 0;
         }
 
-        vector<vector<float> > colorMap;
+        std::vector<std::vector<float> > colorMap;
         colorScale->copyColorMapToArray(colorMap);
 
-        vector<float> colorLimits(2);
+        std::vector<float> colorLimits(2);
         colorLimits[0] = psdScaleMin;
         colorLimits[1] = psdScaleMax;
 
@@ -636,7 +636,7 @@ bool SpectrogramPlot::saveMatFile(const QString& fileName) const
                                 "colormap(color_map); imagesc(t,f,specgram,clim); axis xy; colorbar;");
 
         if (state->digitalDisplaySpectrogram->getValue() != "None") {
-            vector<uint16_t> digitalWaveform(numSamples);
+            std::vector<uint16_t> digitalWaveform(numSamples);
             for (int i = 0; i < numSamples; ++i) {
                 digitalWaveform[i] = digitalWaveformQueue[i];
             }
@@ -646,7 +646,7 @@ bool SpectrogramPlot::saveMatFile(const QString& fileName) const
         }
     } else {
         // Spectrum display.
-        vector<float> spectrum(fRange);
+        std::vector<float> spectrum(fRange);
         for (int i = fMinIndex; i <= fMaxIndex; ++i) {
             spectrum[i - fMinIndex] = psdSpectrum[i];
         }

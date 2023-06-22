@@ -31,6 +31,8 @@
 #ifndef FILEPERCHANNELSAVEMANAGER_H
 #define FILEPERCHANNELSAVEMANAGER_H
 
+#include <vector>
+
 #include "waveformfifo.h"
 #include "systemstate.h"
 #include "savemanager.h"
@@ -50,20 +52,20 @@ public:
 private:
     SaveFile* infoFile;
     SaveFile* timeStampFile;
-    vector<SaveFile*> amplifierFiles;
-    vector<SaveFile*> lowpassAmplifierFiles;
-    vector<SaveFile*> highpassAmplifierFiles;
-    vector<SaveFile*> spikeFiles;
-    vector<SaveFile*> auxInputFiles;
-    vector<SaveFile*> supplyVoltageFiles;
-    vector<SaveFile*> dcAmplifierFiles;
-    vector<SaveFile*> stimFiles;
-    vector<SaveFile*> analogInputFiles;
-    vector<SaveFile*> analogOutputFiles;
-    vector<SaveFile*> digitalInputFiles;
-    vector<int> digitalInputFileIndices;
-    vector<SaveFile*> digitalOutputFiles;
-    vector<int> digitalOutputFileIndices;
+    std::vector<SaveFile*> amplifierFiles;
+    std::vector<SaveFile*> lowpassAmplifierFiles;
+    std::vector<SaveFile*> highpassAmplifierFiles;
+    std::vector<SaveFile*> spikeFiles;
+    std::vector<SaveFile*> auxInputFiles;
+    std::vector<SaveFile*> supplyVoltageFiles;
+    std::vector<SaveFile*> dcAmplifierFiles;
+    std::vector<SaveFile*> stimFiles;
+    std::vector<SaveFile*> analogInputFiles;
+    std::vector<SaveFile*> analogOutputFiles;
+    std::vector<SaveFile*> digitalInputFiles;
+    std::vector<int> digitalInputFileIndices;
+    std::vector<SaveFile*> digitalOutputFiles;
+    std::vector<int> digitalOutputFileIndices;
 
     bool saveSpikeSnapshot;
     int samplesPreDetect;

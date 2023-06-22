@@ -38,8 +38,6 @@
 #include "systemstate.h"
 #include "xpucontroller.h"
 
-using namespace std;
-
 class WaveformProcessorThread : public QThread
 {
     Q_OBJECT
@@ -66,7 +64,7 @@ private:
     WaveformFifo* waveformFifo;
     int numDataStreams;
 
-    vector<double> cpuLoadHistory;
+    std::vector<double> cpuLoadHistory;
 
     XPUController* xpuController;
 

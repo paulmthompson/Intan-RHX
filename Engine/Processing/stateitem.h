@@ -33,8 +33,9 @@
 
 #include <vector>
 #include <string>
-#include <QString>
 #include <map>
+
+#include <QString>
 
 class QComboBox;
 class QSpinBox;

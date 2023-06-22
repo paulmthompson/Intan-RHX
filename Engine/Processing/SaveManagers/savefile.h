@@ -34,11 +34,11 @@
 #include <QString>
 #include <QFile>
 #include <QDataStream>
+
 #include <vector>
 #include <string>
-#include "signalsources.h"
 
-using namespace std;
+#include "signalsources.h"
 
 class SaveFile
 {
@@ -60,13 +60,13 @@ public:
     void writeBitAsUInt16(const uint16_t* wordArray, int numSamples, int bit);
     void writeUInt16StimData(const uint16_t* wordArray, int numSamples, uint8_t posAmplitude, uint8_t negAmplitude);
     void writeUInt16StimDataArray(const uint16_t* wordArray, int numSamples, int numWaveforms,
-                                  const vector<uint8_t>& posAmplitudes, const vector<uint8_t>& negAmplitudes);
+                                  const std::vector<uint8_t>& posAmplitudes, const std::vector<uint8_t>& negAmplitudes);
     void writeUInt16AsSigned(const uint16_t* wordArray, int numSamples);
     void writeUInt8(uint8_t byte);
     void writeDouble(double x);
     void writeQString(const QString& s);
     void writeQStringAsAsciiText(const QString& s);
-    void writeStringAsCharArray(const string& s);
+    void writeStringAsCharArray(const std::string& s);
     void writeSignalSources(const SignalSources* signalSources);
     void writeSignalGroup(const SignalGroup* signalGroup);
     void close();

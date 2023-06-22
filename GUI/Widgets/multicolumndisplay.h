@@ -32,6 +32,9 @@
 #define MULTICOLUMNDISPLAY_H
 
 #include <QtWidgets>
+
+#include <vector>
+
 #include "waveformdisplaymanager.h"
 #include "waveformdisplaycolumn.h"
 
@@ -105,7 +108,7 @@ private:
     SystemState* state;
 
     WaveformDisplayManager* waveformManager;
-    vector<int> numRefreshZones;
+    std::vector<int> numRefreshZones;
 
     //static const int MaxNumColumns = 10;
     static const int MaxNumColumns = 16;

@@ -31,7 +31,7 @@
 #include <QtWidgets>
 #include "auxdigoutconfigdialog.h"
 
-AuxDigOutConfigDialog::AuxDigOutConfigDialog(vector<bool> &auxOutEnabledIn, vector<int> &auxOutChannelIn, int numPorts,
+AuxDigOutConfigDialog::AuxDigOutConfigDialog(std::vector<bool> &auxOutEnabledIn, std::vector<int> &auxOutChannelIn, int numPorts,
                                              QWidget *parent) :
     QDialog(parent)
 {

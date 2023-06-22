@@ -33,10 +33,10 @@
 
 #include "rhxglobals.h"
 #include "stateitem.h"
-#include <QString>
-#include <vector>
 
-using namespace std;
+#include <QString>
+
+#include <vector>
 
 enum StimPolarity {
     NegativeFirst = 0,

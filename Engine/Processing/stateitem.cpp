@@ -181,7 +181,7 @@ DiscreteItemList::DiscreteItemList(const QString &parameterName_, SingleItemList
 
 int DiscreteItemList::addItem(const QString &valueName, const QString &displayedValueName, double numericalValue)
 {
-    vector<QString> valueNames;
+    std::vector<QString> valueNames;
     valueNames.push_back(valueName);
     DiscreteItem item = { valueNames, displayedValueName, numericalValue };
     items.push_back(item);

@@ -304,7 +304,7 @@ void SaveToDiskThread::startRunning()
         saveManager = new FilePerChannelSaveManager(waveformFifo, state);
         break;
     default:
-        cerr << "SaveToDiskThread::startRunning: invalid file format enum: " << state->getFileFormatEnum() << '\n';
+        std::cerr << "SaveToDiskThread::startRunning: invalid file format enum: " << state->getFileFormatEnum() << '\n';
         break;
     }
 

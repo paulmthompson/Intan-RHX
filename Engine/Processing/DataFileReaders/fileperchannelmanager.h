@@ -37,8 +37,6 @@
 #include "datafilemanager.h"
 #include "datafile.h"
 
-using namespace std;
-
 class SystemState;
 
 
@@ -58,15 +56,15 @@ public:
 
 private:
     DataFile* timeFile;
-    vector<vector<DataFile*> > amplifierFiles;
-    vector<vector<DataFile*> > dcAmplifierFiles;
-    vector<vector<DataFile*> > stimFiles;
-    vector<vector<DataFile*> > auxInputFiles;
-    vector<DataFile*> supplyVoltageFiles;
-    vector<DataFile*> analogInFiles;
-    vector<DataFile*> analogOutFiles;
-    vector<DataFile*> digitalInFiles;
-    vector<DataFile*> digitalOutFiles;
+    std::vector<std::vector<DataFile*> > amplifierFiles;
+    std::vector<std::vector<DataFile*> > dcAmplifierFiles;
+    std::vector<std::vector<DataFile*> > stimFiles;
+    std::vector<std::vector<DataFile*> > auxInputFiles;
+    std::vector<DataFile*> supplyVoltageFiles;
+    std::vector<DataFile*> analogInFiles;
+    std::vector<DataFile*> analogOutFiles;
+    std::vector<DataFile*> digitalInFiles;
+    std::vector<DataFile*> digitalOutFiles;
 
     void updateEndOfData();
 };

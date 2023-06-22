@@ -33,6 +33,9 @@
 #include <QString>
 #include <QVector>
 
+#include <vector>
+#include <string>
+
 #include "rhxglobals.h"
 #include "systemstate.h"
 #include "signalsources.h"
@@ -72,7 +75,7 @@ private:
     bool parseSignalGroups(const QByteArray &byteArray, QString &errorMessage) const;
     bool parseStimParameters(const QByteArray &byteArray, QString &errorMessage) const;
 
-    vector<string> findUninitializedChannels(vector<string> allChannels, vector<bool> channelInitializedFromXML) const;
+    std::vector<std::string> findUninitializedChannels(std::vector<std::string> allChannels, std::vector<bool> channelInitializedFromXML) const;
 
     bool parseProbeMapSettingsDOM(const QByteArray &byteArray, QString &errorMessage) const;
 

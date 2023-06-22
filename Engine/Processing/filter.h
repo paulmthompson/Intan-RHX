@@ -32,8 +32,6 @@
 
 #include <vector>
 
-using namespace std;
-
 // Base class for all filters.
 // We use float instead of double for input/output values to reduce storage space in the theory that
 // moving data to and from memory is likely the dominant speed bottleneck.
@@ -123,10 +121,10 @@ public:
     virtual ~HighOrderFilter();
     float filterOne(float in) override;
     void reset() override;
-    vector<BiquadFilter> getFilters() const;
+    std::vector<BiquadFilter> getFilters() const;
 
 protected:
-    vector<BiquadFilter> filters;
+    std::vector<BiquadFilter> filters;
 };
 
 class NotchFilter : public HighOrderFilter

@@ -31,6 +31,10 @@
 #ifndef PLAYBACKRHXCONTROLLER_H
 #define PLAYBACKRHXCONTROLLER_H
 
+#include <string>
+#include <deque>
+#include <vector>
+
 #include "datafilereader.h"
 #include "abstractrhxcontroller.h"
 
@@ -43,8 +47,8 @@ public:
     bool isSynthetic() const override { return false; }
     bool isPlayback() const override { return true; }
     AcquisitionMode acquisitionMode() const override { return PlaybackMode; }
-    int open(const string& /* boardSerialNumber */) override { return 1; }  // Always return 1 to emulate a successful opening.
-    bool uploadFPGABitfile(const string& /* filename */) override { return true; }
+    int open(const std::string& /* boardSerialNumber */) override { return 1; }  // Always return 1 to emulate a successful opening.
+    bool uploadFPGABitfile(const std::string& /* filename */) override { return true; }
     void resetBoard() override {}
 
     void run() override {}
@@ -53,7 +57,7 @@ public:
     void resetFpga() override {}
 
     bool readDataBlock(RHXDataBlock *dataBlock) override;
-    bool readDataBlocks(int numBlocks, deque<RHXDataBlock*> &dataQueue) override;
+    bool readDataBlocks(int numBlocks, std::deque<RHXDataBlock*> &dataQueue) override;
     long readDataBlocksRaw(int numBlocks, uint8_t *buffer) override;
 
     void setContinuousRunMode(bool) override {}

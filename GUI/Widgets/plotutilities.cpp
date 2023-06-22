@@ -32,7 +32,7 @@
 #include <iostream>
 #include "plotutilities.h"
 
-using namespace std;
+;
 
 CoordinateTranslator::CoordinateTranslator()
 {
@@ -248,7 +248,7 @@ void PlotDecorator::drawLabeledTickMarkTop(int number, CoordinateTranslator& ct,
 // Given the maximum y value in a data series (maxYValue), this function generates a appropriate y scale ranging from zero
 // to a 'round' number slightly higher than maxYValue; this value is returned.  The function also returns two vectors: a
 // list of values for evenly-spaced tick marks on this axis and a list of QString labels for these tick marks.
-double PlotDecorator::autoCalculateYAxis(double maxY, vector<double>& yAxisTicks, vector<QString>& yAxisLabels) const
+double PlotDecorator::autoCalculateYAxis(double maxY, std::vector<double>& yAxisTicks, std::vector<QString>& yAxisLabels) const
 {
     yAxisTicks.clear();
     yAxisLabels.clear();
@@ -308,8 +308,8 @@ double PlotDecorator::autoCalculateYAxis(double maxY, vector<double>& yAxisTicks
     return yAxisTicks[yAxisTicks.size() - 1];
 }
 
-MinMaxPair PlotDecorator::autoCalculateLogYAxis(double minNonZeroY, double maxY, vector<double>& yAxisTicks,
-                                                vector<QString>& yAxisLabels) const
+MinMaxPair PlotDecorator::autoCalculateLogYAxis(double minNonZeroY, double maxY, std::vector<double>& yAxisTicks,
+                                                std::vector<QString>& yAxisLabels) const
 {
     MinMaxPair result;
     result.min = floor(log10(minNonZeroY));
@@ -350,7 +350,7 @@ QColor ColorScale::getColor(double value) const
     return colorMap[index];
 }
 
-void ColorScale::copyColorMapToArray(vector<vector<float> >& mapArray) const
+void ColorScale::copyColorMapToArray(std::vector<std::vector<float> >& mapArray) const
 {
     for (int i = 0; i < (int) mapArray.size(); ++i) {
         mapArray[i].clear();

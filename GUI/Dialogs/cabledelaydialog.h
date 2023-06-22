@@ -33,7 +33,7 @@
 
 #include <QDialog>
 
-using namespace std;
+#include <vector>
 
 class QCheckBox;
 class QSpinBox;
@@ -43,7 +43,7 @@ class CableDelayDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit CableDelayDialog(vector<bool> &manualDelayEnabled, vector<int> &currentDelay, int numPorts,
+    explicit CableDelayDialog(std::vector<bool> &manualDelayEnabled, std::vector<int> &currentDelay, int numPorts,
                               QWidget *parent = nullptr);
 
     QCheckBox *manualPortACheckBox;

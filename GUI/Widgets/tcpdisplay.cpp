@@ -669,7 +669,7 @@ void TCPDisplay::updateTables()
 void TCPDisplay::updatePresentChannelsTable()
 {
     // Scan through all channels.
-    vector<string> presentChannelsVector;
+    std::vector<std::string> presentChannelsVector;
     for (int group = 0; group < state->signalSources->numGroups(); ++group) {
         SignalGroup* thisGroup = state->signalSources->groupByIndex(group);
         for (int channel = 0; channel < thisGroup->numChannels(); ++channel) {
@@ -728,7 +728,7 @@ void TCPDisplay::updatePresentChannelsTable()
 void TCPDisplay::updateChannelsToStreamTable()
 {
     // Scan through all channels.
-    vector<string> channelsToStreamVector;
+    std::vector<std::string> channelsToStreamVector;
     for (int group = 0; group < state->signalSources->numGroups(); ++group) {
         SignalGroup* thisGroup = state->signalSources->groupByIndex(group);
         for (int channel = 0; channel < thisGroup->numChannels(); ++channel) {

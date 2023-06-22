@@ -32,12 +32,12 @@
 #include <QFile>
 #include <QDataStream>
 #include <QTime>
+
 #include <iostream>
 #include <cmath>
+
 #include "abstractrhxcontroller.h"
 #include "savemanager.h"
-
-using namespace std;
 
 SaveManager::SaveManager(WaveformFifo* waveformFifo_, SystemState* state_) :
     waveformFifo(waveformFifo_),
@@ -150,7 +150,7 @@ void SaveManager::writeLiveNoteEntry(uint64_t timestamp, const QString& note)
         QString timeString = recordTime.addSecs(timeInSeconds).toString("HH:mm:ss");
         liveNotesFile->writeQStringAsAsciiText(timestampString + ", " + timeString + ", " + note + "\r\n");
     } else {
-        cerr << "SaveManager::writeLiveNoteEntry: live notes file " << liveNotesFileName.toStdString() << " is not open.\n";
+        std::cerr << "SaveManager::writeLiveNoteEntry: live notes file " << liveNotesFileName.toStdString() << " is not open.\n";
     }
 }
 

@@ -29,9 +29,8 @@
 //------------------------------------------------------------------------------
 
 #include <iostream>
-#include "rhxdatareader.h"
 
-using namespace std;
+#include "rhxdatareader.h"
 
 RHXDataReader::RHXDataReader(ControllerType type_, int numDataStreams_, const uint16_t* start_, int numSamples_) :
     type(type_),
@@ -208,7 +207,7 @@ void RHXDataReader::readAuxInData(float* buffer, int stream, int auxChannel)
         }
         frames += 4;
         if (frames >= numSamples) {
-            cerr << "RHXDataReader::readAuxInData: ROM value not found!\n";
+            std::cerr << "RHXDataReader::readAuxInData: ROM value not found!\n";
             phaseFound = true;
         }
     }

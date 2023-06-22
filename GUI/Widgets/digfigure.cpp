@@ -35,7 +35,7 @@
 #include "abstractfigure.h"
 #include "digfigure.h"
 
-using namespace std;
+;
 
 DigFigure::DigFigure(StimParameters *stimParameters, QWidget* parent) :
     AbstractFigure()

@@ -345,7 +345,7 @@ void FilterDisplaySelector::showDisabledChannels(int checked)
 
 void FilterDisplaySelector::boldSelectedFilters()
 {
-    vector<bool> alreadySelected(filterText.size(), false);
+    std::vector<bool> alreadySelected(filterText.size(), false);
 
     if (order1CheckBox->isChecked()) {
         int filterIndex = order1ButtonGroup->checkedId();

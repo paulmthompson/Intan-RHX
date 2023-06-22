@@ -39,13 +39,14 @@
 #define MINIMUM_Y_SIZE_MULTIWAVEFORM_PLOT 400
 
 #include <QtWidgets>
+
+#include <vector>
+
 #include "waveformdisplaymanager.h"
 #include "displaylistmanager.h"
 #include "scrollbar.h"
 #include "systemstate.h"
 #include "displayedwaveform.h"
-
-using namespace std;
 
 const QColor DisabledColor = QColor(80, 80, 80);
 
@@ -174,14 +175,14 @@ private:
     QFont* labelFont;
     QFontMetrics* labelFontMetrics;
     int labelHeight;
-    vector<int> labelWidth;
-    vector<int> labelWidthFilter;
+    std::vector<int> labelWidth;
+    std::vector<int> labelWidthFilter;
     int labelWidthIndexOld;
 
     // Screen regions used for plotting and mouse calculations
-    vector<QRect> regionWaveforms;
-    vector<QRect> regionLabels;
-    vector<QRect> regionTimeAxis;
+    std::vector<QRect> regionWaveforms;
+    std::vector<QRect> regionLabels;
+    std::vector<QRect> regionTimeAxis;
     QRect regionAboveLabels;
     QRect regionBelowLabels;
     QRect regionScrollBar;

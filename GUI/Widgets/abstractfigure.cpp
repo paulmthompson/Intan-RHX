@@ -31,7 +31,7 @@
 #include <QtWidgets>
 #include "abstractfigure.h"
 
-using namespace std;
+;
 
 void AbstractFigure::generalSetup(StimParameters *stimParameters, QWidget*)
 {

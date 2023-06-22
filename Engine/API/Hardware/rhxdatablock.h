@@ -35,8 +35,6 @@
 #include <fstream>
 #include "rhxglobals.h"
 
-using namespace std;
-
 const int USBHeaderSizeInBytes = 8;
 const uint64_t HeaderRecordUSB2 = 0xc691199927021942UL;
 const uint64_t HeaderRecordUSB3 = 0xd7a22aaa38132a53UL;
@@ -79,7 +77,7 @@ public:
     void fillFromUsbBuffer(uint8_t* usbBuffer, int blockIndex);
 
     void print(int stream) const;
-    void write(ofstream &saveOut, int numDataStreams) const;
+    void write(std::ofstream &saveOut, int numDataStreams) const;
 
     static bool checkUsbHeader(const uint8_t* usbBuffer, int index, ControllerType type_);
     bool checkUsbHeader(const uint8_t* usbBuffer, int index) const;
@@ -127,7 +125,7 @@ private:
         return (int)result;
     }
 
-    void writeWordLittleEndian(ofstream &outputStream, int dataWord) const;
+    void writeWordLittleEndian(std::ofstream &outputStream, int dataWord) const;
 };
 
 #endif // RHXDATABLOCK_H

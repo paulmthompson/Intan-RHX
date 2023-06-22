@@ -34,8 +34,6 @@
 #include "abstractrhxcontroller.h"
 #include "synthdatablockgenerator.h"
 
-using namespace std;
-
 AbstractSynthSource::AbstractSynthSource(RandomNumber* randomGenerator_, double sampleRate) :
     tStepMsec(1.0e3 / sampleRate),
     tMsec(0.0),
@@ -228,7 +226,7 @@ SynthDataBlockGenerator::SynthDataBlockGenerator(ControllerType type_, double sa
 {
     int bufferSizeInWords = MaxNumBlocksToRead *
             RHXDataBlock::dataBlockSizeInWords(type, AbstractRHXController::maxNumDataStreams(type));
-    cout << "SynthDataBlockGenerator: Allocating " << BytesPerWord * bufferSizeInWords / 1.0e6 << " MBytes for synthetic USB data generator.\n";
+    std::cout << "SynthDataBlockGenerator: Allocating " << BytesPerWord * bufferSizeInWords / 1.0e6 << " MBytes for synthetic USB data generator.\n";
     usbWords = nullptr;
     usbWords = new uint16_t [bufferSizeInWords];
     dataBlockPeriodInNsec = 1.0e9 * ((double)RHXDataBlock::samplesPerDataBlock(type)) / sampleRate;

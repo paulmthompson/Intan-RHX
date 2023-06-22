@@ -32,6 +32,9 @@
 #define WAVEFORMSELECTDIALOG_H
 
 #include <QDialog>
+
+#include <vector>
+
 #include "signalsources.h"
 
 class WaveformSelectDialog : public QDialog
@@ -52,7 +55,7 @@ private slots:
 
 private:
     SignalSources* signalSources;
-    vector<QStringList> channelNameLists;
+    std::vector<QStringList> channelNameLists;
 
     QTabWidget* tabWidget;
 

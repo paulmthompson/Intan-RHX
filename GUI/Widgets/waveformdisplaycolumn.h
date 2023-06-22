@@ -34,7 +34,7 @@
 #include "multiwaveformplot.h"
 #include <QtWidgets>
 
-using namespace std;
+;
 
 class MultiColumnDisplay;
 

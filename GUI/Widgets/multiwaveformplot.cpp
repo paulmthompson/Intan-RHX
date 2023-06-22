@@ -1074,9 +1074,9 @@ void MultiWaveformPlot::mouseReleaseEvent(QMouseEvent* event)
             // Click and release to select a single waveform.
             WaveIndex clickedWaveform = findSelectedWaveform(dropPoint.y());
 
-            vector<bool> before = listManager->selectionRecord();
+            std::vector<bool> before = listManager->selectionRecord();
             listManager->selectSingleWaveform(clickedWaveform);
-            vector<bool> after = listManager->selectionRecord();
+            std::vector<bool> after = listManager->selectionRecord();
             needToUpdateState = !listManager->selectionRecordsAreEqual(before, after);
         }
     } else if (regionUnpinSymbols.contains(dropPoint)) {
@@ -1509,7 +1509,7 @@ void MultiWaveformPlot::drawYScaleBar(QPainter &painter, QPoint cursor, int yPos
     case UnknownWaveform:
     case WaveformDivider:
         // None of these enum values should be reached.
-        cerr << "Error: Unexpected WaveformType switch case reached.";
+        std::cerr << "Error: Unexpected WaveformType switch case reached.";
         return;
     }
 

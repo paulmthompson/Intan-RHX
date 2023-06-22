@@ -299,9 +299,9 @@ void ControlPanelConfigureTab::rescanPorts()
 void ControlPanelConfigureTab::manualCableDelayControl()
 {
     const int NumPorts = (int) spiPort.size();
-    vector<int> currentDelays(NumPorts, 0);
+    std::vector<int> currentDelays(NumPorts, 0);
     controllerInterface->getCableDelay(currentDelays);
-    vector<bool> manualDelayEnabled(NumPorts, false);
+    std::vector<bool> manualDelayEnabled(NumPorts, false);
     for (int i = 0; i < (int) manualDelayEnabled.size(); ++i) {
         manualDelayEnabled[i] = spiPort[i]->manualDelayEnabled->getValue();
     }
@@ -360,15 +360,15 @@ void ControlPanelConfigureTab::manualCableDelayControl()
 void ControlPanelConfigureTab::configDigOutControl()
 {
     const int NumPorts = state->numSPIPorts;
-    vector<SignalGroup*> spiPort(NumPorts, nullptr);
+    std::vector<SignalGroup*> spiPort(NumPorts, nullptr);
     for (int i = 0; i < (int) spiPort.size(); ++i) {
         spiPort[i] = state->signalSources->portGroupByIndex(i);
     }
-    vector<bool> auxDigOutEnabled(NumPorts, false);
+    std::vector<bool> auxDigOutEnabled(NumPorts, false);
     for (int i = 0; i < (int) auxDigOutEnabled.size(); ++i) {
         auxDigOutEnabled[i] = spiPort[i]->auxDigOutEnabled->getValue();
     }
-    vector<int> auxDigOutChannel(NumPorts, 0);
+    std::vector<int> auxDigOutChannel(NumPorts, 0);
     for (int i = 0; i < (int) auxDigOutEnabled.size(); ++i) {
         auxDigOutChannel[i] = spiPort[i]->auxDigOutChannel->getValue();
     }

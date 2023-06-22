@@ -32,9 +32,8 @@
 #define AUXDIGOUTCONFIGDIALOG_H
 
 #include <vector>
-#include <QDialog>
 
-using namespace std;
+#include <QDialog>
 
 class QCheckBox;
 class QComboBox;
@@ -44,7 +43,7 @@ class AuxDigOutConfigDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit AuxDigOutConfigDialog(vector<bool> &auxOutEnabledIn, vector<int> &auxOutChannelIn, int numPorts,
+    explicit AuxDigOutConfigDialog(std::vector<bool> &auxOutEnabledIn, std::vector<int> &auxOutChannelIn, int numPorts,
                                    QWidget *parent = nullptr);
 
     bool enabled(int port);
@@ -69,8 +68,8 @@ private slots:
     void channelPortHChanged(int channel);
 
 private:
-    vector<bool> auxOutEnabled;
-    vector<int> auxOutChannel;
+    std::vector<bool> auxOutEnabled;
+    std::vector<int> auxOutChannel;
 
     QCheckBox *enablePortACheckBox;
     QCheckBox *enablePortBCheckBox;

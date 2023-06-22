@@ -33,14 +33,14 @@
 
 #include <QObject>
 #include <QThread>
+
 #include <atomic>
+
 #include "waveformfifo.h"
 #include "systemstate.h"
 #include "signalsources.h"
 #include "rhxdatablock.h"
 #include "savemanager.h"
-
-using namespace std;
 
 class SaveToDiskThread : public QThread
 {
@@ -82,7 +82,7 @@ private:
     volatile bool running;
     volatile bool stopThread;
 
-    vector<float*> boardAdcWaveform;
+    std::vector<float*> boardAdcWaveform;
     uint16_t* boardDigitalInWaveform;
 
     bool digitalTrigger;
@@ -90,7 +90,7 @@ private:
     bool triggerOnHigh;
     float analogTriggerThreshold;
 
-    atomic<int64_t> totalRecordedSamples;
+    std::atomic<int64_t> totalRecordedSamples;
 
     int findTrigger(int numSamples, FindTriggerMode mode);
     void setStatusBarRecording(double bytesPerMinute, const QString& dateTimeStamp, int64_t totalBytesSaved);

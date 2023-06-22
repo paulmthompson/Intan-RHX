@@ -32,13 +32,20 @@
 #define AUDIOTHREAD_H
 
 #include <QThread>
+
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+#include <QAudioDevice>
+#include <QAudioSink>
+#endif
+
 #include <QAudioOutput>
+#include <QAudioFormat>
+
 #include <cstdint>
 #include <mutex>
+
 #include "systemstate.h"
 #include "waveformfifo.h"
-
-using namespace std;
 
 class AudioThread : public QThread
 {
@@ -103,11 +110,18 @@ private:
     double interpRatio;
     int interpLength;
 
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    QAudioDevice mDevice;
+#else
     QAudioDeviceInfo mDevice;
-    QByteArray* buf;
-    QDataStream* s;
+#endif
+
     QAudioOutput* mAudioOutput;
     QAudioFormat mFormat;
+
+    QByteArray* buf;
+    QDataStream* s;
+
 
     QString currentChannelString;
 

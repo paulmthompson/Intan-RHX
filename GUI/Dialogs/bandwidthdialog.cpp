@@ -50,7 +50,7 @@ SimpleBandwidthDialog::SimpleBandwidthDialog(double lowerBandwidth, double upper
     lowRangeLabel = new QLabel(tr("Lower Bandwidth Range: 0.1 Hz to 500 Hz."), this);
     highRangeLabel = new QLabel(tr("Upper Bandwidth Range: 100 Hz to 20 kHz."), this);
 
-    string sampleRateString =
+    std::string sampleRateString =
             AbstractRHXController::getSampleRateString(AbstractRHXController::nearestSampleRate(sampleRate));
     nyquistWarningLabel = new QLabel(tr("Warning: Nyquist frequency violation (sample rate = ") +
                                      QString::fromStdString(sampleRateString) + ")", this);
@@ -168,7 +168,7 @@ AdvancedBandwidthDialog::AdvancedBandwidthDialog(double lowerBandwidth, double u
     lowRangeLabel = new QLabel(tr("Valid Range: 0.1 Hz to 500 Hz."), this);
     highRangeLabel = new QLabel(tr("Valid Range: 100 Hz to 20 kHz."), this);
 
-    string sampleRateString =
+    std::string sampleRateString =
             AbstractRHXController::getSampleRateString(AbstractRHXController::nearestSampleRate(sampleRate));
     nyquistWarningLabel = new QLabel(tr("Warning: Nyquist frequency violation (sample rate = ") +
                                      QString::fromStdString(sampleRateString) + ")", this);

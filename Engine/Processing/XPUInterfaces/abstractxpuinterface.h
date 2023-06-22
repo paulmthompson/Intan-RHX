@@ -37,7 +37,9 @@
 #else
     #include <CL/cl.h>
 #endif
+
 #include <mutex>
+
 #include "systemstate.h"
 #include "filter.h"
 
@@ -116,7 +118,7 @@ protected:
     virtual void updateFilterConstArray();
     virtual void updateConstChars();
     virtual void updateConstFloats();
-    mutex filterMutex;
+    std::mutex filterMutex;
 
     bool allocated;
     double sampleRate;

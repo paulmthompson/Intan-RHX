@@ -29,7 +29,9 @@
 //------------------------------------------------------------------------------
 
 #include <QElapsedTimer>
+
 #include <iostream>
+
 #include "rhxdatablock.h"
 #include "softwarereferenceprocessor.h"
 #include "rhxdatareader.h"
@@ -143,7 +145,7 @@ void WaveformProcessorThread::run()
                         SignalGroup* signalGroup = signalSources->groupByIndex(group);
                         for (int signal = 0; signal < signalGroup->numChannels(); signal++) {
                             Channel* channel = signalGroup->channelByIndex(signal);
-                            string waveName = channel->getNativeNameString();
+                            std::string waveName = channel->getNativeNameString();
                             if (channel->getSignalType() == AmplifierSignal) {
                                 GpuWaveformAddress gpuWaveformAddress = waveformFifo->getGpuWaveformAddress(waveName + "|SPK");
                                 digitalWaveform = waveformFifo->getDigitalWaveformPointer(waveName + "|SPK");

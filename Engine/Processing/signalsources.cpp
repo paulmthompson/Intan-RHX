@@ -166,7 +166,7 @@ int SignalGroup::numChannels(SignalType type) const
 
 int SignalGroup::minUserOrder(SignalType type) const
 {
-    int min = numeric_limits<int>::max();
+    int min = std::numeric_limits<int>::max();
     for (int i = 0; i < (int) signalChannels.size(); ++i) {
         if (signalChannels[i]->getSignalType() == type) {
             if (signalChannels[i]->getUserOrder() < min) {
@@ -407,7 +407,7 @@ Channel* SignalSources::channelByName(const QString& nativeName) const
     if (p != channelMap.end()) {
         return p->second;
     }
-//    cerr << "SignalSources::channelByName: name not found: " << nativeNameStr << EndOfLine;
+//    std::cerr << "SignalSources::channelByName: name not found: " << nativeNameStr << EndOfLine;
     return nullptr;
 }
 
@@ -451,7 +451,7 @@ void SignalSources::setSelected(const QString& nativeName, bool selected)
 {
     Channel* channel = channelByName(nativeName);
     if (!channel) {
-        cerr << "SignalSources::setSelected: channel not found from name " << nativeName.toStdString() << '\n';
+        std::cerr << "SignalSources::setSelected: channel not found from name " << nativeName.toStdString() << '\n';
         return;
     }
     channel->setSelected(selected);
@@ -461,7 +461,7 @@ void SignalSources::setSelectedEntireGroupID(const QString& nativeName, bool sel
 {
     Channel* channel = channelByName(nativeName);
     if (!channel) {
-        cerr << "SignalSources::setSelectedEntireGroupID: channel not found from name " << nativeName.toStdString() << '\n';
+        std::cerr << "SignalSources::setSelectedEntireGroupID: channel not found from name " << nativeName.toStdString() << '\n';
         return;
     }
     int groupID = channel->getGroupID();
@@ -1088,7 +1088,7 @@ QColor SignalSources::channelColor(int colorIndex, int numColors) const
 void SignalSources::autoGroupAmplifierChannels(int groupSize)
 {
     if (groupSize < 2 || groupSize > MaxNumWaveformsInGroup) {
-        cerr << "SignalSources::autoGroupAmplifierChannels: illegal groupSize = " << groupSize << '\n';
+        std::cerr << "SignalSources::autoGroupAmplifierChannels: illegal groupSize = " << groupSize << '\n';
         return;
     }
     for (int port = 0; port < numPortGroups(); ++port) {

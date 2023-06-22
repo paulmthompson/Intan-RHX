@@ -37,8 +37,6 @@
 #include <QDataStream>
 #include <QString>
 
-using namespace std;
-
 class DataFile
 {
 public:

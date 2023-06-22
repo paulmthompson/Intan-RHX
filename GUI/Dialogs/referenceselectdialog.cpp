@@ -33,7 +33,7 @@
 #include "abstractrhxcontroller.h"
 #include "referenceselectdialog.h"
 
-using namespace std;
+;
 
 ReferenceSelectDialog::ReferenceSelectDialog(QString refString, SignalSources* signalSources_, bool useMedian, QWidget* parent) :
     QDialog(parent),

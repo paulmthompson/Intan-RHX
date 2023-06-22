@@ -376,7 +376,7 @@ bool SpikePlot::updateWaveforms(WaveformFifo* waveformFifo, int numSamples)
         spikeId = (int) waveformFifo->getDigitalData(WaveformFifo::ReaderDisplay, spikeRaster, t);
         if (spikeId != SpikeIdNoSpike && (t - samplesPreDetect >= -numWordsInMemory)) {
             if (showArtifacts || spikeId != SpikeIdLikelyArtifact) {
-                vector<float> newSnippet(samplesPreDetect + samplesPostDetect);
+                std::vector<float> newSnippet(samplesPreDetect + samplesPostDetect);
                 int index = 0;
                 for (int i = t - samplesPreDetect; i < t + samplesPostDetect; ++i) {
                     newSnippet[index++] = waveformFifo->getGpuAmplifierData(WaveformFifo::ReaderDisplay, waveformAddress, i);
@@ -395,7 +395,7 @@ bool SpikePlot::updateWaveforms(WaveformFifo* waveformFifo, int numSamples)
     latestRmsCalculation = 0.0;
     latestSpikeRateCalculation = 0;
     if (numWordsInMemory > 0) {
-        int numWordsForRms = min(numWordsInMemory, (int)ceil(state->sampleRate->getNumericValue()));  // Last one second of data.
+        int numWordsForRms = std::min(numWordsInMemory, (int)ceil(state->sampleRate->getNumericValue()));  // Last one second of data.
         int numSamples = 0;
         int numSpikes = 0;
         double sumOfSquares = 0.0;

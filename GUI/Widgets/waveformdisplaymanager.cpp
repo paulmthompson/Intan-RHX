@@ -57,7 +57,7 @@ WaveformDisplayManager::WaveformDisplayManager(SystemState* state_, int maxWidth
 WaveformDisplayManager::~WaveformDisplayManager()
 {
     if (!data.empty()) {
-        map<string, WaveformDisplayDataStore*>::const_iterator it = data.begin();
+        std::map<std::string, WaveformDisplayDataStore*>::const_iterator it = data.begin();
         while (it != data.end()) {
             delete it->second;
             ++it;
@@ -97,7 +97,7 @@ void WaveformDisplayManager::calculateParameters()
 
 bool WaveformDisplayManager::addWaveform(const QString& waveName, bool isStim, bool isRaster)
 {
-    string name = waveName.toStdString();
+    std::string name = waveName.toStdString();
     if (data.find(name) != data.end()) return false;  // No repeats!  Do not read from the Waveform FIFO twice!
 
     WaveformDisplayDataStore* ds = new WaveformDisplayDataStore;
@@ -115,7 +115,7 @@ bool WaveformDisplayManager::addWaveform(const QString& waveName, bool isStim, b
     else if (waveName.left(8) == "DIGITAL-") ds->yScaleType = DigitalIOYScale;
     else {
         ds->yScaleType = UnknownYScale;
-        cout << "Warning: Unknown Y Scale for waveform " << name << '\n';
+        std::cout << "Warning: Unknown Y Scale for waveform " << name << '\n';
     }
 
     data[name] = ds;
@@ -125,7 +125,7 @@ bool WaveformDisplayManager::addWaveform(const QString& waveName, bool isStim, b
 
 bool WaveformDisplayManager::removeWaveform(const QString& waveName)
 {
-    string name = waveName.toStdString();
+    std::string name = waveName.toStdString();
     if (data.find(name) == data.end()) return false;
     delete data.at(name);
     data.erase(name);
@@ -147,7 +147,7 @@ void WaveformDisplayManager::prepForLoadingNewData()
     }
 
     // Mark all WaveformDisplayDataStore objects with hasAlreadyLoaded = false.
-    map<string, WaveformDisplayDataStore*>::const_iterator it = data.begin();
+    std::map<std::string, WaveformDisplayDataStore*>::const_iterator it = data.begin();
     while (it != data.end()) {
         it->second->hasAlreadyLoaded = false;
         ++it;
@@ -165,7 +165,7 @@ void WaveformDisplayManager::prepForLoadingOldData(int startTime)
     }
 
     // Mark all WaveformDisplayDataStore objects with hasAlreadyLoaded = false.
-    map<string, WaveformDisplayDataStore*>::const_iterator it = data.begin();
+    std::map<std::string, WaveformDisplayDataStore*>::const_iterator it = data.begin();
     while (it != data.end()) {
         it->second->hasAlreadyLoaded = false;
         ++it;
@@ -179,7 +179,7 @@ YScaleUsed WaveformDisplayManager::finishLoading()
     YScaleUsed yScaleUsed;
 
     // If WaveformDisplayDataStore object has not loaded new data, mark it as out of date
-    map<string, WaveformDisplayDataStore*>::const_iterator it = data.begin();
+    std::map<std::string, WaveformDisplayDataStore*>::const_iterator it = data.begin();
     while (it != data.end()) {
         if (!(it->second->hasAlreadyLoaded)) {
             it->second->isOutOfDate = true;
@@ -199,9 +199,9 @@ YScaleUsed WaveformDisplayManager::finishLoading()
 
 void WaveformDisplayManager::loadNewData(const WaveformFifo* waveformFifo, const QString& waveName) const
 {
-    map<string, WaveformDisplayDataStore*>::const_iterator it = data.find(waveName.toStdString());
+    std::map<std::string, WaveformDisplayDataStore*>::const_iterator it = data.find(waveName.toStdString());
     if (it == data.end()) {
-        cout << "WaveformDisplayManager::loadNewData: Could not find waveName " << waveName.toStdString() << '\n';
+        std::cout << "WaveformDisplayManager::loadNewData: Could not find waveName " << waveName.toStdString() << '\n';
         return;
     }
     WaveformDisplayDataStore* ds = it->second;
@@ -212,8 +212,8 @@ void WaveformDisplayManager::loadNewData(const WaveformFifo* waveformFifo, const
     if (ds->isOutOfDate) {  // If display data is out of date, load old data from waveform FIFO to catch up.
         int displayStartPos, displayEndPos, startTime;
         if (state->rollMode->getValue()) {  // Roll mode
-            displayStartPos = max(zoneLength, validDataIndex + zoneLength);  // No need to load first display zone; we just shift it away.
-            displayStartPos = min(displayStartPos, length);
+            displayStartPos = std::max(zoneLength, validDataIndex + zoneLength);  // No need to load first display zone; we just shift it away.
+            displayStartPos = std::min(displayStartPos, length);
             displayEndPos = length;
             if (useVerticalLines) {
                 startTime = -(displayEndPos - displayStartPos) * samplesPerZone / zoneWidthInPixels;
@@ -223,7 +223,7 @@ void WaveformDisplayManager::loadNewData(const WaveformFifo* waveformFifo, const
             loadDataSegment(waveformFifo, waveName, ds, displayStartPos, displayEndPos, startTime);
         } else {  // Sweep mode
             displayStartPos = 0;
-            displayEndPos = max(0, validDataIndex - zoneLength);
+            displayEndPos = std::max(0, validDataIndex - zoneLength);
             startTime = -displayEndPos * samplesPerZone / zoneWidthInPixels;
             loadDataSegment(waveformFifo, waveName, ds, displayStartPos, displayEndPos, startTime);
             if (!sweepFirstTime) {
@@ -279,9 +279,9 @@ void WaveformDisplayManager::loadNewData(const WaveformFifo* waveformFifo, const
 
 void WaveformDisplayManager::loadOldData(const WaveformFifo* waveformFifo, const QString& waveName, int startTime) const
 {
-    map<string, WaveformDisplayDataStore*>::const_iterator it = data.find(waveName.toStdString());
+    std::map<std::string, WaveformDisplayDataStore*>::const_iterator it = data.find(waveName.toStdString());
     if (it == data.end()) {
-        cout << "WaveformDisplayManager::loadOldData: Could not find waveName " << waveName.toStdString() << '\n';
+        std::cout << "WaveformDisplayManager::loadOldData: Could not find waveName " << waveName.toStdString() << '\n';
         return;
     }
     WaveformDisplayDataStore* ds = it->second;
@@ -388,7 +388,7 @@ void WaveformDisplayManager::loadDataSegment(const WaveformFifo* waveformFifo, c
 
 float WaveformDisplayManager::getYScaleFactor(const QString& waveName) const
 {
-    map<string, WaveformDisplayDataStore*>::const_iterator it = data.find(waveName.toStdString());
+    std::map<std::string, WaveformDisplayDataStore*>::const_iterator it = data.find(waveName.toStdString());
     if (it == data.end()) return 0.0F;
     WaveformDisplayDataStore* ds = it->second;
     if (!ds) return 0.0F;
@@ -447,7 +447,7 @@ void WaveformDisplayManager::clearActiveSectionOfRect(QPainter &painter, QRect f
 
 void WaveformDisplayManager::draw(QPainter &painter, const QString& waveName, QPoint position, QColor color)
 {
-    map<string, WaveformDisplayDataStore*>::const_iterator it = data.find(waveName.toStdString());
+    std::map<std::string, WaveformDisplayDataStore*>::const_iterator it = data.find(waveName.toStdString());
     if (it == data.end()) return;
     WaveformDisplayDataStore* ds = it->second;
     if (!ds) return;
@@ -720,7 +720,7 @@ void WaveformDisplayManager::resetAll()
     validDataIndex = state->rollMode->getValue() ? length : 0;
 
     if (data.empty()) return;
-    map<string, WaveformDisplayDataStore*>::const_iterator it = data.begin();
+    std::map<std::string, WaveformDisplayDataStore*>::const_iterator it = data.begin();
     while (it != data.end()) {
         reset(it->second);
         ++it;

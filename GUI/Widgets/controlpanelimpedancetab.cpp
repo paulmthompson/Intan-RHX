@@ -33,7 +33,7 @@
 #include "impedancefreqdialog.h"
 #include "controlpanelimpedancetab.h"
 
-using namespace std;
+;
 
 ControlPanelImpedanceTab::ControlPanelImpedanceTab(ControllerInterface* controllerInterface_, SystemState* state_,
                                                    CommandParser* parser_, QWidget *parent) :

@@ -34,7 +34,7 @@
 #include "stimparameters.h"
 #include "anoutfigure.h"
 
-using namespace std;
+;
 
 AnOutFigure::AnOutFigure(StimParameters *stimParameters, QWidget *parent) :
     AbstractFigure()

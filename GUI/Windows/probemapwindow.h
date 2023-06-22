@@ -33,6 +33,9 @@
 
 #include <QtWidgets>
 
+#include <map>
+#include <string>
+
 #include "rhxglobals.h"
 #include "impedancegradient.h"
 #include "pageview.h"
@@ -40,7 +43,7 @@
 #include "xmlinterface.h"
 #include "controllerinterface.h"
 
-typedef map<string, double> ChannelList;
+typedef std::map<std::string, double> ChannelList;
 
 class ProbeMapWindow : public QMainWindow
 {
@@ -138,7 +141,7 @@ private:
 
     void updateSpikeTimerSites();
 
-    map<int, double> decayOptions;
+    std::map<int, double> decayOptions;
 };
 
 #endif // PROBEMAPWINDOW_H

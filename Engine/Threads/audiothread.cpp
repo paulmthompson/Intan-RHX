@@ -28,6 +28,7 @@
 //
 //------------------------------------------------------------------------------
 
+#include <QAudioOutput>
 #include <QAudioDeviceInfo>
 #include "signalsources.h"
 #include "audiothread.h"

@@ -35,14 +35,15 @@
 #define PSTHPLOT_Y_SIZE 550
 
 #include <QtWidgets>
+
 #include <vector>
 #include <deque>
+#include <string>
+
 #include "systemstate.h"
 #include "plotutilities.h"
 #include "waveformfifo.h"
 #include "rhxglobals.h"
-
-using namespace std;
 
 class PSTHPlot : public QWidget
 {
@@ -50,7 +51,7 @@ class PSTHPlot : public QWidget
 public:
     explicit PSTHPlot(SystemState* state_, QWidget *parent = nullptr);
 
-    void setWaveform(const string& waveName_);
+    void setWaveform(const std::string& waveName_);
     QString getWaveform() const { return QString::fromStdString(waveName); }
     bool updateWaveforms(WaveformFifo* waveformFifo, int numSamples);
     void resetPSTH();
@@ -74,14 +75,14 @@ protected:
 
 private:
     SystemState* state;
-    string waveName;
+    std::string waveName;
 
-    deque<uint16_t> spikeTrainQueue;
-    deque<uint16_t> digitalWaveformQueue;
-    vector<vector<uint8_t> > rasters;
-    vector<uint16_t> triggerWaveform;
-    vector<float> histogram;
-    vector<float> histogramTScale;
+    std::deque<uint16_t> spikeTrainQueue;
+    std::deque<uint16_t> digitalWaveformQueue;
+    std::vector<std::vector<uint8_t> > rasters;
+    std::vector<uint16_t> triggerWaveform;
+    std::vector<float> histogram;
+    std::vector<float> histogramTScale;
     QImage rasterImage;
     QImage histogramImage;
 

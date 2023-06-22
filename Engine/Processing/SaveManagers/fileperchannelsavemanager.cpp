@@ -29,9 +29,9 @@
 //------------------------------------------------------------------------------
 
 #include <iostream>
-#include "fileperchannelsavemanager.h"
+#include <string>
 
-using namespace std;
+#include "fileperchannelsavemanager.h"
 
 // One file per signal type file format
 FilePerChannelSaveManager::FilePerChannelSaveManager(WaveformFifo* waveformFifo_, SystemState* state_) :
@@ -162,7 +162,7 @@ bool FilePerChannelSaveManager::openAllSaveFiles()
 
             // Write amplifier custom names as comma-separated list, zero-terminated string.
             Channel* channel = state->signalSources->channelByName(saveList.amplifier[i]);
-            string customName = "";
+            std::string customName = "";
             if (channel) customName = channel->getCustomName().toStdString();
             spikeFile->writeStringAsCharArray(customName);
             spikeFile->writeUInt8(0);  // 0 to terminate string

@@ -29,10 +29,11 @@
 //------------------------------------------------------------------------------
 
 #include <iostream>
+
 #include "analogoutconfigdialog.h"
 #include "controlpanelaudioanalogtab.h"
 
-using namespace std;
+;
 
 ControlPanelAudioAnalogTab::ControlPanelAudioAnalogTab(ControllerInterface* controllerInterface_, SystemState* state_,
                                                        QWidget *parent) :
@@ -86,7 +87,7 @@ ControlPanelAudioAnalogTab::ControlPanelAudioAnalogTab(ControllerInterface* cont
 {
     QLabel* dacGainPreLabel = new QLabel(tr("Electrode to ANALOG OUT Gain"), this);
     QLabel* dacNoiseSuppressPreLabel = new QLabel(tr("Noise Slicer (ANALOG OUT 1,2)"), this);
-    int labelWidth = max(fontMetrics().horizontalAdvance(dacGainPreLabel->text()), fontMetrics().horizontalAdvance(dacNoiseSuppressPreLabel->text()));
+    int labelWidth = std::max(fontMetrics().horizontalAdvance(dacGainPreLabel->text()), fontMetrics().horizontalAdvance(dacNoiseSuppressPreLabel->text()));
     dacGainPreLabel->setFixedWidth(labelWidth);
     dacNoiseSuppressPreLabel->setFixedWidth(labelWidth);
 

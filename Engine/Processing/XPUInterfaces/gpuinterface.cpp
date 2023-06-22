@@ -45,7 +45,7 @@ GPUInterface::~GPUInterface()
 
 void GPUInterface::processDataBlock(uint16_t *data, uint16_t *lowChunk, uint16_t *wideChunk, uint16_t *highChunk, uint32_t *spikeChunk, uint8_t *spikeIDChunk)
 {
-    lock_guard<mutex> lockFilter(filterMutex);
+    std::lock_guard<std::mutex> lockFilter(filterMutex);
 
     if (channels == 0)
         return;

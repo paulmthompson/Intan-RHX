@@ -33,11 +33,11 @@
 
 #include <map>
 #include <string>
+#include <vector>
+
 #include "minmax.h"
 #include "waveformfifo.h"
 #include "systemstate.h"
-
-using namespace std;
 
 const float ScaleFactorY = 10.0F;
 
@@ -91,14 +91,14 @@ public:
     bool isOutOfDate;
 
     // Data stores: raw y coordinates in sequence
-    vector<MinMax<float> > yMinMaxData;
-    vector<float> yData;
-    vector<uint16_t> stimFlags;
-    vector<uint16_t> rasterData;
+    std::vector<MinMax<float> > yMinMaxData;
+    std::vector<float> yData;
+    std::vector<uint16_t> stimFlags;
+    std::vector<uint16_t> rasterData;
 
     // Data stores: screen coordinates
-    vector<QLineF> verticalLines;
-    vector<QPointF> points;
+    std::vector<QLineF> verticalLines;
+    std::vector<QPointF> points;
 };
 
 class WaveformDisplayManager
@@ -178,7 +178,7 @@ private:
     int validDataIndex;
 
     // Waveform data mapped to waveform name
-    map<string, WaveformDisplayDataStore*> data;
+    std::map<std::string, WaveformDisplayDataStore*> data;
 
     const QColor StimColor = QColor(255, 155, 155);
     const QColor ComplianceLimitColor = QColor(255, 0, 0);

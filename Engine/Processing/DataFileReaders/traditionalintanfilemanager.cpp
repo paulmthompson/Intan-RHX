@@ -90,7 +90,7 @@ TraditionalIntanFileManager::TraditionalIntanFileManager(const QString& fileName
     firstTimeStamp = info->firstTimeStamp;
     lastTimeStamp = info->lastTimeStamp;
 
-    vector<int64_t> numSamplesInFiles;
+    std::vector<int64_t> numSamplesInFiles;
     numSamplesInFiles.push_back(info->numSamplesInFile);
     bool discontinuity = false;
     int i;
@@ -326,7 +326,7 @@ void TraditionalIntanFileManager::loadDataFrame()
                     atEndOfCurrentFile = false;
                     dataFile->seek(info->headerSizeInBytes);
                 } else {
-                    cerr << "Error: Could not open data file " << consecutiveFiles[consecutiveFileIndex].fileName.toStdString()
+                    std::cerr << "Error: Could not open data file " << consecutiveFiles[consecutiveFileIndex].fileName.toStdString()
                          << '\n';
                 }
             }

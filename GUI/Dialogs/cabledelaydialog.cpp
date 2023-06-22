@@ -31,7 +31,7 @@
 #include <QtWidgets>
 #include "cabledelaydialog.h"
 
-CableDelayDialog::CableDelayDialog(vector<bool> &manualDelayEnabled, vector<int> &currentDelay, int numPorts,
+CableDelayDialog::CableDelayDialog(std::vector<bool> &manualDelayEnabled, std::vector<int> &currentDelay, int numPorts,
                                    QWidget *parent) :
     QDialog(parent)
 {

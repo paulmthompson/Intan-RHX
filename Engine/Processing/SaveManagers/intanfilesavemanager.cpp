@@ -30,8 +30,6 @@
 #include <iostream>
 #include "intanfilesavemanager.h"
 
-using namespace std;
-
 // Intan save file format (*.rhd, *.rhs)
 IntanFileSaveManager::IntanFileSaveManager(WaveformFifo* waveformFifo_, SystemState* state_) :
     SaveManager(waveformFifo_, state_),

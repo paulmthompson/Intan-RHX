@@ -32,10 +32,12 @@
 #define FILTERDISPLAYSELECTOR_H
 
 #include <QtWidgets>
+
 #include <vector>
+
 #include "systemstate.h"
 
-using namespace std;
+;
 
 class FilterDisplaySelector : public QWidget
 {
@@ -62,7 +64,7 @@ private:
 
     SystemState* state;
     bool stimController;
-    vector<QLabel*> filterLabels;
+    std::vector<QLabel*> filterLabels;
 
     QRadioButton* wide1Button;
     QRadioButton* wide2Button;
@@ -105,7 +107,7 @@ private:
     QCheckBox* clipWaveformsCheckBox;
     QCheckBox* showDisabledCheckBox;
 
-    vector<QString> filterText;
+    std::vector<QString> filterText;
 };
 
 #endif // FILTERDISPLAYSELECTOR_H

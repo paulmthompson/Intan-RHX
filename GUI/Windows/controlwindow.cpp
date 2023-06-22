@@ -29,6 +29,8 @@
 //------------------------------------------------------------------------------
 
 #include <QSettings>
+#include <QTransform>
+
 #include "setthresholdsdialog.h"
 #include "autocolordialog.h"
 #include "autogroupdialog.h"
@@ -40,7 +42,7 @@
 #include "controlwindow.h"
 #include "scrollablemessageboxdialog.h"
 
-using namespace std;
+;
 
 ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, ControllerInterface* controllerInterface_) :
     QMainWindow(nullptr), // Since the parent isn't a QMainWindow but a QDialog, just pass a nullptr
@@ -219,7 +221,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     controlButtons->addWidget(statusBars);
     controlButtons->addWidget(new QLabel("   "));
 
-    string sampleRateString =
+    std::string sampleRateString =
             AbstractRHXController::getSampleRateString(AbstractRHXController::nearestSampleRate(state->sampleRate->getNumericValue()));
     QLabel *sampleRateLabel = new QLabel(QString::fromStdString(sampleRateString) + " " + tr("sample rate"), this);
     sampleRateLabel->setContentsMargins(margin, 0, margin, 0);
@@ -610,7 +612,7 @@ void ControlWindow::createActions()
 
 
     QPixmap jumpToEndPixmap(":/images/tostarticon.png");
-    QMatrix rm;
+    QTransform rm;
     rm.rotate(180);
     jumpToEndPixmap = jumpToEndPixmap.transformed(rm);
     QIcon jumpToEndIcon(jumpToEndPixmap);
@@ -2132,7 +2134,7 @@ void ControlWindow::updateHardwareFifoStatus(double percentFull)
                              "Performance will likely be significantly improved."));
     }
 
-    double cpuLoad = max(mainCpuLoad, controllerInterface->latestWaveformProcessorCpuLoad());
+    double cpuLoad = std::max(mainCpuLoad, controllerInterface->latestWaveformProcessorCpuLoad());
 
     if (statusBars) statusBars->updateBars(percentFull, swBuffer, cpuLoad);
 }

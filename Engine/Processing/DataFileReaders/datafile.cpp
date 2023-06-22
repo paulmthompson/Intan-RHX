@@ -41,7 +41,7 @@ DataFile::DataFile(const QString& fileName_) :
     file = new QFile(fileName);
     if (!file->open(QIODevice::ReadOnly)) {
         open = false;
-        cerr << "DataFile: Cannot open file " << fileName.toStdString() << " for reading: " <<
+        std::cerr << "DataFile: Cannot open file " << fileName.toStdString() << " for reading: " <<
                 qPrintable(file->errorString()) << '\n';
     } else {
         open = true;

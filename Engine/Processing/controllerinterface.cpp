@@ -31,12 +31,12 @@
 #include <QApplication>
 #include <QtGlobal>
 #include <QElapsedTimer>
+
 #include <iostream>
+
 #include "controlpanel.h"
 #include "impedancereader.h"
 #include "controllerinterface.h"
-
-using namespace std;
 
 ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXController* rhxController_, const QString& boardSerialNumber, bool useOpenCL,
                                          DataFileReader* dataFileReader_, QObject* parent, bool is7310_) :
@@ -266,7 +266,7 @@ void ControllerInterface::rescanPorts(bool updateDisplay)
         }
         addPlaybackHeadstageChannels();
     } else {
-        vector<int> portIndex, commandStream, numChannelsOnPort;
+        std::vector<int> portIndex, commandStream, numChannelsOnPort;
         numDataStreams = scanPorts(state->chipType, portIndex, commandStream, numChannelsOnPort);
         addAmplifierChannels(state->chipType, portIndex, commandStream, numChannelsOnPort);
         setManualCableDelays();
@@ -301,8 +301,8 @@ void ControllerInterface::rescanPorts(bool updateDisplay)
 }
 
 // Returns number of data streams used.
-int ControllerInterface::scanPorts(vector<ChipType> &chipType, vector<int> &portIndex, vector<int> &commandStream,
-                                    vector<int> &numChannelsOnPort)
+int ControllerInterface::scanPorts(std::vector<ChipType> &chipType, std::vector<int> &portIndex, std::vector<int> &commandStream,
+                                    std::vector<int> &numChannelsOnPort)
 {
     // Scan SPI Ports.
     QSettings settings;
@@ -340,8 +340,8 @@ int ControllerInterface::scanPorts(vector<ChipType> &chipType, vector<int> &port
     return numDataStreams;
 }
 
-void ControllerInterface::addAmplifierChannels(const vector<ChipType> &chipType, const vector<int> &portIndex,
-                                               const vector<int> &commandStream, const vector<int> &numChannelsOnPort)
+void ControllerInterface::addAmplifierChannels(const std::vector<ChipType> &chipType, const std::vector<int> &portIndex,
+                                               const std::vector<int> &commandStream, const std::vector<int> &numChannelsOnPort)
 {
     state->signalSources->undoManager->clearUndoStack();
 
@@ -446,7 +446,7 @@ void ControllerInterface::enablePlaybackChannels()
         QString groupPrefix = group->getPrefix();
         int index = fileInfo->groupIndex(groupPrefix);
         if (index == -1) {
-            cerr << "ControllerInterface::enablePlaybackChannels: Could not find group with prefix " <<
+            std::cerr << "ControllerInterface::enablePlaybackChannels: Could not find group with prefix " <<
                     groupPrefix.toStdString() << '\n';
         } else {
             const HeaderFileGroup& fileGroup = fileInfo->groups[index];
@@ -456,7 +456,7 @@ void ControllerInterface::enablePlaybackChannels()
                 if (channel) {
                     channel->setEnabled(fileChannel.enabled);
                 } else {
-                    cerr << "ControllerInterface::enablePlaybackChannels: Could not find channel " <<
+                    std::cerr << "ControllerInterface::enablePlaybackChannels: Could not find channel " <<
                             fileChannel.nativeChannelName.toStdString() << '\n';
                 }
             }
@@ -499,17 +499,17 @@ void ControllerInterface::addPlaybackHeadstageChannels()
                         group->addAmplifierChannel(fileChannel.nativeOrder, fileChannel.boardStream,
                                                    fileChannel.commandStream, fileChannel.chipChannel,
                                                    fileChannel.impedanceMagnitude, fileChannel.impedancePhase);
-//                       cout << "Playback configuration: Adding " << portPrefix.toStdString() << "-" <<
+//                       std::cout << "Playback configuration: Adding " << portPrefix.toStdString() << "-" <<
 //                                QString("%1").arg(fileChannel.channelNumber(), 3, 10, QChar('0')).toStdString() << endl;
                     } else if (fileChannel.signalType == AuxInputSignal) {
                         group->addAuxInputChannel(fileChannel.nativeOrder, fileChannel.boardStream,
                                                   fileChannel.chipChannel, fileChannel.endingNumber(1));
-//                       cout << "Playback configuration: Adding " << portPrefix.toStdString() << "-AUX" <<
+//                       std::cout << "Playback configuration: Adding " << portPrefix.toStdString() << "-AUX" <<
 //                                fileChannel.endingNumber(1) << endl;
                     } else if (fileChannel.signalType == SupplyVoltageSignal) {
                         group->addSupplyVoltageChannel(fileChannel.nativeOrder, fileChannel.boardStream,
                                                        fileChannel.endingNumber(1));
-//                       cout << "Playback configuration: Adding " << portPrefix.toStdString() << "-VDD" <<
+//                       std::cout << "Playback configuration: Adding " << portPrefix.toStdString() << "-VDD" <<
 //                                fileChannel.endingNumber(1) << endl;
                     }
                 }
@@ -629,7 +629,7 @@ void ControllerInterface::updateChipCommandLists(bool updateStimParams)
     chipRegisters.setDigOutLow(RHXRegisters::DigOut::DigOut2); // Take auxiliary output out of HiZ mode.
     chipRegisters.setDigOutLow(RHXRegisters::DigOut::DigOutOD); // Take auxiliary output out of HiZ mode.
 
-    vector<unsigned int> commandList;
+    std::vector<unsigned int> commandList;
     int numCommands = RHXDataBlock::samplesPerDataBlock(state->getControllerTypeEnum());
     int commandSequenceLength;
 
@@ -875,7 +875,7 @@ void ControllerInterface::runController()
             for (int i = 0; i < numSamples; ++i) {
                 currentTimeStamp = (int) timeStamps[i];
                 if (currentTimeStamp - lastTimeStamp != 1 && lastTimeStamp != -1) {
-                    cout << "Timestamp discontinuity: " << lastTimeStamp << " " << currentTimeStamp << '\n';
+                    std::cout << "Timestamp discontinuity: " << lastTimeStamp << " " << currentTimeStamp << '\n';
                 }
                 lastTimeStamp = currentTimeStamp;
             }
@@ -900,10 +900,10 @@ void ControllerInterface::runController()
 
                 emit cpuLoadPercent(averageCpuLoad);
 
-//                cout << "        Controller Interface (Main Thread) CPU usage: " << (int) cpuUsage << "%" << EndOfLine;
-//                cout << "Plot time = " << plotTime / 1.0e6 << " ms" << EndOfLine;
-//                cout << "Work time = " << workTime / 1.0e6 << " ms" << EndOfLine;
-//                cout << "Loop time = " << loopTime / 1.0e6 << " ms" << EndOfLine;
+//                std::cout << "        Controller Interface (Main Thread) CPU usage: " << (int) cpuUsage << "%" << EndOfLine;
+//                std::cout << "Plot time = " << plotTime / 1.0e6 << " ms" << EndOfLine;
+//                std::cout << "Work time = " << workTime / 1.0e6 << " ms" << EndOfLine;
+//                std::cout << "Loop time = " << loopTime / 1.0e6 << " ms" << EndOfLine;
                 reportTimer.restart();
             }
             qApp->processEvents();
@@ -1030,7 +1030,7 @@ void ControllerInterface::runControllerSilently(double nSeconds, QProgressDialog
     }
 }
 
-float ControllerInterface::measureRmsLevel(string waveName, double timeSec) const
+float ControllerInterface::measureRmsLevel(std::string waveName, double timeSec) const
 {
     int numSamples = round(state->sampleRate->getNumericValue() * timeSec);
     float* waveform = new float [numSamples];
@@ -1053,7 +1053,7 @@ void ControllerInterface::setAllSpikeDetectionThresholds()
 {
     if (state->absoluteThresholdsEnabled->getValue()) {
         double threshold = state->absoluteThreshold->getValue();
-        vector<string> waveNameList = state->signalSources->amplifierChannelsNameList();
+        std::vector<std::string> waveNameList = state->signalSources->amplifierChannelsNameList();
         for (int i = 0; i < (int) waveNameList.size(); ++i) {
             Channel* channel = state->signalSources->channelByName(waveNameList[i]);
             if (channel) {
@@ -1071,9 +1071,9 @@ void ControllerInterface::setAllSpikeDetectionThresholds()
         runControllerSilently(numSecondsToMeasure + 1.0, progress);  // Add one second at beginning so we ignore starting transients.
         delete progress;
 
-        vector<string> waveNameList = state->signalSources->amplifierChannelsNameList();
+        std::vector<std::string> waveNameList = state->signalSources->amplifierChannelsNameList();
         for (int i = 0; i < (int) waveNameList.size(); ++i) {
-            string waveName = waveNameList[i] + "|HIGH";  // Measure RMS levels of highpass filtered signal for spike threshold calculation.
+            std::string waveName = waveNameList[i] + "|HIGH";  // Measure RMS levels of highpass filtered signal for spike threshold calculation.
             float rmsLevel = measureRmsLevel(waveName, numSecondsToMeasure);
             Channel* channel = state->signalSources->channelByName(waveNameList[i]);
             if (channel) {
@@ -1257,7 +1257,7 @@ void ControllerInterface::setStimSequenceParameters(Channel* ampChannel)
         break;
     case Monophasic:
         // Monophasic doesn't apply to StimParameters for amp channels.
-        cerr << "Attempted to set amp channel's StimShape to Monophasic";
+        std::cerr << "Attempted to set amp channel's StimShape to Monophasic";
         return;
     }
 
@@ -1309,7 +1309,7 @@ void ControllerInterface::setStimSequenceParameters(Channel* ampChannel)
 
     RHXRegisters chipRegisters(rhxController->getType(), rhxController->getSampleRate(), state->getStimStepSizeEnum());
     int commandSequenceLength;
-    vector<unsigned int> commandList;
+    std::vector<unsigned int> commandList;
 
     int firstPhaseAmplitude = round(parameters->firstPhaseAmplitude->getValue() / currentstep);
     int secondPhaseAmplitude = round(parameters->secondPhaseAmplitude->getValue() / currentstep);
@@ -1555,7 +1555,7 @@ void ControllerInterface::setChargeRecoveryParameters(bool mode, RHXRegisters::C
 
     RHXRegisters chipRegisters(rhxController->getType(), rhxController->getSampleRate(), state->getStimStepSizeEnum());
     int commandSequenceLength;
-    vector<unsigned int> commandList;
+    std::vector<unsigned int> commandList;
 
     commandSequenceLength = chipRegisters.createCommandListConfigChargeRecovery(commandList, currentLimit, targetVoltage);
     rhxController->uploadCommandList(commandList, AbstractRHXController::AuxCmd1, 0);
@@ -1736,7 +1736,7 @@ bool ControllerInterface::saveImpedances()
 
 double ControllerInterface::swBufferPercentFull() const
 {
-    return max(waveformFifo->percentFull(), usbStreamFifo->percentFull());
+    return std::max(waveformFifo->percentFull(), usbStreamFifo->percentFull());
 }
 
 void ControllerInterface::uploadAmpSettleSettings()
@@ -1800,7 +1800,7 @@ void ControllerInterface::uploadStimParameters(Channel* channel)
 
 void ControllerInterface::uploadStimParameters()
 {
-    vector<string> allChannels = state->signalSources->completeChannelsNameList();
+    std::vector<std::string> allChannels = state->signalSources->completeChannelsNameList();
     for (int i = 0; i < (int) allChannels.size(); i++) {
         Channel* channel = state->signalSources->channelByName(QString::fromStdString(allChannels[i]));
         uploadStimParameters(channel);

@@ -35,13 +35,13 @@
 #define ISIPLOT_Y_SIZE 450
 
 #include <QtWidgets>
+
 #include <vector>
+
 #include "systemstate.h"
 #include "plotutilities.h"
 #include "waveformfifo.h"
 #include "rhxglobals.h"
-
-using namespace std;
 
 class ISIPlot : public QWidget
 {
@@ -49,7 +49,7 @@ class ISIPlot : public QWidget
 public:
     explicit ISIPlot(SystemState* state_, QWidget *parent = nullptr);
 
-    void setWaveform(const string& waveName_);
+    void setWaveform(const std::string& waveName_);
     QString getWaveform() const { return QString::fromStdString(waveName); }
     bool updateWaveforms(WaveformFifo* waveformFifo, int numSamples);
     void resetISI();
@@ -72,16 +72,16 @@ protected:
 
 private:
     SystemState* state;
-    string waveName;
+    std::string waveName;
 
-    vector<int> isiCount;
-    vector<float> timeScaleISI;
+    std::vector<int> isiCount;
+    std::vector<float> timeScaleISI;
     int largestISIrecorded;
     int numISIsRecorded;
     uint32_t lastTimeStamp;
 
-    vector<float> histogram;
-    vector<float> histogramTScale;
+    std::vector<float> histogram;
+    std::vector<float> histogramTScale;
     QImage histogramImage;
 
     double isiMean;

@@ -32,13 +32,14 @@
 #define TCPDATAOUTPUTTHREAD_H
 
 #include <QThread>
+
 #include <stdint.h>
+#include <vector>
+#include <string>
 
 #include "systemstate.h"
 #include "waveformfifo.h"
 #include "tcpcommunicator.h"
-
-using namespace std;
 
 class TCPDataOutputThread : public QThread
 {
@@ -66,7 +67,7 @@ private:
     TCPCommunicator *tcpWaveformDataCommunicator;
     TCPCommunicator *tcpSpikeDataCommunicator;
 
-    vector<string> channelNames;
+    std::vector<std::string> channelNames;
     QVector<QString> enabledChannelNames;
     QVector<QString> enabledStimChannelNames;
 
@@ -102,8 +103,8 @@ private:
 
     double sampleRate;
 
-    vector<uint8_t> posStimAmplitudes;
-    vector<uint8_t> negStimAmplitudes;
+    std::vector<uint8_t> posStimAmplitudes;
+    std::vector<uint8_t> negStimAmplitudes;
 
     bool closeRequested;
     bool closeCompleted;

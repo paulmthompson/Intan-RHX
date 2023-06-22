@@ -1121,7 +1121,7 @@ void SystemState::setupGlobalSettingsLoadSave(ControllerInterface* controllerInt
 bool SystemState::loadGlobalSettings(const QString& filename, QString &errorMessage) const
 {
     if (!globalSettingsInterface) {
-        cerr << "SystemState::loadGlobalSettings: Must run setupGlobalSettingsLoadSave first." << '\n';
+        std::cerr << "SystemState::loadGlobalSettings: Must run setupGlobalSettingsLoadSave first." << '\n';
         return false;
     }
     return globalSettingsInterface->loadFile(filename, errorMessage);
@@ -1130,7 +1130,7 @@ bool SystemState::loadGlobalSettings(const QString& filename, QString &errorMess
 bool SystemState::saveGlobalSettings(const QString& filename) const
 {
     if (!globalSettingsInterface) {
-        cerr << "SystemState::loadGlobalSettings: Must run setupGlobalSettingsLoadSave first." << '\n';
+        std::cerr << "SystemState::loadGlobalSettings: Must run setupGlobalSettingsLoadSave first." << '\n';
         return false;
     }
     return globalSettingsInterface->saveFile(filename);

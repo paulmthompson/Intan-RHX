@@ -301,7 +301,7 @@ int DisplayListManager::findSelectedWaveform(const QList<DisplayedWaveform>& lis
     for (int i = 0; i < length - 1; ++i) {
         if (y > list[i].yBottom && y < list[i + 1].yTop) return -(i + 2);
     }
-    cerr << "DisplayListManager::findSelectedWaveform: This line should never be reached." << '\n';
+    std::cerr << "DisplayListManager::findSelectedWaveform: This line should never be reached." << '\n';
     return 0;  // This line should never be reached - included so the compiler doesn't complain.
 }
 
@@ -776,7 +776,7 @@ void DisplayListManager::updateOrderInState(const QString& portName, int numFilt
 {
     SignalGroup* group = state->signalSources->groupByName(portName);
     if (!group) {
-        cerr << "DisplayListManager::updateOrderInState: Signal group not found: " << portName.toStdString() << '\n';
+        std::cerr << "DisplayListManager::updateOrderInState: Signal group not found: " << portName.toStdString() << '\n';
         return;
     }
     int numAmplifierChannels = group->numChannels(AmplifierSignal);
@@ -790,7 +790,7 @@ void DisplayListManager::updateOrderInState(const QString& portName, int numFilt
                 for (int i = 0; i < waveformsInFirstSection; ++i) {
                     Channel* channel = displayList.at(i).channel;
                     if (!channel) {
-                        cerr << "DisplayListManager::updateOrderInState: Channel not found: " <<
+                        std::cerr << "DisplayListManager::updateOrderInState: Channel not found: " <<
                                 displayList.at(i).waveNameWithoutFilter().toStdString() << '\n';
                         return;
                     }
@@ -801,7 +801,7 @@ void DisplayListManager::updateOrderInState(const QString& portName, int numFilt
                 for (int i = 0; i < waveformsInFirstSection; i += numFiltersDisplayed) {
                     Channel* channel = displayList.at(i).channel;
                     if (!channel) {
-                        cerr << "MultiWaveformPlot::updateOrderInState: Channel not found: " <<
+                        std::cerr << "MultiWaveformPlot::updateOrderInState: Channel not found: " <<
                                 displayList.at(i).waveNameWithoutFilter().toStdString() << '\n';
                         return;
                     }
@@ -820,7 +820,7 @@ void DisplayListManager::updateOrderInState(const QString& portName, int numFilt
             if (type == WaveformDivider) continue;
             Channel* channel = state->signalSources->channelByName(displayList.at(i).waveName);
             if (!channel) {
-                cerr << "MultiWaveformPlot::updateOrderInState: Channel not found: " <<
+                std::cerr << "MultiWaveformPlot::updateOrderInState: Channel not found: " <<
                         displayList.at(i).waveName.toStdString() << '\n';
                 return;
             }

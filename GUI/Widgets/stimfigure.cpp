@@ -33,7 +33,7 @@
 #include <iostream>
 #include "stimfigure.h"
 
-using namespace std;
+;
 
 StimFigure::StimFigure(StimParameters *stimParameters, QWidget *parent) :
     AbstractFigure()

@@ -305,7 +305,7 @@ void ProbeMapWindow::updateForStop()
 void ProbeMapWindow::catchSpikeReport(QString names)
 {
     // Separate QString out using ','
-    QStringList nameList = names.split(',', QString::SkipEmptyParts);
+    QStringList nameList = names.split(',', Qt::SkipEmptyParts);
 
     // Insert or assign each name within nameList
     for (QStringList::const_iterator it = nameList.constBegin(); it != nameList.constEnd(); ++it) {
@@ -475,7 +475,7 @@ void ProbeMapWindow::changeChannelImpedance(QString nativeName, float impedanceM
 void ProbeMapWindow::linkAndUpdateSites()
 {
     // Go through each amplifier channel in state.
-    vector<string> amplifierChannelNames = state->signalSources->amplifierChannelsNameList();
+    std::vector<std::string> amplifierChannelNames = state->signalSources->amplifierChannelsNameList();
 
     for (unsigned int channel = 0; channel < amplifierChannelNames.size(); channel++) {
         // Find all sites with this name.

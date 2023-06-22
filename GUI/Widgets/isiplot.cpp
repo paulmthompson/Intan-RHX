@@ -65,7 +65,7 @@ ISIPlot::ISIPlot(SystemState* state_, QWidget *parent) :
     updateFromState();
 }
 
-void ISIPlot::setWaveform(const string& waveName_)
+void ISIPlot::setWaveform(const std::string& waveName_)
 {
     if (waveName == waveName_) return;
 
@@ -250,8 +250,8 @@ void ISIPlot::paintEvent(QPaintEvent* /* event */)
 
     // Draw histogram image
     bool yAxisLog = state->yAxisLogISI->getValue();
-    vector<double> yAxisTicks;
-    vector<QString> yAxisLabels;
+    std::vector<double> yAxisTicks;
+    std::vector<QString> yAxisLabels;
     double yMin = 0.0;
     double yMax = 0.0;
     CoordinateTranslator ctHist;

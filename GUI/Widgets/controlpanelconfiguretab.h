@@ -32,6 +32,9 @@
 #define CONTROLPANELCONFIGURETAB_H
 
 #include <QtWidgets>
+
+#include <vector>
+
 #include "controllerinterface.h"
 #include "systemstate.h"
 #include "commandparser.h"
@@ -85,9 +88,9 @@ private:
     QPushButton *liveNotesButton;
     QLabel *lastLiveNoteLabel;
 
-    vector<SignalGroup*> spiPort;
-    vector<bool> manualDelayEnabledOld;
-    vector<int> manualDelayOld;
+    std::vector<SignalGroup*> spiPort;
+    std::vector<bool> manualDelayEnabledOld;
+    std::vector<int> manualDelayOld;
     bool fastSettleEnabledOld;
     bool externalFastSettleEnabledOld;
     int externalFastSettleChannelOld;

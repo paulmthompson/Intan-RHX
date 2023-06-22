@@ -29,9 +29,9 @@
 //------------------------------------------------------------------------------
 
 #include <iostream>
-#include "filepersignaltypesavemanager.h"
+#include <string>
 
-using namespace std;
+#include "filepersignaltypesavemanager.h"
 
 // One file per signal type file format
 FilePerSignalTypeSaveManager::FilePerSignalTypeSaveManager(WaveformFifo* waveformFifo_, SystemState* state_) :
@@ -158,7 +158,7 @@ bool FilePerSignalTypeSaveManager::openAllSaveFiles()
             // Write amplifier custom names as comma-separated list, zero-terminated string.
             for (unsigned long i = 0; i < saveList.amplifier.size(); ++i) {
                 Channel* channel = state->signalSources->channelByName(saveList.amplifier[i]);
-                string customName = "";
+                std::string customName = "";
                 if (channel) customName = channel->getCustomName().toStdString();
                 spikeFile->writeStringAsCharArray(customName);
                 if (i != saveList.amplifier.size() - 1) {
@@ -339,11 +339,11 @@ void FilePerSignalTypeSaveManager::closeAllSaveFiles()
 int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeIndex)
 {
     int maxColumns = 1;
-    maxColumns = max(maxColumns, (int) saveList.amplifier.size());
-    maxColumns = max(maxColumns, (int) saveList.auxInput.size());
-    maxColumns = max(maxColumns, (int) saveList.supplyVoltage.size());
-    maxColumns = max(maxColumns, (int) saveList.boardAdc.size());
-    maxColumns = max(maxColumns, (int) saveList.boardDac.size());
+    maxColumns = std::max(maxColumns, (int) saveList.amplifier.size());
+    maxColumns = std::max(maxColumns, (int) saveList.auxInput.size());
+    maxColumns = std::max(maxColumns, (int) saveList.supplyVoltage.size());
+    maxColumns = std::max(maxColumns, (int) saveList.boardAdc.size());
+    maxColumns = std::max(maxColumns, (int) saveList.boardDac.size());
     float* vArray = new float [maxColumns * numSamples];
     uint16_t* uint16Array = new uint16_t [maxColumns * numSamples];
 

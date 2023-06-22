@@ -30,6 +30,8 @@
 #ifndef SAVEMANAGER_H
 #define SAVEMANAGER_H
 
+#include <vector>
+
 #include "waveformfifo.h"
 #include "systemstate.h"
 #include "signalsources.h"
@@ -66,18 +68,18 @@ protected:
     int timeStampOffset;
 
     SignalList saveList;
-    vector<GpuWaveformAddress> amplifierGPUWaveform;
-    vector<GpuWaveformAddress> amplifierLowpassGPUWaveform;
-    vector<GpuWaveformAddress> amplifierHighpassGPUWaveform;
-    vector<float*> dcAmplifierWaveform;
-    vector<uint16_t*> spikeWaveform;
-    vector<uint16_t*> stimFlagsWaveform;
-    vector<uint8_t> posStimAmplitudes;
-    vector<uint8_t> negStimAmplitudes;
-    vector<float*> auxInputWaveform;
-    vector<float*> supplyVoltageWaveform;
-    vector<float*> boardAdcWaveform;
-    vector<float*> boardDacWaveform;
+    std::vector<GpuWaveformAddress> amplifierGPUWaveform;
+    std::vector<GpuWaveformAddress> amplifierLowpassGPUWaveform;
+    std::vector<GpuWaveformAddress> amplifierHighpassGPUWaveform;
+    std::vector<float*> dcAmplifierWaveform;
+    std::vector<uint16_t*> spikeWaveform;
+    std::vector<uint16_t*> stimFlagsWaveform;
+    std::vector<uint8_t> posStimAmplitudes;
+    std::vector<uint8_t> negStimAmplitudes;
+    std::vector<float*> auxInputWaveform;
+    std::vector<float*> supplyVoltageWaveform;
+    std::vector<float*> boardAdcWaveform;
+    std::vector<float*> boardDacWaveform;
     uint16_t* boardDigitalInWaveform;
     uint16_t* boardDigitalOutWaveform;
 

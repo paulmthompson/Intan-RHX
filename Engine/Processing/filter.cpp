@@ -217,7 +217,7 @@ void HighOrderFilter::reset()
 }
 
 
-vector<BiquadFilter> HighOrderFilter::getFilters() const
+std::vector<BiquadFilter> HighOrderFilter::getFilters() const
 {
     return filters;
 }
@@ -287,7 +287,7 @@ BesselLowpassFilter::BesselLowpassFilter(unsigned int order, double fc, double s
         };
         break;
     default:
-        cerr << "BesselLowpassFilter: order is not valid." << '\n';
+        std::cerr << "BesselLowpassFilter: order is not valid." << '\n';
     }
 }
 
@@ -348,7 +348,7 @@ BesselHighpassFilter::BesselHighpassFilter(unsigned int order, double fc, double
         };
         break;
     default:
-        cerr << "BesselHighpassFilter: order is not valid." << '\n';
+        std::cerr << "BesselHighpassFilter: order is not valid." << '\n';
     }
 }
 
@@ -409,7 +409,7 @@ ButterworthLowpassFilter::ButterworthLowpassFilter(unsigned int order, double fc
         };
         break;
     default:
-        cerr << "ButterworthLowpassFilter: order is not valid." << '\n';
+        std::cerr << "ButterworthLowpassFilter: order is not valid." << '\n';
     }
 }
 
@@ -470,6 +470,6 @@ ButterworthHighpassFilter::ButterworthHighpassFilter(unsigned int order, double 
         };
         break;
     default:
-        cerr << "ButterworthHighpassFilter: order is not valid." << '\n';
+        std::cerr << "ButterworthHighpassFilter: order is not valid." << '\n';
     }
 }

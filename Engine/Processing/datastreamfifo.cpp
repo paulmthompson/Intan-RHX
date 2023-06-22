@@ -30,10 +30,9 @@
 
 #include <iostream>
 #include <cstring>
+
 #include "rhxglobals.h"
 #include "datastreamfifo.h"
-
-using namespace std;
 
 // Create a circular buffer for USB data.  If data will be read using a pointer returned from
 // pointerToData(), then a maxReadLength must be defined to allocate extra space beyond the 'end'
@@ -45,7 +44,7 @@ DataStreamFifo::DataStreamFifo(int bufferSize_, int maxReadLength_) :
 {
     int bufferSizeWithExtra = bufferSize + maxReadLength;
     memoryNeededGB = sizeof(uint16_t) * bufferSizeWithExtra / (1024.0 * 1024.0 * 1024.0);
-    cout << "DataStreamFifo: Allocating " << 2 * bufferSizeWithExtra / 1.0e6 << " MBytes for FIFO buffer." << '\n';
+    std::cout << "DataStreamFifo: Allocating " << 2 * bufferSizeWithExtra / 1.0e6 << " MBytes for FIFO buffer." << '\n';
     buffer = nullptr;
 
     memoryAllocated = true;
@@ -53,11 +52,11 @@ DataStreamFifo::DataStreamFifo(int bufferSize_, int maxReadLength_) :
         buffer = new uint16_t [bufferSizeWithExtra];
     } catch (std::bad_alloc&) {
         memoryAllocated = false;
-        cerr << "Error: DataStreamFifo constructor could not allocate " << memoryNeededGB << " GB of memory." << '\n';
+        std::cerr << "Error: DataStreamFifo constructor could not allocate " << memoryNeededGB << " GB of memory." << '\n';
     }
 
     if (!buffer) {
-        cerr << "Error: DataStreamFifo constructor could not allocate " << 2 * bufferSizeWithExtra << " bytes of memory." << '\n';
+        std::cerr << "Error: DataStreamFifo constructor could not allocate " << 2 * bufferSizeWithExtra << " bytes of memory." << '\n';
     }
     resetBuffer();
 }
@@ -87,8 +86,8 @@ bool DataStreamFifo::writeToBuffer(const uint8_t* dataSource, int numWords)
         usedWords.release(numWords);
         return true;
     } else {
-        cerr << "DataStreamFifo: Buffer overrun on request of " << numWords << " words." << '\n';
-        cerr << "   ...only " << freeWords.available() << " words are available." << '\n';
+        std::cerr << "DataStreamFifo: Buffer overrun on request of " << numWords << " words." << '\n';
+        std::cerr << "   ...only " << freeWords.available() << " words are available." << '\n';
         return false;  // Buffer overrun error
     }
 }
@@ -141,7 +140,7 @@ uint16_t* DataStreamFifo::pointerToData(int numWordsBeToRead_)
 {
     numWordsToBeRead = numWordsBeToRead_;
     if (numWordsToBeRead > maxReadLength) {
-        cerr << "DataStreamFifo::pointerToData: numWordsToBeRead exceeds maxReadLength." << '\n';
+        std::cerr << "DataStreamFifo::pointerToData: numWordsToBeRead exceeds maxReadLength." << '\n';
         return nullptr;
     }
     if (!usedWords.tryAcquire(numWordsToBeRead)) {

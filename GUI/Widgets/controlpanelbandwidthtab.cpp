@@ -30,11 +30,12 @@
 
 #include <vector>
 #include <iostream>
+
 #include "rhxregisters.h"
 #include "bandwidthdialog.h"
 #include "controlpanelbandwidthtab.h"
 
-using namespace std;
+;
 
 ControlPanelBandwidthTab::ControlPanelBandwidthTab(ControllerInterface* controllerInterface_, SystemState* state_,
                                                    QWidget *parent) :
@@ -276,7 +277,7 @@ void ControlPanelBandwidthTab::simpleBandwidthDialog()
                                           state->sampleRate->getNumericValue(), this);
     if (bandwidthDialog.exec()) {
         state->desiredLower3dBCutoff->setValueWithLimits(bandwidthDialog.lowFreqLineEdit->text().toDouble());
-        vector<double> dspCutoffFreq = RHXRegisters::getDspFreqTable(state->sampleRate->getNumericValue());
+        std::vector<double> dspCutoffFreq = RHXRegisters::getDspFreqTable(state->sampleRate->getNumericValue());
         state->desiredDspCutoffFreq->setValueWithLimits(dspCutoffFreq[15]);
         for (int i = 1; i < 16; ++i) {
             if (dspCutoffFreq[i] < state->desiredLower3dBCutoff->getValue()) {

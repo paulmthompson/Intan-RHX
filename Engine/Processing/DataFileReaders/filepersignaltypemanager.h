@@ -37,8 +37,6 @@
 #include "datafilemanager.h"
 #include "datafile.h"
 
-using namespace std;
-
 class FilePerSignalTypeManager : public DataFileManager
 {
 public:
