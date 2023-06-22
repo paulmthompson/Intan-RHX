@@ -36,8 +36,6 @@
 #include <QColor>
 #include "scrollbar.h"
 
-using namespace std;
-
 class SignalSources;
 
 // ChannelState, SignalGroupState, and SignalSourcesState are used to save and restore user-configurable aspects of
@@ -58,7 +56,7 @@ struct ChannelState
 struct SignalGroupState
 {
     QString name;
-    vector<ChannelState> signalChannels;
+    std::vector<ChannelState> signalChannels;
 };
 
 struct DisplayColumnState
@@ -72,8 +70,8 @@ struct DisplayColumnState
 
 struct DisplayState
 {
-    vector<DisplayColumnState> columns;
-    vector<SignalGroupState> groups;
+    std::vector<DisplayColumnState> columns;
+    std::vector<SignalGroupState> groups;
 };
 
 
