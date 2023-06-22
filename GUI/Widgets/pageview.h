@@ -36,6 +36,7 @@
 #define SCROLL_CONSTANT 0.05
 
 #include <QtWidgets>
+#include <QtGlobal>
 
 #include "impedancegradient.h"
 #include "spikegradient.h"
@@ -93,7 +94,14 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
     void enterEvent(QEnterEvent *event) override;
+#else
+    void enterEvent(QEvent *event) override;
+#endif
+
+
     void leaveEvent(QEvent *event) override;
 
 private:

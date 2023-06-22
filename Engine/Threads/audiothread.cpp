@@ -28,8 +28,15 @@
 //
 //------------------------------------------------------------------------------
 
-#include <QAudioOutput>
+#include <QtGlobal>
+
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+#include <QAudioDevice>
+#include <QAudioSink>
+#endif
+
 #include <QAudioDeviceInfo>
+
 #include "signalsources.h"
 #include "audiothread.h"
 

@@ -30,6 +30,8 @@
 
 #include "pageview.h"
 
+#include <QtGlobal>
+
 PageView::PageView(SystemState* state_, int pageIndex, ViewMode viewMode_, QWidget *parent) :
     QWidget(parent),
     state(state_),
@@ -587,7 +589,11 @@ void PageView::resizeEvent(QResizeEvent* /* event */)
     update();
 }
 
-void PageView::enterEvent(QEnterEvent* /* event */)
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+void PageView::enterEvent(QEnterEvent *event)
+#else
+void PageView::enterEvent(QEvent *event)
+#endif
 {
     mousePresent = true;
 
