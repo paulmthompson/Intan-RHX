@@ -839,9 +839,9 @@ void DisplayListManager::updateOrderInState(const QString& portName, int numFilt
     // Note: Any function calling this function should also call state->forceUpdate().
 }
 
-vector<bool> DisplayListManager::selectionRecord() const
+std::vector<bool> DisplayListManager::selectionRecord() const
 {
-    vector<bool> record;
+    std::vector<bool> record;
 
     for (int i = 0; i < state->signalSources->numPortGroups(); ++i) {
         SignalGroup* group = state->signalSources->portGroupByIndex(i);
@@ -864,7 +864,7 @@ vector<bool> DisplayListManager::selectionRecord() const
     return record;
 }
 
-bool DisplayListManager::selectionRecordsAreEqual(const vector<bool>& a, const vector<bool>& b) const
+bool DisplayListManager::selectionRecordsAreEqual(const std::vector<bool>& a, const std::vector<bool>& b) const
 {
     if (a.size() != b.size()) return false;
     for (int i = 0; i < (int) a.size(); ++i) {

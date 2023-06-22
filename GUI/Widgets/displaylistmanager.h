@@ -31,10 +31,9 @@
 #ifndef DISPLAYLISTMANAGER_H
 #define DISPLAYLISTMANAGER_H
 
+#include <vector>
 #include "systemstate.h"
 #include "displayedwaveform.h"
-
-using namespace std;
 
 const int MaxNumWaveformsInGroup = 4;
 
@@ -87,8 +86,8 @@ public:
     bool selectNextWaveform() { return selectNextOrPreviousWaveform(true); }
     bool selectPreviousWaveform() { return selectNextOrPreviousWaveform(false); }
 
-    vector<bool> selectionRecord() const;
-    bool selectionRecordsAreEqual(const vector<bool>& a, const vector<bool>& b) const;
+    std::vector<bool> selectionRecord() const;
+    bool selectionRecordsAreEqual(const std::vector<bool>& a, const std::vector<bool>& b) const;
 
     // These functions update the system state intelligently, and automatically trigger a state change if anything changed.
     void updateOrderInState(const QString& portName, int numFiltersDisplayed, bool arrangeByFilter);

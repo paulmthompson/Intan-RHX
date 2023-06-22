@@ -34,7 +34,7 @@
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFile>
-#include <map>
+#include <vector>
 
 #include "rhxglobals.h"
 #include "abstractrhxcontroller.h"
@@ -48,8 +48,6 @@
 #else
     #include "CL/cl.h"
 #endif
-
-using namespace std;
 
 class SignalSources;
 class Channel;
@@ -148,7 +146,7 @@ public:
     int highDPIScaleFactor;  // scale factor for high-DPI monitors (e.g., Retina displays)
     QRect availableScreenResolution;
 
-    vector<ChipType> chipType;  // set when SPI ports are scanned for connected headstages
+    std::vector<ChipType> chipType;  // set when SPI ports are scanned for connected headstages
 
     bool running;  // streaming data from the board
     bool sweeping;  // rewinding or fast-forwarding (but not fast-forwarding in data file playback mode)

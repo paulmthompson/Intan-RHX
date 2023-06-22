@@ -38,7 +38,7 @@
 #include <QColor>
 #include "systemstate.h"
 
-using namespace std;
+//using namespace std;
 
 class SignalGroup;
 

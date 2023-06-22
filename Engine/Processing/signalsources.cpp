@@ -402,8 +402,8 @@ SignalGroup* SignalSources::groupByName(const QString& groupName) const
 // Return a pointer to a SignalChannel with a particular nativeName (e.g., "A-002").
 Channel* SignalSources::channelByName(const QString& nativeName) const
 {
-    string nativeNameStr = nativeName.section('|', 0, 0).toStdString();  // strip off filter name, if present
-    map<string, Channel*>::const_iterator p = channelMap.find(nativeNameStr);
+    std::string nativeNameStr = nativeName.section('|', 0, 0).toStdString();  // strip off filter name, if present
+    std::map<std::string, Channel*>::const_iterator p = channelMap.find(nativeNameStr);
     if (p != channelMap.end()) {
         return p->second;
     }
@@ -411,7 +411,7 @@ Channel* SignalSources::channelByName(const QString& nativeName) const
     return nullptr;
 }
 
-Channel* SignalSources::channelByName(const string& nativeName) const
+Channel* SignalSources::channelByName(const std::string& nativeName) const
 {
     return channelByName(QString::fromStdString(nativeName));
 }
@@ -442,7 +442,7 @@ QString SignalSources::getNativeAndCustomNames(const QString& nativeName) const
     return fullName;
 }
 
-QString SignalSources::getNativeAndCustomNames(const string& nativeName) const
+QString SignalSources::getNativeAndCustomNames(const std::string& nativeName) const
 {
     return getNativeAndCustomNames(QString::fromStdString(nativeName));
 }
@@ -585,7 +585,7 @@ int SignalSources::numChannels(SignalType type) const
 int SignalSources::numUSBAmpChannels() const
 {
     int numAmpDataStreams = 0;
-    for (const string &ampName : amplifierChannelsNameList()) {
+    for (const std::string &ampName : amplifierChannelsNameList()) {
         Channel *channel = channelByName(ampName);
         if (channel->getBoardStream() + 1 > numAmpDataStreams) {
             numAmpDataStreams = channel->getBoardStream() + 1;
@@ -613,7 +613,7 @@ QString SignalSources::singleSelectedAmplifierChannelName() const
 {
     int numSelectedChannels = 0;
     QString singleName;
-    vector<string> namelist = amplifierChannelsNameList();
+    std::vector<std::string> namelist = amplifierChannelsNameList();
     for (auto &name : namelist) {
         QString qName = QString::fromStdString(name);
         Channel *thisChannel = channelByName(qName);
@@ -657,7 +657,7 @@ void SignalSources::getSelectedSignals(QList<Channel*>& selectedSignals) const
 
 QString SignalSources::firstChannelName() const
 {
-    vector<string> namelist = amplifierChannelsNameList();
+    std::vector<std::string> namelist = amplifierChannelsNameList();
     if (amplifierChannelsNameList().size() > 0) {
         return QString::fromStdString(namelist[0]);
     } else {
@@ -665,9 +665,9 @@ QString SignalSources::firstChannelName() const
     }
 }
 
-vector<string> SignalSources::amplifierChannelsNameList() const
+std::vector<std::string> SignalSources::amplifierChannelsNameList() const
 {
-    vector<string> namelist;
+    std::vector<std::string> namelist;
     namelist.resize(numAmplifierChannels());
     int index = 0;
     for (int i = 0; i < (int) portGroups.size(); ++i) {
@@ -681,9 +681,9 @@ vector<string> SignalSources::amplifierChannelsNameList() const
     return namelist;
 }
 
-vector<string> SignalSources::completeChannelsNameList() const
+std::vector<std::string> SignalSources::completeChannelsNameList() const
 {
-    vector<string> namelist;
+    std::vector<std::string> namelist;
     for (int i = 0; i < numGroups(); i++) {
         const SignalGroup* group = groupByIndex(i);
         for (int j = 0; j < group->numChannels(); ++j) {

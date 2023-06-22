@@ -32,6 +32,7 @@
 #define STATEITEM_H
 
 #include <vector>
+#include <string>
 #include <QString>
 #include <map>
 
@@ -39,8 +40,6 @@ class QComboBox;
 class QSpinBox;
 class QDoubleSpinBox;
 class SystemState;
-
-using namespace std;
 
 const QString GlobalLevel = "Global";
 
@@ -61,8 +60,8 @@ enum TypeDependency {
 class StateSingleItem;
 class StateFilenameItem;
 
-typedef map<string, StateSingleItem*> SingleItemList;
-typedef map<string, StateFilenameItem*> FilenameItemList;
+typedef std::map<std::string, StateSingleItem*> SingleItemList;
+typedef std::map<std::string, StateFilenameItem*> FilenameItemList;
 
 class StateItem
 {
@@ -186,7 +185,7 @@ class DiscreteItemList : public StateSingleItem
 {
 public:
     struct DiscreteItem {
-        vector<QString> valueNames;  // e.g. { "1.0", "1" }
+        std::vector<QString> valueNames;  // e.g. { "1.0", "1" }
         QString displayedValueName;  // e.g. "1.0 mV"
         double numericValue;
     };
@@ -217,7 +216,7 @@ public:
     void setupComboBox(QComboBox* comboBox) const;
 
 private:
-    vector<DiscreteItem> items;
+    std::vector<DiscreteItem> items;
     int currentIndex;
 };
 
