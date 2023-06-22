@@ -31,6 +31,8 @@
 #ifndef MINMAX_H
 #define MINMAX_H
 
+#define NOMINMAX
+
 #include <limits>
 
 template <class Type> class MinMax

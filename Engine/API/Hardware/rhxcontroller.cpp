@@ -28,12 +28,15 @@
 //
 //------------------------------------------------------------------------------
 
+#define NOMINMAX
+
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
 #include <thread>
 #include <chrono>
 #include <cmath>
+
 #include "rhxcontroller.h"
 #include "rhxregisters.h"
 
