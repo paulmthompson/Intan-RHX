@@ -36,21 +36,20 @@
 
 #include <QtWidgets>
 #include <deque>
-#include <vector>
 #include <map>
+#include <vector>
+#include <string>
 #include "systemstate.h"
 #include "plotutilities.h"
 #include "waveformfifo.h"
 
-using namespace std;
-
 struct SpikePlotHistory
 {
-    deque<vector<float> > snippets;
-    deque<int> spikeIds;
+    std::deque<std::vector<float> > snippets;
+    std::deque<int> spikeIds;
 
-    deque<vector<float> > snapshotSnippets;
-    deque<int> snapshotSpikeIds;
+    std::deque<std::vector<float> > snapshotSnippets;
+    std::deque<int> snapshotSpikeIds;
 };
 
 
@@ -61,7 +60,7 @@ public:
     explicit SpikePlot(SystemState* state_, QWidget *parent = nullptr);
     ~SpikePlot();
 
-    void setWaveform(const string& waveName);
+    void setWaveform(const std::string& waveName);
     QString getWaveform();
     bool updateWaveforms(WaveformFifo* waveformFifo, int numSamples);
     void clearSpikes();
@@ -94,7 +93,7 @@ private:
     QRect scopeFrame;
     QImage image;
 
-    map<string, SpikePlotHistory*> spikeHistoryMap;
+    std::map<std::string, SpikePlotHistory*> spikeHistoryMap;
 
     const QColor SnapshotColor = QColor(140, 83, 25);
 

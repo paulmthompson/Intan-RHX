@@ -61,7 +61,7 @@ SpikePlot::SpikePlot(SystemState* state_, QWidget *parent) :
 SpikePlot::~SpikePlot()
 {
     if (!spikeHistoryMap.empty()) {
-        map<string, SpikePlotHistory*>::const_iterator it = spikeHistoryMap.begin();
+        std::map<std::string, SpikePlotHistory*>::const_iterator it = spikeHistoryMap.begin();
         while (it != spikeHistoryMap.end()) {
             delete it->second;
             ++it;
@@ -69,7 +69,7 @@ SpikePlot::~SpikePlot()
     }
 }
 
-void SpikePlot::setWaveform(const string& waveName)
+void SpikePlot::setWaveform(const std::string& waveName)
 {
     channel = state->signalSources->channelByName(waveName);
     if (channel) {
@@ -78,7 +78,7 @@ void SpikePlot::setWaveform(const string& waveName)
         state->spikeScopeChannel->setValue("N/A");
     }
 
-    map<string, SpikePlotHistory*>::const_iterator it = spikeHistoryMap.find(waveName);
+    std::map<std::string, SpikePlotHistory*>::const_iterator it = spikeHistoryMap.find(waveName);
     if (it == spikeHistoryMap.end()) {  // If data structure for this waveform does not already exist...
         spikeHistoryMap[waveName] = new SpikePlotHistory;  // ...add new spike history data structure.
         it = spikeHistoryMap.find(waveName);
