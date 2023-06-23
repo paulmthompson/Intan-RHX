@@ -57,6 +57,15 @@ const QString RHS128ch_7310String = "RHS 128ch Stim/Recording Controller (7310)"
 const QString RHD512ch_7310String = "RHD 512ch Recording Controller (7310)";
 const QString RHD1024ch_7310String = "RHD 1024ch Recording Controller (7310)";
 
+/*
+When the Intan-RHX executable is first run, a BoardSelectDialog object is created. This uses a BoardIdentifier to get connected controllers
+and creates a table with them listed. If a user selects one, it creates a ControllerInterface, CommandParser, ControlWindow and
+
+
+
+
+*/
+
 enum UsbVersion {
     USB2,
     USB3,
@@ -71,6 +80,12 @@ struct ControllerInfo {
     BoardMode boardMode;
 };
 
+/*
+BoardIdentifier is used to get connected controllers it also handles the okCFrontPanel interface.
+
+
+
+*/
 class BoardIdentifier
 {
 public:

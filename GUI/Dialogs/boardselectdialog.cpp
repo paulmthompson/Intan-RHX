@@ -29,6 +29,7 @@
 //------------------------------------------------------------------------------
 
 #include <QSettings>
+
 #include "datafilereader.h"
 #include "boardselectdialog.h"
 #include "scrollablemessageboxdialog.h"
@@ -319,6 +320,7 @@ QString BoardIdentifier::opalKellyModelName(int model) const
 }
 
 // Upload bitfile specified by 'filename' to the FPGA, reporting any errors that occur as a QMessageBox.
+
 bool BoardIdentifier::uploadFpgaBitfileQMessageBox(const QString& filename)
 {
     okCFrontPanel::ErrorCode errorCode = dev->ConfigureFPGA(filename.toStdString());
@@ -389,7 +391,10 @@ BoardSelectDialog::BoardSelectDialog(QWidget *parent) :
 
     // Globally disable unused Context Help buttons from windows/dialogs
     // Disable Qt6
-    //QApplication::setAttribute(Qt::AA_DisableWindowContextHelpButton);
+
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+    QApplication::setAttribute(Qt::AA_DisableWindowContextHelpButton);
+#endif
 
     // Initialize Board Identifier.
     boardIdentifier = new BoardIdentifier(this);
