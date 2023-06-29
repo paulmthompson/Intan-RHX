@@ -57,7 +57,7 @@ bool ImpedanceReader::measureImpedances()
     }
 
     bool rhd2164ChipPresent = false;
-    for (int stream = 0; stream < (int) state->chipType.size(); ++stream) {
+    for (int stream = 0; stream < static_cast<int>(state->chipType.size()); ++stream) {
         if (state->chipType[stream] == RHD2164MISOBChip) {
             rhd2164ChipPresent = true;
         }
@@ -113,11 +113,11 @@ bool ImpedanceReader::measureImpedances()
     int numPeriods = round(0.020 * state->actualImpedanceFreq->getValue()); // Test each channel for at least 20 msec...
     if (numPeriods < 5) numPeriods = 5; // ...but always measure across no fewer than 5 complete periods
     double period = state->sampleRate->getNumericValue() / state->actualImpedanceFreq->getValue();
-    int numBlocks = ceil((numPeriods + 2) * period / (double) RHXDataBlock::samplesPerDataBlock(controllerType)); // + 2 periods to give time to settle initially
+    int numBlocks = ceil((numPeriods + 2) * period / static_cast<double>(RHXDataBlock::samplesPerDataBlock(controllerType))); // + 2 periods to give time to settle initially
     if (numBlocks < 2) numBlocks = 2;   // need first block for command to switch channels to take effect
 
 
-     chipRegisters.setDspCutoffFreq(state->desiredDspCutoffFreq->getValue());
+    chipRegisters.setDspCutoffFreq(state->desiredDspCutoffFreq->getValue());
     chipRegisters.setLowerBandwidth(state->desiredLowerBandwidth->getValue(), 0);
     chipRegisters.setUpperBandwidth(state->desiredUpperBandwidth->getValue());
     chipRegisters.enableDsp(state->dspEnabled->getValue());
@@ -442,23 +442,23 @@ ComplexPolar ImpedanceReader::measureComplexAmplitude(const std::deque<RHXDataBl
                                                       double sampleRate, double frequency, int numPeriods, QDataStream *outStream) const
 {
     int samplesPerDataBlock = RHXDataBlock::samplesPerDataBlock(state->getControllerTypeEnum());
-    int numBlocks = (int) dataQueue.size();
+    int numBlocks = static_cast<int>(dataQueue.size());
 
     // Copy waveform data from data blocks.
     std::vector<double> waveform(samplesPerDataBlock * numBlocks);
     int index = 0;
     for (int block = 0; block < numBlocks; ++block) {
         for (int t = 0; t < samplesPerDataBlock; ++t) {
-            waveform[index++] = 0.195 * (double)(dataQueue[block]->amplifierData(stream, chipChannel, t) - 32768);
+            waveform[index++] = 0.195 * static_cast<double>(dataQueue[block]->amplifierData(stream, chipChannel, t) - 32768);
             if (outStream) {
-                *outStream << 0.195 * (double)(dataQueue[block]->amplifierData(stream, chipChannel, t) - 32768);
+                *outStream << 0.195 * static_cast<double>(dataQueue[block]->amplifierData(stream, chipChannel, t) - 32768);
             }
         }
     }
 
     if (state->notchFreq->getValue().toLower() != "none") {
         double notchFreq = state->notchFreq->getNumericValue();
-        applyNotchFilter(waveform, notchFreq, (double) NotchBandwidth, sampleRate);
+        applyNotchFilter(waveform, notchFreq, static_cast<double>(NotchBandwidth), sampleRate);
     }
 
     int period = round(sampleRate / frequency);
@@ -483,7 +483,7 @@ void ImpedanceReader::applyNotchFilter(std::vector<double> &waveform, double fNo
     double b2 = b0;
     double a1 = b1;
     double a2 = d * d;
-    int length = (int) waveform.size();
+    int length = static_cast<int>(waveform.size());
 
     double prevPrevIn = waveform[0];
     double prevIn = waveform[1];
@@ -507,7 +507,7 @@ ComplexPolar ImpedanceReader::amplitudeOfFreqComponent(const std::vector<double>
         meanI += waveform[t] * cos(K * t);
         meanQ += waveform[t] * -1.0 * sin(K * t);
     }
-    double length = (double)(endIndex - startIndex + 1);
+    double length = static_cast<double>(endIndex - startIndex + 1);
     meanI /= length;
     meanQ /= length;
 
