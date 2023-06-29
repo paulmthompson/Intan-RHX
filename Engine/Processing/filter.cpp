@@ -136,7 +136,7 @@ float BiquadFilter::getB2() const
 FirstOrderLowpassFilter::FirstOrderLowpassFilter(double fc, double sampleRate)
 {
     isDcGainZero = false;
-    float k = (float) exp(-TwoPi * fc / sampleRate);
+    float k = static_cast<float>(exp(-TwoPi * fc / sampleRate));
     b0 = 1.0F - k;
     b1 = 0.0F;
     b2 = 0.0F;
@@ -148,7 +148,7 @@ FirstOrderLowpassFilter::FirstOrderLowpassFilter(double fc, double sampleRate)
 FirstOrderHighpassFilter::FirstOrderHighpassFilter(double fc, double sampleRate)
 {
     isDcGainZero = true;
-    float k = (float) exp(-TwoPi * fc / sampleRate);
+    float k = static_cast<float>(exp(-TwoPi * fc / sampleRate));
     b0 = 1.0F;
     b1 = -1.0F;
     b2 = 0.0F;
@@ -162,11 +162,11 @@ SecondOrderLowpassFilter::SecondOrderLowpassFilter(double fc, double q, double s
     isDcGainZero = false;
     double k = tan(Pi * fc / sampleRate);
     double norm = 1.0 / (1.0 + k / q + k * k);
-    b0 = (float)(k * k * norm);
-    b1 = (float)(2.0 * k * k * norm);
+    b0 = static_cast<float>(k * k * norm);
+    b1 = static_cast<float>(2.0 * k * k * norm);
     b2 = b0;
-    a1 = (float)(2.0 * (k * k - 1.0) * norm);
-    a2 = (float)((1.0 - k / q + k * k) * norm);
+    a1 = static_cast<float>(2.0 * (k * k - 1.0) * norm);
+    a2 = static_cast<float>((1.0 - k / q + k * k) * norm);
 }
 
 
@@ -175,11 +175,11 @@ SecondOrderHighpassFilter::SecondOrderHighpassFilter(double fc, double q, double
     isDcGainZero = true;
     double k = tan(Pi * fc / sampleRate);
     double norm = 1.0 / (1.0 + k / q + k * k);
-    b0 = (float)norm;
-    b1 = (float)(-2.0 * norm);
+    b0 = static_cast<float>(norm);
+    b1 = static_cast<float>(-2.0 * norm);
     b2 = b0;
-    a1 = (float)(2.0 * (k * k - 1.0) * norm);
-    a2 = (float)((1.0 - k / q + k * k) * norm);
+    a1 = static_cast<float>(2.0 * (k * k - 1.0) * norm);
+    a2 = static_cast<float>((1.0 - k / q + k * k) * norm);
 }
 
 
@@ -188,11 +188,11 @@ SecondOrderNotchFilter::SecondOrderNotchFilter(double fNotch, double bandwidth, 
     isDcGainZero = false;
     double d = exp(-1.0 * Pi * bandwidth / sampleRate);
     double b = (1.0 + d * d) * cos(TwoPi * fNotch / sampleRate);
-    b0 = (float)((1.0 + d * d) / 2.0);
-    b1 = (float)(-b);
+    b0 = static_cast<float>((1.0 + d * d) / 2.0);
+    b1 = static_cast<float>(-b);
     b2 = b0;
     a1 = b1;
-    a2 = (float)(d * d);
+    a2 = static_cast<float>(d * d);
 }
 
 
