@@ -391,7 +391,6 @@ BoardSelectDialog::BoardSelectDialog(QWidget *parent) :
 
     // Globally disable unused Context Help buttons from windows/dialogs
     // Disable Qt6
-
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
     QApplication::setAttribute(Qt::AA_DisableWindowContextHelpButton);
 #endif

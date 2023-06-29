@@ -82,6 +82,9 @@ AbstractRHXController::~AbstractRHXController()
 // Initialize Rhythm FPGA to default starting values.
 void AbstractRHXController::initialize()
 {
+    double defaultCableLengthFeet = 3.0;
+    int midrangeDacValueCounts = 32768;
+
     resetBoard();
     if (type == ControllerStimRecord) {
         enableAuxCommandsOnAllStreams();
@@ -105,15 +108,15 @@ void AbstractRHXController::initialize()
     setContinuousRunMode(true);
     setMaxTimeStep(4294967295);  // 4294967295 == (2^32 - 1)
 
-    setCableLengthFeet(PortA, 3.0);  // Assume 3 ft cables.
-    setCableLengthFeet(PortB, 3.0);
-    setCableLengthFeet(PortC, 3.0);
-    setCableLengthFeet(PortD, 3.0);
+    setCableLengthFeet(PortA, defaultCableLengthFeet);  // Assume 3 ft cables.
+    setCableLengthFeet(PortB, defaultCableLengthFeet);
+    setCableLengthFeet(PortC, defaultCableLengthFeet);
+    setCableLengthFeet(PortD, defaultCableLengthFeet);
     if (type == ControllerRecordUSB3) {
-        setCableLengthFeet(PortE, 3.0);
-        setCableLengthFeet(PortF, 3.0);
-        setCableLengthFeet(PortG, 3.0);
-        setCableLengthFeet(PortH, 3.0);
+        setCableLengthFeet(PortE, defaultCableLengthFeet);
+        setCableLengthFeet(PortF, defaultCableLengthFeet);
+        setCableLengthFeet(PortG, defaultCableLengthFeet);
+        setCableLengthFeet(PortH, defaultCableLengthFeet);
     }
 
     setDspSettle(false);
@@ -169,7 +172,7 @@ void AbstractRHXController::initialize()
     selectDacDataChannel(6, 0);
     selectDacDataChannel(7, 0);
 
-    setDacManual(32768);    // midrange value = 0 V
+    setDacManual(midrangeDacValueCounts);    // midrange value = 0 V
 
     setDacGain(0);
     setAudioNoiseSuppress(0);
@@ -180,14 +183,14 @@ void AbstractRHXController::initialize()
         setExternalFastSettleChannel(0);
     }
 
-    setDacThreshold(0, 32768, true);
-    setDacThreshold(1, 32768, true);
-    setDacThreshold(2, 32768, true);
-    setDacThreshold(3, 32768, true);
-    setDacThreshold(4, 32768, true);
-    setDacThreshold(5, 32768, true);
-    setDacThreshold(6, 32768, true);
-    setDacThreshold(7, 32768, true);
+    setDacThreshold(0, midrangeDacValueCounts, true);
+    setDacThreshold(1, midrangeDacValueCounts, true);
+    setDacThreshold(2, midrangeDacValueCounts, true);
+    setDacThreshold(3, midrangeDacValueCounts, true);
+    setDacThreshold(4, midrangeDacValueCounts, true);
+    setDacThreshold(5, midrangeDacValueCounts, true);
+    setDacThreshold(6, midrangeDacValueCounts, true);
+    setDacThreshold(7, midrangeDacValueCounts, true);
 
     if (type == ControllerStimRecord || type == ControllerRecordUSB3) {
         enableDacReref(false);
