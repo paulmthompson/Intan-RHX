@@ -159,6 +159,23 @@ QStringList Channel::getTcpBandNames() const
     return tcpBandNames;
 }
 
+/*
+PMT_COMMENT
+SignalType is an enum defined in Engine/API/Hardware/rhxglobals.h with the following structure:
+enum SignalType {
+    AmplifierSignal = 0,
+    AuxInputSignal = 1,
+    SupplyVoltageSignal = 2,
+    BoardAdcSignal = 3,
+    BoardDacSignal = 4,
+    BoardDigitalInSignal = 5,
+    BoardDigitalOutSignal = 6
+};
+I think that these may only be used for reading .rhd and .rhs data files.
+Lots of C style casts here need to be cleaned up, but maybe these can be dropped all together depending on what they are doing.
+Rather than going back and forth with Enums here, could strong typing be used for better reliability?
+*/
+
 int Channel::convertToRHDSignalType(SignalType type)  // Adjustment to maintain compatibility with RHD format
 {
     if (((int) type) > ((int) BoardAdcSignal)) {
