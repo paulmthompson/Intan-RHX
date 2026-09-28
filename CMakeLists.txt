@@ -38,6 +38,7 @@ set(Sources
         Engine/API/Hardware/rhxcontroller.cpp 
         Engine/API/Hardware/rhxdatablock.cpp 
         Engine/API/Hardware/rhxregisters.cpp 
+        Engine/API/Hardware/okFrontPanelDLL.cpp 
         Engine/Processing/DataFileReaders/datafile.cpp 
         Engine/Processing/DataFileReaders/datafilemanager.cpp 
         Engine/Processing/DataFileReaders/datafilereader.cpp 
@@ -155,6 +156,7 @@ set(Headers
         Engine/API/Hardware/rhxdatablock.h 
         Engine/API/Hardware/rhxglobals.h 
         Engine/API/Hardware/rhxregisters.h 
+        Engine/API/Hardware/okFrontPanelDLL.h 
         Engine/Processing/DataFileReaders/datafile.h 
         Engine/Processing/DataFileReaders/datafilemanager.h 
         Engine/Processing/DataFileReaders/datafilereader.h 
@@ -315,7 +317,33 @@ target_link_libraries(IntanRHX PRIVATE Qt${QT_VERSION_MAJOR}::OpenGL)
 target_link_libraries(IntanRHX PRIVATE Qt${QT_VERSION_MAJOR}::UiTools)
 target_link_libraries(IntanRHX PRIVATE Qt${QT_VERSION_MAJOR}::Xml)
 
-target_link_libraries(IntanRHX PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/libraries/Linux/libokFrontPanel.so")
+# Opal Kelly FrontPanel: Windows loads okFrontPanel.dll at runtime (okFrontPanel_TryLoadLib).
+# Linux links libokFrontPanel.so; place the .so in libraries/Linux/ (not in git — from Opal Kelly / Intan drivers).
+if(WIN32)
+    set(_OKFP_DLL "${CMAKE_CURRENT_SOURCE_DIR}/libraries/Windows/okFrontPanel.dll")
+    if(EXISTS "${_OKFP_DLL}")
+        add_custom_command(TARGET IntanRHX POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_OKFP_DLL}" "$<TARGET_FILE_DIR:IntanRHX>"
+            COMMENT "Copy okFrontPanel.dll next to IntanRHX.exe")
+    else()
+        message(STATUS "okFrontPanel.dll not found at libraries/Windows/okFrontPanel.dll — copy it beside IntanRHX.exe before running (see README.md)")
+    endif()
+elseif(APPLE)
+    set(_OKFP_DYLIB "${CMAKE_CURRENT_SOURCE_DIR}/libraries/Mac/libokFrontPanel.dylib")
+    if(EXISTS "${_OKFP_DYLIB}")
+        target_link_libraries(IntanRHX PRIVATE "${_OKFP_DYLIB}")
+    else()
+        message(STATUS "libokFrontPanel.dylib not found under libraries/Mac/ — place in IntanRHX.app Frameworks at runtime (see README.md)")
+    endif()
+else()
+    set(_OKFP_SO "${CMAKE_CURRENT_SOURCE_DIR}/libraries/Linux/libokFrontPanel.so")
+    if(EXISTS "${_OKFP_SO}")
+        target_link_libraries(IntanRHX PRIVATE "${_OKFP_SO}")
+    else()
+        message(WARNING "libokFrontPanel.so missing at libraries/Linux/libokFrontPanel.so — Linux USB will not work until it is installed")
+    endif()
+endif()
+
 target_link_libraries(IntanRHX PRIVATE OpenCL::OpenCL)
 
 target_include_directories(IntanRHX PRIVATE

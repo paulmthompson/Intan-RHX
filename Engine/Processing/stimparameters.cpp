@@ -38,6 +38,10 @@
 
 #include "stimparameters.h"
 
+#include "systemstate.h"
+
+#include <QStringList>
+
 namespace {
 
 QString stimXmlParameterName(const QString& baseName, int programIndex)
@@ -243,7 +247,7 @@ StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, Sign
     }
 }
 
-void StimParameters::populateParametersFrom(StimParameters *originalStimParameters)
+void StimParameters::populateParametersFrom(const StimParameters *originalStimParameters)
 {
     if (stimShape)
         stimShape->setIndex(originalStimParameters->stimShape->getIndex());

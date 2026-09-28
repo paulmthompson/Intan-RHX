@@ -89,7 +89,7 @@ class StimParameters
 public:
     StimParameters(SingleItemList &hList_, SystemState *state_, SignalType signalType_, int programIndex = 0);
 
-    void populateParametersFrom(StimParameters* originalStimParameters);
+    void populateParametersFrom(const StimParameters* originalStimParameters);
     SignalType getSignalType() const { return signalType; }
     int getProgramIndex() const { return _programIndex; }
 

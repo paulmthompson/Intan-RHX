@@ -36,10 +36,13 @@
  * @details Maintenance: see docs/stim-sequencer-maintenance.md
  */
 
-#include <QtWidgets>
+#include "stimparamdialog.h"
+
+#include "ampstimprograms.hpp"
 #include "rhxregisters.h"
 #include "spinboxtooltips.hpp"
-#include "stimparamdialog.h"
+
+#include <QtWidgets>
 
 StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget *parent) :
     QDialog(parent),
