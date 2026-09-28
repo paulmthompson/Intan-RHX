@@ -1,0 +1,3 @@
+[submodule "FPGA-bitfiles/neuro-fpga"]
+	path = FPGA-bitfiles/neuro-fpga
+	url = https://github.com/paulmthompson/neuro-fpga.git
