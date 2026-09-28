@@ -41,6 +41,17 @@ class AbstractFigure : public QWidget
 {
     Q_OBJECT
 
+public:
+    /**
+     * @brief Point the figure at a (possibly different) stimulation program.
+     */
+    void setStimParameters(StimParameters* stimParameters);
+
+    /**
+     * @brief Refresh figure-local state from @c parameters (override in subclasses).
+     */
+    virtual void syncFromParameters();
+
 protected:
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent* event) override;

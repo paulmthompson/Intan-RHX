@@ -117,7 +117,7 @@ public:
      * @see setDigitalOutSequenceParameters
      * @see AbstractRHXController::programStimReg
      */
-    void setStimSequenceParameters(Channel* ampChannel);
+    void setStimSequenceParameters(Channel* ampChannel, StimParameters* parameters, int stimProgramBank = 0);
 
     /**
      * @brief Upload board-DAC stim sequencer program from channel StimParameters.

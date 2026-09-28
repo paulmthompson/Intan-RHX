@@ -66,6 +66,7 @@ set(Sources
         Engine/Processing/softwarereferenceprocessor.cpp 
         Engine/Processing/stateitem.cpp 
         Engine/Processing/stimparameters.cpp 
+        Engine/Processing/ampstimprograms.cpp
         Engine/Processing/stimparametersclipboard.cpp 
         Engine/Processing/systemstate.cpp 
         Engine/Processing/tcpcommunicator.cpp 

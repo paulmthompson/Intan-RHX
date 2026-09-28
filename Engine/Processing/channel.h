@@ -34,11 +34,13 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <memory>
 
 #include <QString>
 #include <QColor>
 #include "systemstate.h"
 
+class AmpStimPrograms;
 class SignalGroup;
 
 class Channel
@@ -115,11 +117,18 @@ public:
     bool getOutputToTcpStim() const { return outputToTcpStim->getValue(); }
     void setOutputToTcpStim(bool output) { outputToTcpStim->setValue(output); }
 
+    /**
+     * @brief Amp-channel stimulation programs (nullptr for non-amplifier channels).
+     */
+    AmpStimPrograms* ampStimPrograms() { return _ampStimPrograms.get(); }
+    const AmpStimPrograms* ampStimPrograms() const { return _ampStimPrograms.get(); }
+
     StimParameters* stimParameters;
 
     SingleItemList channelItems;
 
 private:
+    std::unique_ptr<AmpStimPrograms> _ampStimPrograms;
     SystemState* state;
     SignalGroup *signalGroup;
     SignalType signalType;

@@ -38,7 +38,19 @@
 
 #include "stimparameters.h"
 
-StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, SignalType signalType_) :
+namespace {
+
+QString stimXmlParameterName(const QString& baseName, int programIndex)
+{
+    if (programIndex == 0) {
+        return baseName;
+    }
+    return QString("Program%1_%2").arg(programIndex).arg(baseName);
+}
+
+} // namespace
+
+StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, SignalType signalType_, int programIndex_) :
     stimShape(nullptr),
     stimPolarity(nullptr),
     triggerSource(nullptr),
@@ -62,22 +74,24 @@ StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, Sign
     postStimAmpSettle(nullptr),
     postStimChargeRecovOn(nullptr),
     postStimChargeRecovOff(nullptr),
-    signalType(signalType_)
+    signalType(signalType_),
+    _programIndex(programIndex_),
+    _state(state_)
 {
     if (signalType == AmplifierSignal) {
 
-        stimShape = new DiscreteItemList("Shape", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        stimShape = new DiscreteItemList(stimXmlParameterName("Shape", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         stimShape->addItem("Biphasic", "Biphasic");
         stimShape->addItem("BiphasicWithInterphaseDelay", "BiphasicWithInterphaseDelay");
         stimShape->addItem("Triphasic", "Triphasic");
         stimShape->setValue("Biphasic");
 
-        stimPolarity = new DiscreteItemList("Polarity", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        stimPolarity = new DiscreteItemList(stimXmlParameterName("Polarity", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         stimPolarity->addItem("NegativeFirst", "NegativeFirst");
         stimPolarity->addItem("PositiveFirst", "PositiveFirst");
         stimPolarity->setValue("NegativeFirst");
 
-        triggerSource = new DiscreteItemList("Source", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        triggerSource = new DiscreteItemList(stimXmlParameterName("Source", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         for (int i = 0; i < 16; ++i) {
             QString channelName = "DigitalIn" + QString("%1").arg(i + 1, 2, 10, QChar('0'));
             triggerSource->addItem(channelName, channelName);
@@ -92,57 +106,57 @@ StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, Sign
         }
         triggerSource->setValue("DigitalIn01");
 
-        triggerEdgeOrLevel = new DiscreteItemList("TriggerEdgeOrLevel", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        triggerEdgeOrLevel = new DiscreteItemList(stimXmlParameterName("TriggerEdgeOrLevel", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         triggerEdgeOrLevel->addItem("Edge", "Edge");
         triggerEdgeOrLevel->addItem("Level", "Level");
         triggerEdgeOrLevel->setValue("Edge");
 
-        triggerHighOrLow = new DiscreteItemList("TriggerHighOrLow", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        triggerHighOrLow = new DiscreteItemList(stimXmlParameterName("TriggerHighOrLow", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         triggerHighOrLow->addItem("High", "High");
         triggerHighOrLow->addItem("Low", "Low");
         triggerHighOrLow->setValue("High");
 
-        pulseOrTrain = new DiscreteItemList("PulseOrTrain", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        pulseOrTrain = new DiscreteItemList(stimXmlParameterName("PulseOrTrain", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         pulseOrTrain->addItem("SinglePulse", "SinglePulse");
         pulseOrTrain->addItem("PulseTrain", "PulseTrain");
         pulseOrTrain->setValue("SinglePulse");
 
-        enabled = new BooleanItem("StimEnabled", hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
-        maintainAmpSettle = new BooleanItem("MaintainAmpSettle", hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
-        enableAmpSettle = new BooleanItem("EnableAmpSettle", hList_, state_, true, XMLGroupStimParameters, TypeDependencyStim);
-        enableChargeRecovery = new BooleanItem("EnableChargeRecovery", hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
+        enabled = new BooleanItem(stimXmlParameterName("StimEnabled", programIndex_), hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
+        maintainAmpSettle = new BooleanItem(stimXmlParameterName("MaintainAmpSettle", programIndex_), hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
+        enableAmpSettle = new BooleanItem(stimXmlParameterName("EnableAmpSettle", programIndex_), hList_, state_, true, XMLGroupStimParameters, TypeDependencyStim);
+        enableChargeRecovery = new BooleanItem(stimXmlParameterName("EnableChargeRecovery", programIndex_), hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
 
         double const MAXIMUM_DURATION = 1.0e7; // 10 s is 1e7 us
 
-        firstPhaseDuration = new DoubleRangeItem("FirstPhaseDurationMicroseconds", hList_, state_, 0.0, MAXIMUM_DURATION, 100.0, XMLGroupStimParameters, TypeDependencyStim);
-        secondPhaseDuration = new DoubleRangeItem("SecondPhaseDurationMicroseconds", hList_, state_, 0.0, MAXIMUM_DURATION, 100.0, XMLGroupStimParameters, TypeDependencyStim);
-        interphaseDelay = new DoubleRangeItem("InterphaseDelayMicroseconds", hList_, state_, 0.0, MAXIMUM_DURATION, 100.0, XMLGroupStimParameters, TypeDependencyStim);
-        firstPhaseAmplitude = new DoubleRangeItem("FirstPhaseAmplitudeMicroAmps", hList_, state_, 0.0, 2550.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
-        secondPhaseAmplitude = new DoubleRangeItem("SecondPhaseAmplitudeMicroAmps", hList_, state_, 0.0, 2550.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
-        postTriggerDelay = new DoubleRangeItem("PostTriggerDelayMicroseconds", hList_, state_, 0.0, MAXIMUM_DURATION, 0.0, XMLGroupStimParameters, TypeDependencyStim);
-        pulseTrainPeriod = new DoubleRangeItem("PulseTrainPeriodMicroseconds", hList_, state_, 0.0, 1000000.0, 10000.0, XMLGroupStimParameters, TypeDependencyStim);
-        refractoryPeriod = new DoubleRangeItem("RefractoryPeriodMicroseconds", hList_, state_, 0.0, 1000000.0, 1000.0, XMLGroupStimParameters, TypeDependencyStim);
-        preStimAmpSettle = new DoubleRangeItem("PreStimAmpSettleMicroseconds", hList_, state_, 0.0, 500000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
-        postStimAmpSettle = new DoubleRangeItem("PostStimAmpSettleMicroseconds", hList_, state_, 0.0, 500000.0, 1000.0, XMLGroupStimParameters, TypeDependencyStim);
-        postStimChargeRecovOn = new DoubleRangeItem("PostStimChargeRecovOnMicroseconds", hList_, state_, 0.0, 1000000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
-        postStimChargeRecovOff = new DoubleRangeItem("PostStimChargeRecovOffMicroseconds", hList_, state_, 0.0, 1000000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
-        numberOfStimPulses = new IntRangeItem("NumberOfStimPulses", hList_, state_, 0, 256, 2, XMLGroupStimParameters, TypeDependencyStim);
+        firstPhaseDuration = new DoubleRangeItem(stimXmlParameterName("FirstPhaseDurationMicroseconds", programIndex_), hList_, state_, 0.0, MAXIMUM_DURATION, 100.0, XMLGroupStimParameters, TypeDependencyStim);
+        secondPhaseDuration = new DoubleRangeItem(stimXmlParameterName("SecondPhaseDurationMicroseconds", programIndex_), hList_, state_, 0.0, MAXIMUM_DURATION, 100.0, XMLGroupStimParameters, TypeDependencyStim);
+        interphaseDelay = new DoubleRangeItem(stimXmlParameterName("InterphaseDelayMicroseconds", programIndex_), hList_, state_, 0.0, MAXIMUM_DURATION, 100.0, XMLGroupStimParameters, TypeDependencyStim);
+        firstPhaseAmplitude = new DoubleRangeItem(stimXmlParameterName("FirstPhaseAmplitudeMicroAmps", programIndex_), hList_, state_, 0.0, 2550.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
+        secondPhaseAmplitude = new DoubleRangeItem(stimXmlParameterName("SecondPhaseAmplitudeMicroAmps", programIndex_), hList_, state_, 0.0, 2550.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
+        postTriggerDelay = new DoubleRangeItem(stimXmlParameterName("PostTriggerDelayMicroseconds", programIndex_), hList_, state_, 0.0, MAXIMUM_DURATION, 0.0, XMLGroupStimParameters, TypeDependencyStim);
+        pulseTrainPeriod = new DoubleRangeItem(stimXmlParameterName("PulseTrainPeriodMicroseconds", programIndex_), hList_, state_, 0.0, 1000000.0, 10000.0, XMLGroupStimParameters, TypeDependencyStim);
+        refractoryPeriod = new DoubleRangeItem(stimXmlParameterName("RefractoryPeriodMicroseconds", programIndex_), hList_, state_, 0.0, 1000000.0, 1000.0, XMLGroupStimParameters, TypeDependencyStim);
+        preStimAmpSettle = new DoubleRangeItem(stimXmlParameterName("PreStimAmpSettleMicroseconds", programIndex_), hList_, state_, 0.0, 500000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
+        postStimAmpSettle = new DoubleRangeItem(stimXmlParameterName("PostStimAmpSettleMicroseconds", programIndex_), hList_, state_, 0.0, 500000.0, 1000.0, XMLGroupStimParameters, TypeDependencyStim);
+        postStimChargeRecovOn = new DoubleRangeItem(stimXmlParameterName("PostStimChargeRecovOnMicroseconds", programIndex_), hList_, state_, 0.0, 1000000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
+        postStimChargeRecovOff = new DoubleRangeItem(stimXmlParameterName("PostStimChargeRecovOffMicroseconds", programIndex_), hList_, state_, 0.0, 1000000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
+        numberOfStimPulses = new IntRangeItem(stimXmlParameterName("NumberOfStimPulses", programIndex_), hList_, state_, 0, 256, 2, XMLGroupStimParameters, TypeDependencyStim);
 
     } else if (signalType == BoardDacSignal) {
 
-        stimShape = new DiscreteItemList("Shape", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        stimShape = new DiscreteItemList(stimXmlParameterName("Shape", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         stimShape->addItem("Biphasic", "Biphasic");
         stimShape->addItem("BiphasicWithInterphaseDelay", "BiphasicWithInterphaseDelay");
         stimShape->addItem("Triphasic", "Triphasic");
         stimShape->addItem("Monophasic", "Monophasic");
         stimShape->setValue("Biphasic");
 
-        stimPolarity = new DiscreteItemList("Polarity", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        stimPolarity = new DiscreteItemList(stimXmlParameterName("Polarity", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         stimPolarity->addItem("NegativeFirst", "NegativeFirst");
         stimPolarity->addItem("PositiveFirst", "PositiveFirst");
         stimPolarity->setValue("NegativeFirst");
 
-        triggerSource = new DiscreteItemList("Source", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        triggerSource = new DiscreteItemList(stimXmlParameterName("Source", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         for (int i = 0; i < 16; ++i) {
             QString channelName = "DigitalIn" + QString("%1").arg(i + 1, 2, 10, QChar('0'));
             triggerSource->addItem(channelName, channelName);
@@ -157,38 +171,38 @@ StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, Sign
         }
         triggerSource->setValue("DigitalIn01");
 
-        triggerEdgeOrLevel = new DiscreteItemList("TriggerEdgeOrLevel", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        triggerEdgeOrLevel = new DiscreteItemList(stimXmlParameterName("TriggerEdgeOrLevel", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         triggerEdgeOrLevel->addItem("Edge", "Edge");
         triggerEdgeOrLevel->addItem("Level", "Level");
         triggerEdgeOrLevel->setValue("Edge");
 
-        triggerHighOrLow = new DiscreteItemList("TriggerHighOrLow", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        triggerHighOrLow = new DiscreteItemList(stimXmlParameterName("TriggerHighOrLow", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         triggerHighOrLow->addItem("High", "High");
         triggerHighOrLow->addItem("Low", "Low");
         triggerHighOrLow->setValue("High");
 
-        pulseOrTrain = new DiscreteItemList("PulseOrTrain", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        pulseOrTrain = new DiscreteItemList(stimXmlParameterName("PulseOrTrain", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         pulseOrTrain->addItem("SinglePulse", "SinglePulse");
         pulseOrTrain->addItem("PulseTrain", "PulseTrain");
         pulseOrTrain->setValue("SinglePulse");
 
-        enabled = new BooleanItem("StimEnabled", hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
+        enabled = new BooleanItem(stimXmlParameterName("StimEnabled", programIndex_), hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
 
-        firstPhaseDuration = new DoubleRangeItem("FirstPhaseDurationMicroseconds", hList_, state_, 0.0, 50000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
-        secondPhaseDuration = new DoubleRangeItem("SecondPhaseDurationMicroseconds", hList_, state_, 0.0, 50000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
-        interphaseDelay = new DoubleRangeItem("InterphaseDelayMicroseconds", hList_, state_, 0.0, 5000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
-        firstPhaseAmplitude = new DoubleRangeItem("FirstPhaseAmplitudeVolts", hList_, state_, 0.0, 10.24, 0.0, XMLGroupStimParameters, TypeDependencyStim);
-        secondPhaseAmplitude = new DoubleRangeItem("SecondPhaseAmplitudeVolts", hList_, state_, 0.0, 10.24, 0.0, XMLGroupStimParameters, TypeDependencyStim);
-        baselineVoltage = new DoubleRangeItem("BaselineVoltageVolts", hList_, state_, -10.24, 10.24, 0.0, XMLGroupStimParameters, TypeDependencyStim);
-        postTriggerDelay = new DoubleRangeItem("PostTriggerDelayMicroseconds", hList_, state_, 0.0, 500000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
-        pulseTrainPeriod = new DoubleRangeItem("PulseTrainPeriodMicroseconds", hList_, state_, 0.0, 1000000.0, 10000.0, XMLGroupStimParameters, TypeDependencyStim);
-        refractoryPeriod = new DoubleRangeItem("RefractoryPeriodMicroseconds", hList_, state_, 0.0, 1000000.0, 1000.0, XMLGroupStimParameters, TypeDependencyStim);
+        firstPhaseDuration = new DoubleRangeItem(stimXmlParameterName("FirstPhaseDurationMicroseconds", programIndex_), hList_, state_, 0.0, 50000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
+        secondPhaseDuration = new DoubleRangeItem(stimXmlParameterName("SecondPhaseDurationMicroseconds", programIndex_), hList_, state_, 0.0, 50000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
+        interphaseDelay = new DoubleRangeItem(stimXmlParameterName("InterphaseDelayMicroseconds", programIndex_), hList_, state_, 0.0, 5000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
+        firstPhaseAmplitude = new DoubleRangeItem(stimXmlParameterName("FirstPhaseAmplitudeVolts", programIndex_), hList_, state_, 0.0, 10.24, 0.0, XMLGroupStimParameters, TypeDependencyStim);
+        secondPhaseAmplitude = new DoubleRangeItem(stimXmlParameterName("SecondPhaseAmplitudeVolts", programIndex_), hList_, state_, 0.0, 10.24, 0.0, XMLGroupStimParameters, TypeDependencyStim);
+        baselineVoltage = new DoubleRangeItem(stimXmlParameterName("BaselineVoltageVolts", programIndex_), hList_, state_, -10.24, 10.24, 0.0, XMLGroupStimParameters, TypeDependencyStim);
+        postTriggerDelay = new DoubleRangeItem(stimXmlParameterName("PostTriggerDelayMicroseconds", programIndex_), hList_, state_, 0.0, 500000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
+        pulseTrainPeriod = new DoubleRangeItem(stimXmlParameterName("PulseTrainPeriodMicroseconds", programIndex_), hList_, state_, 0.0, 1000000.0, 10000.0, XMLGroupStimParameters, TypeDependencyStim);
+        refractoryPeriod = new DoubleRangeItem(stimXmlParameterName("RefractoryPeriodMicroseconds", programIndex_), hList_, state_, 0.0, 1000000.0, 1000.0, XMLGroupStimParameters, TypeDependencyStim);
 
-        numberOfStimPulses = new IntRangeItem("NumberOfStimPulses", hList_, state_, 0, 256, 2, XMLGroupStimParameters, TypeDependencyStim);
+        numberOfStimPulses = new IntRangeItem(stimXmlParameterName("NumberOfStimPulses", programIndex_), hList_, state_, 0, 256, 2, XMLGroupStimParameters, TypeDependencyStim);
 
     } else {
 
-        triggerSource = new DiscreteItemList("Source", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        triggerSource = new DiscreteItemList(stimXmlParameterName("Source", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         for (int i = 0; i < 16; ++i) {
             QString channelName = "DigitalIn" + QString("%1").arg(i + 1, 2, 10, QChar('0'));
             triggerSource->addItem(channelName, channelName);
@@ -203,29 +217,29 @@ StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, Sign
         }
         triggerSource->setValue("DigitalIn01");
 
-        triggerEdgeOrLevel = new DiscreteItemList("TriggerEdgeOrLevel", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        triggerEdgeOrLevel = new DiscreteItemList(stimXmlParameterName("TriggerEdgeOrLevel", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         triggerEdgeOrLevel->addItem("Edge", "Edge");
         triggerEdgeOrLevel->addItem("Level", "Level");
         triggerEdgeOrLevel->setValue("Edge");
 
-        triggerHighOrLow = new DiscreteItemList("TriggerHighOrLow", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        triggerHighOrLow = new DiscreteItemList(stimXmlParameterName("TriggerHighOrLow", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         triggerHighOrLow->addItem("High", "High");
         triggerHighOrLow->addItem("Low", "Low");
         triggerHighOrLow->setValue("High");
 
-        pulseOrTrain = new DiscreteItemList("PulseOrTrain", hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
+        pulseOrTrain = new DiscreteItemList(stimXmlParameterName("PulseOrTrain", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         pulseOrTrain->addItem("SinglePulse", "SinglePulse");
         pulseOrTrain->addItem("PulseTrain", "PulseTrain");
         pulseOrTrain->setValue("SinglePulse");
 
-        enabled = new BooleanItem("StimEnabled", hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
+        enabled = new BooleanItem(stimXmlParameterName("StimEnabled", programIndex_), hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
 
-        firstPhaseDuration = new DoubleRangeItem("FirstPhaseDurationMicroseconds", hList_, state_, 0.0, 1000000, 100.0, XMLGroupStimParameters, TypeDependencyStim);
-        postTriggerDelay = new DoubleRangeItem("PostTriggerDelayMicroseconds", hList_, state_, 0.0, 500000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
-        pulseTrainPeriod = new DoubleRangeItem("PulseTrainPeriodMicroseconds", hList_, state_, 0.0, 1000000.0, 10000.0, XMLGroupStimParameters, TypeDependencyStim);
-        refractoryPeriod = new DoubleRangeItem("RefractoryPeriodMicroseconds", hList_, state_, 0.0, 1000000.0, 1000.0, XMLGroupStimParameters, TypeDependencyStim);
+        firstPhaseDuration = new DoubleRangeItem(stimXmlParameterName("FirstPhaseDurationMicroseconds", programIndex_), hList_, state_, 0.0, 1000000, 100.0, XMLGroupStimParameters, TypeDependencyStim);
+        postTriggerDelay = new DoubleRangeItem(stimXmlParameterName("PostTriggerDelayMicroseconds", programIndex_), hList_, state_, 0.0, 500000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
+        pulseTrainPeriod = new DoubleRangeItem(stimXmlParameterName("PulseTrainPeriodMicroseconds", programIndex_), hList_, state_, 0.0, 1000000.0, 10000.0, XMLGroupStimParameters, TypeDependencyStim);
+        refractoryPeriod = new DoubleRangeItem(stimXmlParameterName("RefractoryPeriodMicroseconds", programIndex_), hList_, state_, 0.0, 1000000.0, 1000.0, XMLGroupStimParameters, TypeDependencyStim);
 
-        numberOfStimPulses = new IntRangeItem("NumberOfStimPulses", hList_, state_, 0, 256, 2, XMLGroupStimParameters, TypeDependencyStim);
+        numberOfStimPulses = new IntRangeItem(stimXmlParameterName("NumberOfStimPulses", programIndex_), hList_, state_, 0, 256, 2, XMLGroupStimParameters, TypeDependencyStim);
     }
 }
 
@@ -303,4 +317,100 @@ void StimParameters::populateParametersFrom(StimParameters *originalStimParamete
 
     if (numberOfStimPulses)
         numberOfStimPulses->setValue(originalStimParameters->numberOfStimPulses->getValue());
+}
+
+namespace {
+
+bool itemMatchesProgram(const StateSingleItem* item, const StateSingleItem* candidate)
+{
+    return item != nullptr && item == candidate;
+}
+
+void appendItemAttribute(const StateSingleItem* item, XMLGroup xmlGroup, SystemState* state, QStringList& attributeList)
+{
+    if (!item || item->getXMLGroup() != xmlGroup) {
+        return;
+    }
+    bool addAttribute = false;
+    switch (item->getTypeDependency()) {
+    case TypeDependencyNone:
+        addAttribute = true;
+        break;
+    case TypeDependencyNonStim:
+        if (state->getControllerTypeEnum() != ControllerStimRecord) {
+            addAttribute = true;
+        }
+        break;
+    case TypeDependencyStim:
+        if (state->getControllerTypeEnum() == ControllerStimRecord) {
+            addAttribute = true;
+        }
+        break;
+    }
+    if (addAttribute) {
+        attributeList.append(item->getParameterName() + ":_:" + item->getValueString());
+    }
+}
+
+} // namespace
+
+bool StimParameters::ownsStateItem(const StateSingleItem* item) const
+{
+    if (!item) {
+        return false;
+    }
+    return itemMatchesProgram(item, stimShape) ||
+           itemMatchesProgram(item, stimPolarity) ||
+           itemMatchesProgram(item, triggerSource) ||
+           itemMatchesProgram(item, triggerEdgeOrLevel) ||
+           itemMatchesProgram(item, triggerHighOrLow) ||
+           itemMatchesProgram(item, pulseOrTrain) ||
+           itemMatchesProgram(item, enabled) ||
+           itemMatchesProgram(item, maintainAmpSettle) ||
+           itemMatchesProgram(item, enableAmpSettle) ||
+           itemMatchesProgram(item, enableChargeRecovery) ||
+           itemMatchesProgram(item, firstPhaseDuration) ||
+           itemMatchesProgram(item, secondPhaseDuration) ||
+           itemMatchesProgram(item, interphaseDelay) ||
+           itemMatchesProgram(item, firstPhaseAmplitude) ||
+           itemMatchesProgram(item, secondPhaseAmplitude) ||
+           itemMatchesProgram(item, baselineVoltage) ||
+           itemMatchesProgram(item, postTriggerDelay) ||
+           itemMatchesProgram(item, pulseTrainPeriod) ||
+           itemMatchesProgram(item, refractoryPeriod) ||
+           itemMatchesProgram(item, preStimAmpSettle) ||
+           itemMatchesProgram(item, postStimAmpSettle) ||
+           itemMatchesProgram(item, postStimChargeRecovOn) ||
+           itemMatchesProgram(item, postStimChargeRecovOff) ||
+           itemMatchesProgram(item, numberOfStimPulses);
+}
+
+QStringList StimParameters::getAttributesForXml(XMLGroup xmlGroup) const
+{
+    QStringList attributeList;
+    appendItemAttribute(stimShape, xmlGroup, _state, attributeList);
+    appendItemAttribute(stimPolarity, xmlGroup, _state, attributeList);
+    appendItemAttribute(triggerSource, xmlGroup, _state, attributeList);
+    appendItemAttribute(triggerEdgeOrLevel, xmlGroup, _state, attributeList);
+    appendItemAttribute(triggerHighOrLow, xmlGroup, _state, attributeList);
+    appendItemAttribute(pulseOrTrain, xmlGroup, _state, attributeList);
+    appendItemAttribute(enabled, xmlGroup, _state, attributeList);
+    appendItemAttribute(maintainAmpSettle, xmlGroup, _state, attributeList);
+    appendItemAttribute(enableAmpSettle, xmlGroup, _state, attributeList);
+    appendItemAttribute(enableChargeRecovery, xmlGroup, _state, attributeList);
+    appendItemAttribute(firstPhaseDuration, xmlGroup, _state, attributeList);
+    appendItemAttribute(secondPhaseDuration, xmlGroup, _state, attributeList);
+    appendItemAttribute(interphaseDelay, xmlGroup, _state, attributeList);
+    appendItemAttribute(firstPhaseAmplitude, xmlGroup, _state, attributeList);
+    appendItemAttribute(secondPhaseAmplitude, xmlGroup, _state, attributeList);
+    appendItemAttribute(baselineVoltage, xmlGroup, _state, attributeList);
+    appendItemAttribute(postTriggerDelay, xmlGroup, _state, attributeList);
+    appendItemAttribute(pulseTrainPeriod, xmlGroup, _state, attributeList);
+    appendItemAttribute(refractoryPeriod, xmlGroup, _state, attributeList);
+    appendItemAttribute(preStimAmpSettle, xmlGroup, _state, attributeList);
+    appendItemAttribute(postStimAmpSettle, xmlGroup, _state, attributeList);
+    appendItemAttribute(postStimChargeRecovOn, xmlGroup, _state, attributeList);
+    appendItemAttribute(postStimChargeRecovOff, xmlGroup, _state, attributeList);
+    appendItemAttribute(numberOfStimPulses, xmlGroup, _state, attributeList);
+    return attributeList;
 }

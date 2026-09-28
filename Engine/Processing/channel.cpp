@@ -31,6 +31,7 @@
 #include <iostream>
 #include "rhxglobals.h"
 #include "signalsources.h"
+#include "ampstimprograms.hpp"
 #include "channel.h"
 
 Channel::Channel(SignalType signalType_, const QString &customChannelName_, const QString &nativeChannelName_,
@@ -62,7 +63,11 @@ Channel::Channel(SignalType signalType_, const QString &customChannelName_, cons
     spikeThreshold(nullptr),
     electrodeImpedance({ false, 0.0, 0.0 })
 {
-    if ((signalType == AmplifierSignal || signalType == BoardDacSignal || signalType == BoardDigitalOutSignal)) {
+    if (signalType == AmplifierSignal) {
+        stimCapable = true;
+        _ampStimPrograms = std::make_unique<AmpStimPrograms>(channelItems, state, signalType);
+        stimParameters = _ampStimPrograms->primaryProgram();
+    } else if (signalType == BoardDacSignal || signalType == BoardDigitalOutSignal) {
         stimCapable = true;
         stimParameters = new StimParameters(channelItems, state, signalType);
     }
@@ -96,7 +101,11 @@ Channel::Channel(SignalType signalType_, const QString &customChannelName_, cons
 Channel::~Channel()
 {
     state->forceUpdate();
-    if (stimParameters) delete stimParameters;
+    _ampStimPrograms.reset();
+    if (signalType != AmplifierSignal && stimParameters) {
+        delete stimParameters;
+        stimParameters = nullptr;
+    }
 
     for (SingleItemList::const_iterator p = channelItems.begin(); p != channelItems.end(); ++p) {
         delete p->second;

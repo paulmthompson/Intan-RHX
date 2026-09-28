@@ -44,13 +44,14 @@
 StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget *parent) :
     QDialog(parent),
     state(state_),
-    channel(channel_)
+    channel(channel_),
+    _currentProgramIndex(0)
 {
 
     const double kAmpMaxDurationUs = 1.0e7;
     const double kPulseTrainMaxUs = 1.0e6;
     const double kAmpSettleMaxUs = 5.0e5;
-    parameters = channel->stimParameters;
+    parameters = channel->ampStimPrograms()->program(0);
     timestep = 1.0e6 / state->sampleRate->getNumericValue();  // time step in microseconds
     currentstep = RHXRegisters::stimStepSizeToDouble(state->getStimStepSizeEnum()) * 1.0e6;  // current step in microamps
 
@@ -180,6 +181,14 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
     configureMicrosecondSpinLimits(postStimChargeRecovOffSpinBox, postStimChargeRecovOffLabel, 0, kPulseTrainMaxUs, timestep);
 
     enableChargeRecoveryCheckBox = new QCheckBox(tr("Enable Charge Recovery"), this);
+
+    stimProgramLabel = new QLabel(tr("Stimulation program:"), this);
+    stimProgramComboBox = new QComboBox(this);
+    const std::size_t programCount = channel->ampStimPrograms()->activeProgramCount();
+    for (std::size_t program = 0; program < programCount; ++program) {
+        stimProgramComboBox->addItem(tr("Program %1").arg(static_cast<int>(program) + 1));
+    }
+    connect(stimProgramComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onStimProgramIndexChanged(int)));
 
     buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttonBox, SIGNAL(accepted()), this, SLOT(accept()));
@@ -467,6 +476,13 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
     columns->addLayout(thirdColumn);
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
+
+    QHBoxLayout *stimProgramRow = new QHBoxLayout;
+    stimProgramRow->addWidget(stimProgramLabel);
+    stimProgramRow->addStretch();
+    stimProgramRow->addWidget(stimProgramComboBox);
+    mainLayout->addLayout(stimProgramRow);
+
     mainLayout->addWidget(stimFigure);
     mainLayout->addLayout(columns);
     mainLayout->addStretch();
@@ -563,33 +579,57 @@ void StimParamDialog::updateFromState()
 
 void StimParamDialog::accept()
 {
-    // Save the values of the parameters from the dialog box into the object.
-    parameters->stimShape->setIndex(stimShapeComboBox->currentIndex());
-    parameters->stimPolarity->setIndex(stimPolarityComboBox->currentIndex());
-    parameters->firstPhaseDuration->setValue(firstPhaseDurationSpinBox->getTrueValue());
-    parameters->secondPhaseDuration->setValue(secondPhaseDurationSpinBox->getTrueValue());
-    parameters->interphaseDelay->setValue(interphaseDelaySpinBox->getTrueValue());
-    parameters->firstPhaseAmplitude->setValue(firstPhaseAmplitudeSpinBox->getTrueValue());
-    parameters->secondPhaseAmplitude->setValue(secondPhaseAmplitudeSpinBox->getTrueValue());
-    parameters->enabled->setValue(enableStimCheckBox->isChecked());
-    parameters->triggerSource->setIndex(triggerSourceComboBox->currentIndex());
-    parameters->triggerEdgeOrLevel->setIndex(triggerEdgeOrLevelComboBox->currentIndex());
-    parameters->triggerHighOrLow->setIndex(triggerHighOrLowComboBox->currentIndex());
-    parameters->postTriggerDelay->setValue(postTriggerDelaySpinBox->getTrueValue());
-    parameters->pulseOrTrain->setIndex(pulseOrTrainComboBox->currentIndex());
-    parameters->numberOfStimPulses->setValue(numberOfStimPulsesSpinBox->value());
-    parameters->pulseTrainPeriod->setValue(pulseTrainPeriodSpinBox->getTrueValue());
-    parameters->refractoryPeriod->setValue(refractoryPeriodSpinBox->getTrueValue());
-    parameters->maintainAmpSettle->setValue(maintainAmpSettleCheckBox->isChecked());
-    parameters->enableAmpSettle->setValue(enableAmpSettleCheckBox->isChecked());
-    parameters->enableChargeRecovery->setValue(enableChargeRecoveryCheckBox->isChecked());
-    parameters->preStimAmpSettle->setValue(preStimAmpSettleSpinBox->getTrueValue());
-    parameters->postStimChargeRecovOn->setValue(postStimChargeRecovOnSpinBox->getTrueValue());
-    parameters->postStimAmpSettle->setValue(postStimAmpSettleSpinBox->getTrueValue());
-    parameters->postStimChargeRecovOff->setValue(postStimChargeRecovOffSpinBox->getTrueValue());
-
-    // Close the window.
+    saveWidgetsToParameters(parameters);
     done(Accepted);
+}
+
+void StimParamDialog::saveWidgetsToParameters(StimParameters *target)
+{
+    if (!target) {
+        return;
+    }
+    // Save the values of the parameters from the dialog box into the object.
+    target->stimShape->setIndex(stimShapeComboBox->currentIndex());
+    target->stimPolarity->setIndex(stimPolarityComboBox->currentIndex());
+    target->firstPhaseDuration->setValue(firstPhaseDurationSpinBox->getTrueValue());
+    target->secondPhaseDuration->setValue(secondPhaseDurationSpinBox->getTrueValue());
+    target->interphaseDelay->setValue(interphaseDelaySpinBox->getTrueValue());
+    target->firstPhaseAmplitude->setValue(firstPhaseAmplitudeSpinBox->getTrueValue());
+    target->secondPhaseAmplitude->setValue(secondPhaseAmplitudeSpinBox->getTrueValue());
+    target->enabled->setValue(enableStimCheckBox->isChecked());
+    target->triggerSource->setIndex(triggerSourceComboBox->currentIndex());
+    target->triggerEdgeOrLevel->setIndex(triggerEdgeOrLevelComboBox->currentIndex());
+    target->triggerHighOrLow->setIndex(triggerHighOrLowComboBox->currentIndex());
+    target->postTriggerDelay->setValue(postTriggerDelaySpinBox->getTrueValue());
+    target->pulseOrTrain->setIndex(pulseOrTrainComboBox->currentIndex());
+    target->numberOfStimPulses->setValue(numberOfStimPulsesSpinBox->value());
+    target->pulseTrainPeriod->setValue(pulseTrainPeriodSpinBox->getTrueValue());
+    target->refractoryPeriod->setValue(refractoryPeriodSpinBox->getTrueValue());
+    target->maintainAmpSettle->setValue(maintainAmpSettleCheckBox->isChecked());
+    target->enableAmpSettle->setValue(enableAmpSettleCheckBox->isChecked());
+    target->enableChargeRecovery->setValue(enableChargeRecoveryCheckBox->isChecked());
+    target->preStimAmpSettle->setValue(preStimAmpSettleSpinBox->getTrueValue());
+    target->postStimChargeRecovOn->setValue(postStimChargeRecovOnSpinBox->getTrueValue());
+    target->postStimAmpSettle->setValue(postStimAmpSettleSpinBox->getTrueValue());
+    target->postStimChargeRecovOff->setValue(postStimChargeRecovOffSpinBox->getTrueValue());
+}
+
+void StimParamDialog::onStimProgramIndexChanged(int newIndex)
+{
+    if (!channel->ampStimPrograms() || newIndex == _currentProgramIndex) {
+        return;
+    }
+    if (newIndex < 0 || static_cast<std::size_t>(newIndex) >= channel->ampStimPrograms()->activeProgramCount()) {
+        return;
+    }
+
+    saveWidgetsToParameters(parameters);
+    _currentProgramIndex = newIndex;
+    parameters = channel->ampStimPrograms()->program(static_cast<std::size_t>(newIndex));
+    updateParametersFromState(parameters);
+    stimFigure->setStimParameters(parameters);
+    stimFigure->syncFromParameters();
+    enableWidgets();
 }
 
 // Emit signals when widgets that can be highlighted gain or lose focus.

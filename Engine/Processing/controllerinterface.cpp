@@ -51,6 +51,8 @@
 #include "impedancereader.h"
 #include "controllerinterface.h"
 
+#include "ampstimprograms.hpp"
+
 ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXController* rhxController_, const QString& boardSerialNumber, bool useOpenCL,
                                          DataFileReader* dataFileReader_, QObject* parent, bool is7310_) :
     QObject(parent),
@@ -1200,13 +1202,13 @@ QString ControllerInterface::endTimePlaybackFile() const
     return timeString;
 }
 
-void ControllerInterface::setStimSequenceParameters(Channel* ampChannel)
+void ControllerInterface::setStimSequenceParameters(Channel* ampChannel, StimParameters* parameters, int stimProgramBank)
 {
     if (rhxController->isSynthetic() || rhxController->isPlayback()) return;
+    if (!parameters) return;
 
     const uint32_t Never = 0xFFFFFFFF; // PMT
 
-    StimParameters* parameters = ampChannel->stimParameters;
     int stream = ampChannel->getCommandStream();
     int channel = ampChannel->getChipChannel();
     double timestep = 1.0e6 / state->sampleRate->getNumericValue();  // time step in microseconds
@@ -1218,9 +1220,11 @@ void ControllerInterface::setStimSequenceParameters(Channel* ampChannel)
     rhxController->configureStimTrigger(stream, channel, parameters->triggerSource->getIndex(),
                                         parameters->enabled->getValue(),
                                         ((TriggerEdgeOrLevel) parameters->triggerEdgeOrLevel->getIndex() == TriggerEdge),
-                                        ((TriggerHighOrLow) parameters->triggerHighOrLow->getIndex() == TriggerLow));
+                                        ((TriggerHighOrLow) parameters->triggerHighOrLow->getIndex() == TriggerLow),
+                                        stimProgramBank);
     rhxController->configureStimPulses(stream, channel, numOfPulses, (StimShape)(parameters->stimShape->getIndex()),
-                                       ((StimPolarity) parameters->stimPolarity->getIndex() == NegativeFirst));
+                                       ((StimPolarity) parameters->stimPolarity->getIndex() == NegativeFirst),
+                                       stimProgramBank);
 
     int preStimAmpSettle = round(parameters->preStimAmpSettle->getValue() / timestep);
     int postStimAmpSettle = round(parameters->postStimAmpSettle->getValue() / timestep);
@@ -1305,18 +1309,22 @@ void ControllerInterface::setStimSequenceParameters(Channel* ampChannel)
         eventChargeRecovOff = 0;
     }
 
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventAmpSettleOn, eventAmpSettleOn);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventStartStim, eventStartStim);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventStimPhase2, eventStimPhase2);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventStimPhase3, eventStimPhase3);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventEndStim, eventEndStim);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventRepeatStim, eventRepeatStim);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventAmpSettleOff, eventAmpSettleOff);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventChargeRecovOn, eventChargeRecovOn);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventChargeRecovOff, eventChargeRecovOff);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventAmpSettleOnRepeat, eventAmpSettleOnRepeat);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventAmpSettleOffRepeat, eventAmpSettleOffRepeat);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventEnd, eventEnd);
+    rhxController->programStimReg(stream, channel, AbstractRHXController::EventAmpSettleOn, eventAmpSettleOn, stimProgramBank);
+    rhxController->programStimReg(stream, channel, AbstractRHXController::EventStartStim, eventStartStim, stimProgramBank);
+    rhxController->programStimReg(stream, channel, AbstractRHXController::EventStimPhase2, eventStimPhase2, stimProgramBank);
+    rhxController->programStimReg(stream, channel, AbstractRHXController::EventStimPhase3, eventStimPhase3, stimProgramBank);
+    rhxController->programStimReg(stream, channel, AbstractRHXController::EventEndStim, eventEndStim, stimProgramBank);
+    rhxController->programStimReg(stream, channel, AbstractRHXController::EventRepeatStim, eventRepeatStim, stimProgramBank);
+    rhxController->programStimReg(stream, channel, AbstractRHXController::EventAmpSettleOff, eventAmpSettleOff, stimProgramBank);
+    rhxController->programStimReg(stream, channel, AbstractRHXController::EventChargeRecovOn, eventChargeRecovOn, stimProgramBank);
+    rhxController->programStimReg(stream, channel, AbstractRHXController::EventChargeRecovOff, eventChargeRecovOff, stimProgramBank);
+    rhxController->programStimReg(stream, channel, AbstractRHXController::EventAmpSettleOnRepeat, eventAmpSettleOnRepeat, stimProgramBank);
+    rhxController->programStimReg(stream, channel, AbstractRHXController::EventAmpSettleOffRepeat, eventAmpSettleOffRepeat, stimProgramBank);
+    rhxController->programStimReg(stream, channel, AbstractRHXController::EventEnd, eventEnd, stimProgramBank);
+
+    if (stimProgramBank != 0) {
+        return;
+    }
 
     rhxController->enableAuxCommandsOnOneStream(stream);
 
@@ -1802,7 +1810,13 @@ void ControllerInterface::uploadStimParameters(Channel* channel)
     }
     state->uploadInProgress->setValue(true);
     if (channel->getSignalType() == AmplifierSignal) {
-        setStimSequenceParameters(channel);
+        if (AmpStimPrograms* programs = channel->ampStimPrograms()) {
+            for (std::size_t bank = 0; bank < programs->activeProgramCount(); ++bank) {
+                setStimSequenceParameters(channel, programs->program(bank), static_cast<int>(bank));
+            }
+        } else {
+            setStimSequenceParameters(channel, channel->stimParameters, 0);
+        }
     } else if (channel->getSignalType() == BoardDacSignal) {
         setAnalogOutSequenceParameters(channel);
     } else if (channel->getSignalType() == BoardDigitalOutSignal) {

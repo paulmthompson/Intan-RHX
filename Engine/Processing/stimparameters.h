@@ -82,13 +82,26 @@ enum PulseOrTrain {
 };
 
 
+class StateSingleItem;
+
 class StimParameters
 {
 public:
-    StimParameters(SingleItemList &hList_, SystemState *state_, SignalType signalType_);
+    StimParameters(SingleItemList &hList_, SystemState *state_, SignalType signalType_, int programIndex = 0);
 
     void populateParametersFrom(StimParameters* originalStimParameters);
     SignalType getSignalType() const { return signalType; }
+    int getProgramIndex() const { return _programIndex; }
+
+    /**
+     * @brief Whether @p item is owned by this stimulation program (for multi-bank XML).
+     */
+    bool ownsStateItem(const StateSingleItem* item) const;
+
+    /**
+     * @brief State items in @p xmlGroup for XML save (one program's attributes).
+     */
+    QStringList getAttributesForXml(XMLGroup xmlGroup) const;
 
     DiscreteItemList *stimShape;
     DiscreteItemList *stimPolarity;
@@ -119,7 +132,9 @@ public:
     IntRangeItem *numberOfStimPulses;
 
 private:
+    SystemState* _state;
     SignalType signalType;
+    int _programIndex;
 };
 
 

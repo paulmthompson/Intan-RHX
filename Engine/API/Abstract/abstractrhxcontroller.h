@@ -152,8 +152,10 @@ public:
 
     void setAllDacsToZero();
 
-    void configureStimTrigger(int stream, int channel, int triggerSource, bool triggerEnabled, bool edgeTriggered, bool triggerOnLow);
-    void configureStimPulses(int stream, int channel, int numPulses, StimShape shape, bool negStimFirst);
+    void configureStimTrigger(int stream, int channel, int triggerSource, bool triggerEnabled, bool edgeTriggered,
+                              bool triggerOnLow, int stimProgramBank = 0);
+    void configureStimPulses(int stream, int channel, int numPulses, StimShape shape, bool negStimFirst,
+                             int stimProgramBank = 0);
 
     StreamChannelPair streamChannelFromWaveName(const std::string& waveName) const;
 
@@ -240,7 +242,7 @@ public:
      * @see StimRegister
      * @see ControllerInterface::setStimSequenceParameters
      */
-    virtual void programStimReg(int stream, int channel, StimRegister reg, uint32_t value) = 0;
+    virtual void programStimReg(int stream, int channel, StimRegister reg, uint32_t value, int stimProgramBank = 0) = 0;
     virtual void uploadCommandList(const std::vector<unsigned int> &commandList, AuxCmdSlot auxCommandSlot, int bank) = 0;
 
     virtual int findConnectedChips(std::vector<ChipType> &chipType, std::vector<int> &portIndex, std::vector<int> &commandStream,

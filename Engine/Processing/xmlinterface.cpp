@@ -29,6 +29,7 @@
 //------------------------------------------------------------------------------
 
 #include "xmlinterface.h"
+#include "ampstimprograms.hpp"
 #include "controllerinterface.h"
 
 #include <QtXml>
@@ -326,31 +327,63 @@ void XMLInterface::saveAsElement(QXmlStreamWriter &stream) const
                     break;
                 }
 
-                // Get StimParameters attributes
-                QStringList channelList = thisChannel->getAttributes(XMLGroupStimParameters);
-                channelList.sort();
-                if (channelList.size() < 1) {
+                bool writeChannel = false;
+                if (thisChannel->getSignalType() == AmplifierSignal && thisChannel->ampStimPrograms()) {
+                    const AmpStimPrograms* programs = thisChannel->ampStimPrograms();
+                    for (std::size_t bank = 0; bank < programs->activeProgramCount(); ++bank) {
+                        if (!programs->getAttributes(XMLGroupStimParameters, bank).isEmpty()) {
+                            writeChannel = true;
+                            break;
+                        }
+                    }
+                } else if (!thisChannel->getAttributes(XMLGroupStimParameters).isEmpty()) {
+                    writeChannel = true;
+                }
+                if (!writeChannel) {
                     continue;
                 }
 
                 // Get read-only attributes
                 QStringList readOnlyChannelList = thisChannel->getAttributes(XMLGroupReadOnly);
 
-                // Always put read-only attributes first.
-                channelList = readOnlyChannelList + channelList;
-
                 // Begin Channel element
                 stream.writeStartElement("StimChannel");
 
-                // Write attributes
-                for (auto attribute : channelList) {
-                    // Separate colon-separated QString subsections into separate QStrings 'name' and 'value'
+                for (auto attribute : readOnlyChannelList) {
                     QStringList subsections = attribute.split(":_:");
                     QString name = "\n\t\t\t" + subsections.at(0);
                     QString value = subsections.at(1);
-
-                    // Write attribute 'name' and 'value'
                     stream.writeAttribute(name, value);
+                }
+
+                if (thisChannel->getSignalType() == AmplifierSignal && thisChannel->ampStimPrograms()) {
+                    const AmpStimPrograms* programs = thisChannel->ampStimPrograms();
+                    for (std::size_t bank = 0; bank < programs->activeProgramCount(); ++bank) {
+                        QStringList programList = programs->getAttributes(XMLGroupStimParameters, bank);
+                        programList.sort();
+                        if (programList.isEmpty()) {
+                            continue;
+                        }
+                        stream.writeStartElement("StimProgram");
+                        stream.writeAttribute("index", QString::number(static_cast<int>(bank)));
+                        for (auto attribute : programList) {
+                            QStringList subsections = attribute.split(":_:");
+                            QString name = "\n\t\t\t" + subsections.at(0);
+                            QString value = subsections.at(1);
+                            stream.writeAttribute(name, value);
+                        }
+                        stream.device()->write("\n\t\t");
+                        stream.writeEndElement();
+                    }
+                } else {
+                    QStringList channelList = thisChannel->getAttributes(XMLGroupStimParameters);
+                    channelList.sort();
+                    for (auto attribute : channelList) {
+                        QStringList subsections = attribute.split(":_:");
+                        QString name = "\n\t\t\t" + subsections.at(0);
+                        QString value = subsections.at(1);
+                        stream.writeAttribute(name, value);
+                    }
                 }
 
                 // End Channel element
@@ -925,25 +958,85 @@ bool XMLInterface::parseStimParameters(const QByteArray &byteArray, QString &err
             continue;
         }
 
-        // Iterate through all XML attributes.
-        for (auto attribute : attributes) {
-            // Get the attribute name and value from XML.
-            QString attributeName = attribute.name().toString();
-            QString attributeValue = attribute.value().toString();
+        bool parsedNestedPrograms = false;
+        while (!stream.atEnd()) {
+            QXmlStreamReader::TokenType token = stream.readNext();
+            if (token == QXmlStreamReader::EndElement && stream.name().toString() == "StimChannel") {
+                break;
+            }
+            if (token != QXmlStreamReader::StartElement) {
+                continue;
+            }
+            if (stream.name().toString() != "StimProgram") {
+                stream.skipCurrentElement();
+                continue;
+            }
 
-            // If attribute value is "N/A", then skip.
-            if (attributeValue != "N/A") {
-                // Try to find the attribute as a StateSingleItem in channelItems.
-                StateSingleItem *singleItem = state->locateStateSingleItem(thisChannel->channelItems, attributeName);
+            parsedNestedPrograms = true;
+            QXmlStreamAttributes programAttributes = stream.attributes();
+            bool indexOk = false;
+            int programIndex = 0;
+            for (auto attribute : programAttributes) {
+                if (attribute.name().toString().toLower() == "index") {
+                    programIndex = attribute.value().toInt(&indexOk);
+                    break;
+                }
+            }
+            if (!indexOk || !thisChannel->ampStimPrograms() ||
+                    programIndex < 0 ||
+                    static_cast<std::size_t>(programIndex) >= thisChannel->ampStimPrograms()->activeProgramCount()) {
+                errorMessage.append("Error: Invalid StimProgram index on channel " + nativeChannelName);
+                return false;
+            }
 
-                // If the attribute is a StateSingleItem, set it according to XMLIncludeParameters.
-                if (singleItem) {
-                    if (singleItem->getXMLGroup() == XMLGroupStimParameters) {
-                        if (!singleItem->setValue(attributeValue)) {
-                            errorMessage.append("Error: Failed to parse " + singleItem->getParameterName());
-                            return false;
-                        } else {
+            for (auto attribute : programAttributes) {
+                QString attributeName = attribute.name().toString();
+                if (attributeName.compare("index", Qt::CaseInsensitive) == 0) {
+                    continue;
+                }
+                QString attributeValue = attribute.value().toString();
+                if (attributeValue == "N/A") {
+                    continue;
+                }
+                if (!thisChannel->ampStimPrograms()->applyXmlAttribute(static_cast<std::size_t>(programIndex),
+                                                                        attributeName, attributeValue,
+                                                                        thisChannel->channelItems, state)) {
+                    StateSingleItem *singleItem = state->locateStateSingleItem(thisChannel->channelItems, attributeName);
+                    if (singleItem && singleItem->getXMLGroup() == XMLGroupStimParameters) {
+                        errorMessage.append("Error: Failed to parse " + singleItem->getParameterName());
+                        return false;
+                    }
+                }
+            }
+            stream.skipCurrentElement();
+        }
+
+        if (!parsedNestedPrograms) {
+            for (auto attribute : attributes) {
+                QString attributeName = attribute.name().toString();
+                QString attributeValue = attribute.value().toString();
+
+                if (attributeValue != "N/A") {
+                    if (thisChannel->getSignalType() == AmplifierSignal && thisChannel->ampStimPrograms()) {
+                        if (thisChannel->ampStimPrograms()->applyXmlAttribute(0, attributeName, attributeValue,
+                                                                              thisChannel->channelItems, state)) {
                             continue;
+                        }
+                    }
+                    StateSingleItem *singleItem = state->locateStateSingleItem(thisChannel->channelItems, attributeName);
+
+                    if (singleItem) {
+                        if (singleItem->getXMLGroup() == XMLGroupStimParameters) {
+                            if (thisChannel->getSignalType() == AmplifierSignal && thisChannel->ampStimPrograms() &&
+                                    !thisChannel->ampStimPrograms()->program(0)->ownsStateItem(singleItem)) {
+                                continue;
+                            }
+                            if (!singleItem->setValue(attributeValue)) {
+                                errorMessage.append("Error: Failed to parse " + singleItem->getParameterName());
+                                return false;
+                            } else {
+                                continue;
+                            }
                         }
                     }
                 }
@@ -952,8 +1045,6 @@ bool XMLInterface::parseStimParameters(const QByteArray &byteArray, QString &err
 
         controllerInterface->uploadStimParameters(thisChannel);
 
-        // Skip this StimChannel element once we're done with it.
-        stream.skipCurrentElement();
         stream.readNext();
     }
 

@@ -854,15 +854,17 @@ void AbstractRHXController::setAllDacsToZero()
 }
 
 // Configure a particular stimulation trigger.
-void AbstractRHXController::configureStimTrigger(int stream, int channel, int triggerSource, bool triggerEnabled, bool edgeTriggered, bool triggerOnLow)
+void AbstractRHXController::configureStimTrigger(int stream, int channel, int triggerSource, bool triggerEnabled,
+                                                 bool edgeTriggered, bool triggerOnLow, int stimProgramBank)
 {
     if (type != ControllerStimRecord) return;
     int value = (triggerEnabled ? (1 << 7) : 0) + (triggerOnLow ? (1 << 6) : 0) + (edgeTriggered ? (1 << 5) : 0) + triggerSource;
-    programStimReg(stream, channel, TriggerParams, value);
+    programStimReg(stream, channel, TriggerParams, value, stimProgramBank);
 }
 
 // Configure the shape, polarity, and number of pulses for a particular stimulation control unit.
-void AbstractRHXController::configureStimPulses(int stream, int channel, int numPulses, StimShape shape, bool negStimFirst)
+void AbstractRHXController::configureStimPulses(int stream, int channel, int numPulses, StimShape shape, bool negStimFirst,
+                                                int stimProgramBank)
 {
     if (type != ControllerStimRecord) return;
     if (numPulses < 1) {
@@ -872,7 +874,7 @@ void AbstractRHXController::configureStimPulses(int stream, int channel, int num
 
     int shapeInt = (int)shape;
     int value = (negStimFirst ? (1 << 10) : 0) + (shapeInt << 8) + (numPulses - 1);
-    programStimReg(stream, channel, StimParams, value);
+    programStimReg(stream, channel, StimParams, value, stimProgramBank);
 }
 
 // Return the stream and channel number within that stream required to access an amplifier or auxiliary analog input

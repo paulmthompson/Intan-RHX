@@ -62,13 +62,21 @@ public slots:
 private slots:
     void notifyFocusChanged(QWidget* lostFocus, QWidget* gainedFocus);
     void updateFromState();
+    void onStimProgramIndexChanged(int newIndex);
 
 private:
+    void saveWidgetsToParameters(StimParameters* target);
+
     SystemState* state;
     Channel* channel;
 
+    int _currentProgramIndex;
+
     QDialogButtonBox *buttonBox;
     StimFigure *stimFigure;
+
+    QComboBox *stimProgramComboBox;
+    QLabel *stimProgramLabel;
 
     StimParameters *parameters;
 

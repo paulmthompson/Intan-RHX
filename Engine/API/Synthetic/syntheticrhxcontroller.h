@@ -103,7 +103,7 @@ public:
 
     void clearTtlOut() override {}
     void resetSequencers() override {}
-    void programStimReg(int, int, StimRegister, uint32_t) override {}
+    void programStimReg(int, int, StimRegister, uint32_t, int = 0) override {}
     void uploadCommandList(const std::vector<unsigned int>&, AuxCmdSlot, int) override {}
 
     int findConnectedChips(std::vector<ChipType> &chipType, std::vector<int> &portIndex, std::vector<int> &commandStream,

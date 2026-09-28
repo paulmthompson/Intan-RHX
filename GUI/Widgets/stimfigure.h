@@ -40,6 +40,8 @@ class StimFigure : public AbstractFigure
 public:
     explicit StimFigure(StimParameters* stimParameters, QWidget *parent = 0);
 
+    void syncFromParameters() override;
+
     void uniqueRedraw(QPainter &painter) override;
 
 public slots:

@@ -123,7 +123,7 @@ public:
 
     void clearTtlOut() override;                 // not used with ControllerStimRecord
     void resetSequencers() override;
-    void programStimReg(int stream, int channel, StimRegister reg, uint32_t value) override;
+    void programStimReg(int stream, int channel, StimRegister reg, uint32_t value, int stimProgramBank = 0) override;
     void uploadCommandList(const std::vector<unsigned int> &commandList, AuxCmdSlot auxCommandSlot, int bank = 0) override;
 
     int findConnectedChips(std::vector<ChipType> &chipType, std::vector<int> &portIndex, std::vector<int> &commandStream,

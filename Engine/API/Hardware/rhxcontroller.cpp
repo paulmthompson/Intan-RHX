@@ -1598,12 +1598,14 @@ void RHXController::resetSequencers()
  * @brief See AbstractRHXController::programStimReg.
  * @ingroup RhxStimSequencer
  */
-void RHXController::programStimReg(int stream, int channel, StimRegister reg, uint32_t value)
+void RHXController::programStimReg(int stream, int channel, StimRegister reg, uint32_t value, int stimProgramBank)
 {
     if (type != ControllerStimRecord) return;
     std::lock_guard<std::mutex> lockOk(okMutex);
 
-    dev->SetWireInValue(WireInStimRegAddr_S_USB2, (stream << 8) + (channel << 4) + reg);
+    const unsigned int address = static_cast<unsigned int>((stream << 8) + (channel << 4) + reg +
+                                                           ((stimProgramBank & 0x3) << 13));
+    dev->SetWireInValue(WireInStimRegAddr_S_USB2, address);
     dev->SetWireInValue(WireInStimRegWord_S_USB2, value & 0xFFFF );
 
     // split 32-bit value into 2 16 bit values

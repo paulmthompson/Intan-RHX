@@ -31,7 +31,14 @@
 #include <QtWidgets>
 #include "abstractfigure.h"
 
-;
+void AbstractFigure::setStimParameters(StimParameters* stimParameters)
+{
+    parameters = stimParameters;
+}
+
+void AbstractFigure::syncFromParameters()
+{
+}
 
 void AbstractFigure::generalSetup(StimParameters *stimParameters, QWidget*)
 {

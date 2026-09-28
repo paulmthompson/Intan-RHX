@@ -48,6 +48,20 @@ StimFigure::StimFigure(StimParameters *stimParameters, QWidget *parent) :
     localEnableChargeRecovery = parameters->enableChargeRecovery->getValue();
 }
 
+void StimFigure::syncFromParameters()
+{
+    if (!parameters) {
+        return;
+    }
+    localStimShape = (StimShape) parameters->stimShape->getIndex();
+    localStimPolarity = (StimPolarity) parameters->stimPolarity->getIndex();
+    localPulseOrTrain = (PulseOrTrain) parameters->pulseOrTrain->getIndex();
+    localEnableAmpSettle = parameters->enableAmpSettle->getValue();
+    localMaintainAmpSettle = parameters->maintainAmpSettle->getValue();
+    localEnableChargeRecovery = parameters->enableChargeRecovery->getValue();
+    generalRedraw();
+}
+
 void StimFigure::uniqueRedraw(QPainter &painter)
 {
     y0 = stimFrame.center().y();
