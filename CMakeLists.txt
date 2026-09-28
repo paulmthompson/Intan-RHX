@@ -127,6 +127,7 @@ set(Sources
         GUI/Widgets/psthplot.cpp 
         GUI/Widgets/scrollbar.cpp 
         GUI/Widgets/smartspinbox.cpp 
+        GUI/Widgets/spinboxtooltips.cpp 
         GUI/Widgets/spikegradient.cpp 
         GUI/Widgets/spikeplot.cpp 
         GUI/Widgets/statusbars.cpp 
@@ -245,6 +246,7 @@ set(Headers
         GUI/Widgets/psthplot.h 
         GUI/Widgets/scrollbar.h 
         GUI/Widgets/smartspinbox.h 
+        GUI/Widgets/spinboxtooltips.hpp 
         GUI/Widgets/spikegradient.h 
         GUI/Widgets/spikeplot.h 
         GUI/Widgets/statusbars.h 

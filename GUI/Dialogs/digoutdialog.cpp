@@ -39,6 +39,7 @@
 #include <QtWidgets>
 #include "signalsources.h"
 #include "smartspinbox.h"
+#include "spinboxtooltips.hpp"
 #include "digfigure.h"
 #include "digoutdialog.h"
 
@@ -49,6 +50,10 @@ DigOutDialog::DigOutDialog(SystemState* state_, Channel* channel_, QWidget *pare
 {
     parameters = channel->stimParameters;
     timestep = 1.0e6 / state->sampleRate->getNumericValue();  // time step in microseconds
+
+    const double kPostTriggerMaxUs = 5.0e5;
+    const double kDigOutPulseMaxUs = 1.0e6;
+    const double kPulseTrainMaxUs = 1.0e6;
 
     digFigure = new DigFigure(parameters, this);
 
@@ -81,14 +86,14 @@ DigOutDialog::DigOutDialog(SystemState* state_, Channel* channel_, QWidget *pare
     triggerHighOrLowComboBox->addItems(triggerHighOrLows);
 
     postTriggerDelaySpinBox = new TimeSpinBox(timestep, this);
-    postTriggerDelaySpinBox->setRange(0, 500000);
     postTriggerDelayLabel = new QLabel(tr("Post Trigger Delay:"), this);
+    configureMicrosecondSpinLimits(postTriggerDelaySpinBox, postTriggerDelayLabel, 0, kPostTriggerMaxUs, timestep);
 
     QGroupBox* pulseGroupBox = new QGroupBox(tr("Pulse"), this);
 
     pulseDurationSpinBox = new TimeSpinBox(timestep, this);
-    pulseDurationSpinBox->setRange(0, 1000000);
     pulseDurationLabel = new QLabel(tr("Pulse Duration (D1):"), this);
+    configureMicrosecondSpinLimits(pulseDurationSpinBox, pulseDurationLabel, 0, kDigOutPulseMaxUs, timestep);
 
     pulseRepetitionComboBox = new QComboBox(this);
     QStringList pulseRepetitions;
@@ -97,18 +102,18 @@ DigOutDialog::DigOutDialog(SystemState* state_, Channel* channel_, QWidget *pare
     pulseRepetitionLabel = new QLabel(tr("Pulse Repetition:"), this);
 
     numPulsesSpinBox = new QSpinBox(this);
-    numPulsesSpinBox->setRange(2, 256);
     numPulsesLabel = new QLabel(tr("Number of Pulses:"), this);
+    configurePlainSpinLimits(numPulsesSpinBox, numPulsesLabel, 2, 256, tr("pulses"));
 
     pulseTrainPeriodSpinBox = new TimeSpinBox(timestep, this);
-    pulseTrainPeriodSpinBox->setRange(0, 1000000);
     pulseTrainPeriodLabel = new QLabel(tr("Pulse Train Period:"), this);
+    configureMicrosecondSpinLimits(pulseTrainPeriodSpinBox, pulseTrainPeriodLabel, 0, kPulseTrainMaxUs, timestep);
 
     pulseTrainFrequencyLabel = new QLabel(tr("Pulse Train Frequency: -- Hz"), this);
 
     refractoryPeriodSpinBox = new TimeSpinBox(timestep, this);
-    refractoryPeriodSpinBox->setRange(0, 1000000);
     refractoryPeriodLabel = new QLabel(tr("Refractory Period:"), this);
+    configureMicrosecondSpinLimits(refractoryPeriodSpinBox, refractoryPeriodLabel, 0, kPulseTrainMaxUs, timestep);
 
     buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttonBox, SIGNAL(accepted()), this, SLOT(accept()));

@@ -38,6 +38,7 @@
 
 #include <QtWidgets>
 #include "rhxregisters.h"
+#include "spinboxtooltips.hpp"
 #include "stimparamdialog.h"
 
 StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget *parent) :
@@ -46,7 +47,9 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
     channel(channel_)
 {
 
-    const uint32_t MAXIMUM_DURATION = 1e7; // 10 s = 1e7 us
+    const double kAmpMaxDurationUs = 1.0e7;
+    const double kPulseTrainMaxUs = 1.0e6;
+    const double kAmpSettleMaxUs = 5.0e5;
     parameters = channel->stimParameters;
     timestep = 1.0e6 / state->sampleRate->getNumericValue();  // time step in microseconds
     currentstep = RHXRegisters::stimStepSizeToDouble(state->getStimStepSizeEnum()) * 1.0e6;  // current step in microamps
@@ -69,24 +72,24 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
 
     firstPhaseDurationLabel = new QLabel(tr("First Phase Duration (D1):"), this);
     firstPhaseDurationSpinBox = new TimeSpinBox(timestep, this);
-    firstPhaseDurationSpinBox->setRange(0, MAXIMUM_DURATION);
+    configureMicrosecondSpinLimits(firstPhaseDurationSpinBox, firstPhaseDurationLabel, 0, kAmpMaxDurationUs, timestep);
     connect(qApp, SIGNAL(focusChanged(QWidget*,QWidget*)), this, SLOT(notifyFocusChanged(QWidget*,QWidget*)));
 
     secondPhaseDurationLabel = new QLabel(tr("Second Phase Duration (D2):"), this);
     secondPhaseDurationSpinBox = new TimeSpinBox(timestep, this);
-    secondPhaseDurationSpinBox->setRange(0, MAXIMUM_DURATION);
+    configureMicrosecondSpinLimits(secondPhaseDurationSpinBox, secondPhaseDurationLabel, 0, kAmpMaxDurationUs, timestep);
 
     interphaseDelayLabel = new QLabel(tr("Interphase Delay (DP):"), this);
     interphaseDelaySpinBox = new TimeSpinBox(timestep, this);
-    interphaseDelaySpinBox->setRange(0, MAXIMUM_DURATION);
+    configureMicrosecondSpinLimits(interphaseDelaySpinBox, interphaseDelayLabel, 0, kAmpMaxDurationUs, timestep);
 
     firstPhaseAmplitudeLabel = new QLabel(tr("First Phase Amplitude (A1):"), this);
     firstPhaseAmplitudeSpinBox = new CurrentSpinBox(currentstep, this);
-    firstPhaseAmplitudeSpinBox->setRange(0, 255 * currentstep);
+    configureCurrentSpinLimits(firstPhaseAmplitudeSpinBox, firstPhaseAmplitudeLabel, 0, 255 * currentstep, currentstep);
 
     secondPhaseAmplitudeLabel = new QLabel(tr("Second Phase Amplitude (A2):"), this);
     secondPhaseAmplitudeSpinBox = new CurrentSpinBox(currentstep, this);
-    secondPhaseAmplitudeSpinBox->setRange(0, 255 * currentstep);
+    configureCurrentSpinLimits(secondPhaseAmplitudeSpinBox, secondPhaseAmplitudeLabel, 0, 255 * currentstep, currentstep);
 
     totalPosChargeLabel = new QLabel(this);
     totalNegChargeLabel = new QLabel(this);
@@ -124,7 +127,7 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
 
     postTriggerDelayLabel = new QLabel(tr("Post Trigger Delay:"), this);
     postTriggerDelaySpinBox = new TimeSpinBox(timestep, this);
-    postTriggerDelaySpinBox->setRange(0, MAXIMUM_DURATION);
+    configureMicrosecondSpinLimits(postTriggerDelaySpinBox, postTriggerDelayLabel, 0, kAmpMaxDurationUs, timestep);
 
     // Create pulse train information widgets.
     QGroupBox* pulseTrainGroupBox = new QGroupBox(tr("Pulse Train"), this);
@@ -138,28 +141,28 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
     numberOfStimPulsesLabel = new QLabel(tr("Number of Stim Pulses"), this);
     numberOfStimPulsesSpinBox = new QSpinBox(this);
     numberOfStimPulsesSpinBox->setMaximumWidth(numberOfStimPulsesSpinBox->fontMetrics().horizontalAdvance("99999  "));
-    numberOfStimPulsesSpinBox->setRange(2, 256);
+    configurePlainSpinLimits(numberOfStimPulsesSpinBox, numberOfStimPulsesLabel, 2, 256, tr("pulses"));
 
     pulseTrainPeriodLabel = new QLabel(tr("Pulse Train Period:"), this);
     pulseTrainPeriodSpinBox = new TimeSpinBox(timestep, this);
-    pulseTrainPeriodSpinBox->setRange(0, 1000000);
+    configureMicrosecondSpinLimits(pulseTrainPeriodSpinBox, pulseTrainPeriodLabel, 0, kPulseTrainMaxUs, timestep);
 
     pulseTrainFrequencyLabel = new QLabel(this);
 
     refractoryPeriodLabel = new QLabel(tr("Post-Stim Refractory Period:"), this);
     refractoryPeriodSpinBox = new TimeSpinBox(timestep, this);
-    refractoryPeriodSpinBox->setRange(0, 1000000);
+    configureMicrosecondSpinLimits(refractoryPeriodSpinBox, refractoryPeriodLabel, 0, kPulseTrainMaxUs, timestep);
 
     // Create Amp Settle widgets.
     QGroupBox* ampSettleGroupBox = new QGroupBox(tr("Amp Settle"), this);
 
     preStimAmpSettleLabel = new QLabel(tr("Pre Stim Amp Settle:"), this);
     preStimAmpSettleSpinBox = new TimeSpinBox(timestep, this);
-    preStimAmpSettleSpinBox->setRange(0, 500000);
+    configureMicrosecondSpinLimits(preStimAmpSettleSpinBox, preStimAmpSettleLabel, 0, kAmpSettleMaxUs, timestep);
 
     postStimAmpSettleLabel = new QLabel(tr("Post Stim Amp Settle:"), this);
     postStimAmpSettleSpinBox = new TimeSpinBox(timestep, this);
-    postStimAmpSettleSpinBox->setRange(0, 500000);
+    configureMicrosecondSpinLimits(postStimAmpSettleSpinBox, postStimAmpSettleLabel, 0, kAmpSettleMaxUs, timestep);
 
     maintainAmpSettleCheckBox = new QCheckBox(tr("Maintain amp settle during pulse train"), this);
 
@@ -170,11 +173,11 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
 
     postStimChargeRecovOnLabel = new QLabel(tr("Post Stim Charge Recovery On:"), this);
     postStimChargeRecovOnSpinBox = new TimeSpinBox(timestep, this);
-    postStimChargeRecovOnSpinBox->setRange(0, 1000000);
+    configureMicrosecondSpinLimits(postStimChargeRecovOnSpinBox, postStimChargeRecovOnLabel, 0, kPulseTrainMaxUs, timestep);
 
     postStimChargeRecovOffLabel = new QLabel(tr("Post Stim Charge Recovery Off:"), this);
     postStimChargeRecovOffSpinBox = new TimeSpinBox(timestep, this);
-    postStimChargeRecovOffSpinBox->setRange(0, 1000000);
+    configureMicrosecondSpinLimits(postStimChargeRecovOffSpinBox, postStimChargeRecovOffLabel, 0, kPulseTrainMaxUs, timestep);
 
     enableChargeRecoveryCheckBox = new QCheckBox(tr("Enable Charge Recovery"), this);
 

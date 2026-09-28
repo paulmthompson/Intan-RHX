@@ -32,6 +32,7 @@
 #include <cmath>
 #include "signalsources.h"
 #include "smartspinbox.h"
+#include "spinboxtooltips.hpp"
 #include "voltagespinbox.h"
 #include "anoutfigure.h"
 #include "anoutdialog.h"
@@ -43,6 +44,12 @@ AnOutDialog::AnOutDialog(SystemState* state_, Channel* channel_, QWidget *parent
 {
     parameters = channel->stimParameters;
     timestep = 1.0e6 / state->sampleRate->getNumericValue();  // time step in microseconds
+
+    const double kDacPhaseMaxUs = 5000.0;
+    const double kDacInterphaseMaxUs = 5000.0;
+    const double kPostTriggerMaxUs = 5.0e5;
+    const double kPulseTrainMaxUs = 1.0e6;
+    const double kDacVoltageMaxVolts = 10.24;
 
     anOutFigure = new AnOutFigure(parameters, this);
 
@@ -63,27 +70,27 @@ AnOutDialog::AnOutDialog(SystemState* state_, Channel* channel_, QWidget *parent
 
     firstPhaseDurationLabel = new QLabel(tr("First Phase Duration (D1):"), this);
     firstPhaseDurationSpinBox = new TimeSpinBox(timestep, this);
-    firstPhaseDurationSpinBox->setRange(0, 5000);
+    configureMicrosecondSpinLimits(firstPhaseDurationSpinBox, firstPhaseDurationLabel, 0, kDacPhaseMaxUs, timestep);
 
     secondPhaseDurationLabel = new QLabel(tr("Second Phase Duration (D2):"), this);
     secondPhaseDurationSpinBox = new TimeSpinBox(timestep, this);
-    secondPhaseDurationSpinBox->setRange(0, 5000);
+    configureMicrosecondSpinLimits(secondPhaseDurationSpinBox, secondPhaseDurationLabel, 0, kDacPhaseMaxUs, timestep);
 
     interphaseDelayLabel = new QLabel(tr("Interphase Delay (DP):"), this);
     interphaseDelaySpinBox = new TimeSpinBox(timestep, this);
-    interphaseDelaySpinBox->setRange(0, 5000);
+    configureMicrosecondSpinLimits(interphaseDelaySpinBox, interphaseDelayLabel, 0, kDacInterphaseMaxUs, timestep);
 
     firstPhaseAmplitudeLabel = new QLabel(tr("First Phase Amplitude (A1):"), this);
     firstPhaseAmplitudeSpinBox = new VoltageSpinBox(this);
-    firstPhaseAmplitudeSpinBox->setRange(0, 10.24);
+    configureVoltageSpinLimits(firstPhaseAmplitudeSpinBox, firstPhaseAmplitudeLabel, 0, kDacVoltageMaxVolts);
 
     secondPhaseAmplitudeLabel = new QLabel(tr("Second Phase Amplitude (A2):"), this);
     secondPhaseAmplitudeSpinBox = new VoltageSpinBox(this);
-    secondPhaseAmplitudeSpinBox->setRange(0, 10.24);
+    configureVoltageSpinLimits(secondPhaseAmplitudeSpinBox, secondPhaseAmplitudeLabel, 0, kDacVoltageMaxVolts);
 
     baselineVoltageLabel = new QLabel(tr("Baseline Voltage:"));
     baselineVoltageSpinBox = new VoltageSpinBox(this);
-    baselineVoltageSpinBox->setRange(-10.24, 10.24);
+    configureVoltageSpinLimits(baselineVoltageSpinBox, baselineVoltageLabel, -kDacVoltageMaxVolts, kDacVoltageMaxVolts);
 
     // Create trigger information widgets.
     QGroupBox* triggerGroupBox = new QGroupBox(tr("Trigger"), this);
@@ -118,7 +125,7 @@ AnOutDialog::AnOutDialog(SystemState* state_, Channel* channel_, QWidget *parent
 
     postTriggerDelayLabel = new QLabel(tr("Post Trigger Delay:"), this);
     postTriggerDelaySpinBox = new TimeSpinBox(timestep, this);
-    postTriggerDelaySpinBox->setRange(0, 500000);
+    configureMicrosecondSpinLimits(postTriggerDelaySpinBox, postTriggerDelayLabel, 0, kPostTriggerMaxUs, timestep);
 
     // Create pulse train information widgets.
     QGroupBox* pulseTrainGroupBox = new QGroupBox(tr("Pulse Train"), this);
@@ -131,17 +138,17 @@ AnOutDialog::AnOutDialog(SystemState* state_, Channel* channel_, QWidget *parent
 
     numberOfStimPulsesLabel = new QLabel(tr("Number of Stim Pulses"), this);
     numberOfStimPulsesSpinBox = new QSpinBox(this);
-    numberOfStimPulsesSpinBox->setRange(2, 256);
+    configurePlainSpinLimits(numberOfStimPulsesSpinBox, numberOfStimPulsesLabel, 2, 256, tr("pulses"));
 
     pulseTrainPeriodLabel = new QLabel(tr("Pulse Train Period:"), this);
     pulseTrainPeriodSpinBox = new TimeSpinBox(timestep, this);
-    pulseTrainPeriodSpinBox->setRange(0, 1000000);
+    configureMicrosecondSpinLimits(pulseTrainPeriodSpinBox, pulseTrainPeriodLabel, 0, kPulseTrainMaxUs, timestep);
 
     pulseTrainFrequencyLabel = new QLabel();
 
     refractoryPeriodLabel = new QLabel(tr("Post-Stim Refractory Period:"), this);
     refractoryPeriodSpinBox = new TimeSpinBox(timestep, this);
-    refractoryPeriodSpinBox->setRange(0, 1000000);
+    configureMicrosecondSpinLimits(refractoryPeriodSpinBox, refractoryPeriodLabel, 0, kPulseTrainMaxUs, timestep);
 
     buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttonBox, SIGNAL(accepted()), this, SLOT(accept()));
