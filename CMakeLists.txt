@@ -38,7 +38,7 @@ set(Sources
         Engine/API/Hardware/rhxcontroller.cpp 
         Engine/API/Hardware/rhxdatablock.cpp 
         Engine/API/Hardware/rhxregisters.cpp 
-        Engine/API/Hardware/okFrontPanelDLL.cpp 
+        #Engine/API/Hardware/okFrontPanelDLL.cpp 
         Engine/Processing/DataFileReaders/datafile.cpp 
         Engine/Processing/DataFileReaders/datafilemanager.cpp 
         Engine/Processing/DataFileReaders/datafilereader.cpp 
@@ -156,7 +156,7 @@ set(Headers
         Engine/API/Hardware/rhxdatablock.h 
         Engine/API/Hardware/rhxglobals.h 
         Engine/API/Hardware/rhxregisters.h 
-        Engine/API/Hardware/okFrontPanelDLL.h 
+        #Engine/API/Hardware/okFrontPanelDLL.h 
         Engine/Processing/DataFileReaders/datafile.h 
         Engine/Processing/DataFileReaders/datafilemanager.h 
         Engine/Processing/DataFileReaders/datafilereader.h 
