@@ -104,12 +104,14 @@ StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, Sign
         enableAmpSettle = new BooleanItem("EnableAmpSettle", hList_, state_, true, XMLGroupStimParameters, TypeDependencyStim);
         enableChargeRecovery = new BooleanItem("EnableChargeRecovery", hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
 
-        firstPhaseDuration = new DoubleRangeItem("FirstPhaseDurationMicroseconds", hList_, state_, 0.0, 5000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
-        secondPhaseDuration = new DoubleRangeItem("SecondPhaseDurationMicroseconds", hList_, state_, 0.0, 5000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
-        interphaseDelay = new DoubleRangeItem("InterphaseDelayMicroseconds", hList_, state_, 0.0, 5000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
+        double const MAXIMUM_DURATION = 1.0e7; // 10 s is 1e7 us
+
+        firstPhaseDuration = new DoubleRangeItem("FirstPhaseDurationMicroseconds", hList_, state_, 0.0, MAXIMUM_DURATION, 100.0, XMLGroupStimParameters, TypeDependencyStim);
+        secondPhaseDuration = new DoubleRangeItem("SecondPhaseDurationMicroseconds", hList_, state_, 0.0, MAXIMUM_DURATION, 100.0, XMLGroupStimParameters, TypeDependencyStim);
+        interphaseDelay = new DoubleRangeItem("InterphaseDelayMicroseconds", hList_, state_, 0.0, MAXIMUM_DURATION, 100.0, XMLGroupStimParameters, TypeDependencyStim);
         firstPhaseAmplitude = new DoubleRangeItem("FirstPhaseAmplitudeMicroAmps", hList_, state_, 0.0, 2550.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
         secondPhaseAmplitude = new DoubleRangeItem("SecondPhaseAmplitudeMicroAmps", hList_, state_, 0.0, 2550.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
-        postTriggerDelay = new DoubleRangeItem("PostTriggerDelayMicroseconds", hList_, state_, 0.0, 500000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
+        postTriggerDelay = new DoubleRangeItem("PostTriggerDelayMicroseconds", hList_, state_, 0.0, MAXIMUM_DURATION, 0.0, XMLGroupStimParameters, TypeDependencyStim);
         pulseTrainPeriod = new DoubleRangeItem("PulseTrainPeriodMicroseconds", hList_, state_, 0.0, 1000000.0, 10000.0, XMLGroupStimParameters, TypeDependencyStim);
         refractoryPeriod = new DoubleRangeItem("RefractoryPeriodMicroseconds", hList_, state_, 0.0, 1000000.0, 1000.0, XMLGroupStimParameters, TypeDependencyStim);
         preStimAmpSettle = new DoubleRangeItem("PreStimAmpSettleMicroseconds", hList_, state_, 0.0, 500000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
@@ -164,8 +166,8 @@ StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, Sign
 
         enabled = new BooleanItem("StimEnabled", hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
 
-        firstPhaseDuration = new DoubleRangeItem("FirstPhaseDurationMicroseconds", hList_, state_, 0.0, 5000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
-        secondPhaseDuration = new DoubleRangeItem("SecondPhaseDurationMicroseconds", hList_, state_, 0.0, 5000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
+        firstPhaseDuration = new DoubleRangeItem("FirstPhaseDurationMicroseconds", hList_, state_, 0.0, 50000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
+        secondPhaseDuration = new DoubleRangeItem("SecondPhaseDurationMicroseconds", hList_, state_, 0.0, 50000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
         interphaseDelay = new DoubleRangeItem("InterphaseDelayMicroseconds", hList_, state_, 0.0, 5000.0, 100.0, XMLGroupStimParameters, TypeDependencyStim);
         firstPhaseAmplitude = new DoubleRangeItem("FirstPhaseAmplitudeVolts", hList_, state_, 0.0, 10.24, 0.0, XMLGroupStimParameters, TypeDependencyStim);
         secondPhaseAmplitude = new DoubleRangeItem("SecondPhaseAmplitudeVolts", hList_, state_, 0.0, 10.24, 0.0, XMLGroupStimParameters, TypeDependencyStim);
@@ -210,7 +212,7 @@ StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, Sign
 
         enabled = new BooleanItem("StimEnabled", hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
 
-        firstPhaseDuration = new DoubleRangeItem("FirstPhaseDurationMicroseconds", hList_, state_, 0.0, 100000, 100.0, XMLGroupStimParameters, TypeDependencyStim);
+        firstPhaseDuration = new DoubleRangeItem("FirstPhaseDurationMicroseconds", hList_, state_, 0.0, 1000000, 100.0, XMLGroupStimParameters, TypeDependencyStim);
         postTriggerDelay = new DoubleRangeItem("PostTriggerDelayMicroseconds", hList_, state_, 0.0, 500000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
         pulseTrainPeriod = new DoubleRangeItem("PulseTrainPeriodMicroseconds", hList_, state_, 0.0, 1000000.0, 10000.0, XMLGroupStimParameters, TypeDependencyStim);
         refractoryPeriod = new DoubleRangeItem("RefractoryPeriodMicroseconds", hList_, state_, 0.0, 1000000.0, 1000.0, XMLGroupStimParameters, TypeDependencyStim);

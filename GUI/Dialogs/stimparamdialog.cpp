@@ -37,6 +37,8 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
     state(state_),
     channel(channel_)
 {
+
+    const uint32_t MAXIMUM_DURATION = 1e7; // 10 s = 1e7 us
     parameters = channel->stimParameters;
     timestep = 1.0e6 / state->sampleRate->getNumericValue();  // time step in microseconds
     currentstep = RHXRegisters::stimStepSizeToDouble(state->getStimStepSizeEnum()) * 1.0e6;  // current step in microamps
@@ -59,16 +61,16 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
 
     firstPhaseDurationLabel = new QLabel(tr("First Phase Duration (D1):"), this);
     firstPhaseDurationSpinBox = new TimeSpinBox(timestep, this);
-    firstPhaseDurationSpinBox->setRange(0, 5000);
+    firstPhaseDurationSpinBox->setRange(0, MAXIMUM_DURATION);
     connect(qApp, SIGNAL(focusChanged(QWidget*,QWidget*)), this, SLOT(notifyFocusChanged(QWidget*,QWidget*)));
 
     secondPhaseDurationLabel = new QLabel(tr("Second Phase Duration (D2):"), this);
     secondPhaseDurationSpinBox = new TimeSpinBox(timestep, this);
-    secondPhaseDurationSpinBox->setRange(0, 5000);
+    secondPhaseDurationSpinBox->setRange(0, MAXIMUM_DURATION);
 
     interphaseDelayLabel = new QLabel(tr("Interphase Delay (DP):"), this);
     interphaseDelaySpinBox = new TimeSpinBox(timestep, this);
-    interphaseDelaySpinBox->setRange(0, 5000);
+    interphaseDelaySpinBox->setRange(0, MAXIMUM_DURATION);
 
     firstPhaseAmplitudeLabel = new QLabel(tr("First Phase Amplitude (A1):"), this);
     firstPhaseAmplitudeSpinBox = new CurrentSpinBox(currentstep, this);
@@ -114,7 +116,7 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
 
     postTriggerDelayLabel = new QLabel(tr("Post Trigger Delay:"), this);
     postTriggerDelaySpinBox = new TimeSpinBox(timestep, this);
-    postTriggerDelaySpinBox->setRange(0, 500000);
+    postTriggerDelaySpinBox->setRange(0, MAXIMUM_DURATION);
 
     // Create pulse train information widgets.
     QGroupBox* pulseTrainGroupBox = new QGroupBox(tr("Pulse Train"), this);

@@ -79,7 +79,7 @@ DigOutDialog::DigOutDialog(SystemState* state_, Channel* channel_, QWidget *pare
     QGroupBox* pulseGroupBox = new QGroupBox(tr("Pulse"), this);
 
     pulseDurationSpinBox = new TimeSpinBox(timestep, this);
-    pulseDurationSpinBox->setRange(0, 100000);
+    pulseDurationSpinBox->setRange(0, 1000000);
     pulseDurationLabel = new QLabel(tr("Pulse Duration (D1):"), this);
 
     pulseRepetitionComboBox = new QComboBox(this);

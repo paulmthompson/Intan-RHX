@@ -1191,7 +1191,7 @@ void ControllerInterface::setStimSequenceParameters(Channel* ampChannel)
 {
     if (rhxController->isSynthetic() || rhxController->isPlayback()) return;
 
-    const int Never = 65535;
+    const uint32_t Never = 0xFFFFFFFF; // PMT
 
     StimParameters* parameters = ampChannel->stimParameters;
     int stream = ampChannel->getCommandStream();
@@ -1220,11 +1220,11 @@ void ControllerInterface::setStimSequenceParameters(Channel* ampChannel)
     int postStimChargeRecovOff = round(parameters->postStimChargeRecovOff->getValue() / timestep );
     int pulseTrainPeriod = round(parameters->pulseTrainPeriod->getValue() / timestep);
 
-    int eventStartStim;
-    int eventStimPhase2;
-    int eventStimPhase3;
-    int eventEndStim;
-    int eventEnd;
+    uint32_t eventStartStim;
+    uint32_t eventStimPhase2;
+    uint32_t eventStimPhase3;
+    uint32_t eventEndStim;
+    uint32_t eventEnd;
     int eventRepeatStim;
     int eventAmpSettleOn;
     int eventAmpSettleOff;
@@ -1360,7 +1360,7 @@ void ControllerInterface::setAnalogOutSequenceParameters(Channel* anOutChannel)
 {
     if (rhxController->isSynthetic() || rhxController->isPlayback()) return;
 
-    const int Never = 65535;
+    const uint32_t Never = 0xFFFFFFFF; // PMT
 
     StimParameters* parameters = anOutChannel->stimParameters;
     int channel = anOutChannel->getNativeChannelNumber();
@@ -1470,7 +1470,7 @@ void ControllerInterface::setDigitalOutSequenceParameters(Channel* digOutChannel
 {
     if (rhxController->isSynthetic() || rhxController->isPlayback()) return;
 
-    const int Never = 65535;
+        const uint32_t Never = 0xFFFFFFFF; // PMT
 
     StimParameters* parameters = digOutChannel->stimParameters;
     int channel = digOutChannel->getNativeChannelNumber();

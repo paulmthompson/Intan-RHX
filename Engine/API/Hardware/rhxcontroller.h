@@ -115,7 +115,7 @@ public:
 
     void clearTtlOut() override;                 // not used with ControllerStimRecord
     void resetSequencers() override;
-    void programStimReg(int stream, int channel, StimRegister reg, int value) override;
+    void programStimReg(int stream, int channel, StimRegister reg, uint32_t value) override;
     void uploadCommandList(const std::vector<unsigned int> &commandList, AuxCmdSlot auxCommandSlot, int bank = 0) override;
 
     int findConnectedChips(std::vector<ChipType> &chipType, std::vector<int> &portIndex, std::vector<int> &commandStream,
@@ -229,7 +229,11 @@ private:
     enum EndPointStimRecordUSB2 {
         WireInStimCmdMode_S_USB2 = 0x05,
         WireInStimRegAddr_S_USB2 = 0x06,
+
         WireInStimRegWord_S_USB2 = 0x07,
+
+        WireInStimRegWord_S2_USB2 = 0x0b, // PMT
+
         WireInDcAmpConvert_S_USB2 = 0x08,
         WireInExtraStates_S_USB2 = 0x09,
         WireInDacReref_S_USB2 = 0x0a,

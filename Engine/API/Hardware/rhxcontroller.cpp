@@ -1584,15 +1584,27 @@ void RHXController::resetSequencers()
 }
 
 // Set a particular stimulation control register.
-void RHXController::programStimReg(int stream, int channel, StimRegister reg, int value)
+void RHXController::programStimReg(int stream, int channel, StimRegister reg, uint32_t value)
 {
     if (type != ControllerStimRecord) return;
     std::lock_guard<std::mutex> lockOk(okMutex);
 
     dev->SetWireInValue(WireInStimRegAddr_S_USB2, (stream << 8) + (channel << 4) + reg);
-    dev->SetWireInValue(WireInStimRegWord_S_USB2, value);
+    dev->SetWireInValue(WireInStimRegWord_S_USB2, value & 0xFFFF );
+
+    // split 32-bit value into 2 16 bit values
+    auto value_msb = (value &  0xFFFF0000U) >> 16;
+
+    std::cout << "Stream: " << stream << std::endl;
+    std::cout << "Channel: " << channel << std::endl;
+    std::cout << "Register: " << static_cast<int>(reg) << std::endl;
+    std::cout << "value: " << static_cast<int>(value  & 0xFFFF) << std::endl;
+    std::cout << "value msb " << value_msb << std::endl;
+
+    dev->SetWireInValue(WireInStimRegWord_S2_USB2, value_msb & 0xFFFF);
     dev->UpdateWireIns();
     dev->ActivateTriggerIn(TrigInRamAddrReset_S_USB2, 1);
+
 }
 
 // Upload an auxiliary command list to a particular command slot and RAM bank (0-15) on the FPGA.
