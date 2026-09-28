@@ -28,6 +28,14 @@
 //
 //------------------------------------------------------------------------------
 
+/**
+ * @file stimparamdialog.cpp
+ * @ingroup RhxStimSequencer
+ * @brief Amp-channel stim parameter dialog; TimeSpinBox ranges must match stimparameters.cpp.
+ *
+ * @details Maintenance: see docs/stim-sequencer-maintenance.md
+ */
+
 #include <QtWidgets>
 #include "rhxregisters.h"
 #include "stimparamdialog.h"

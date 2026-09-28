@@ -28,6 +28,14 @@
 //
 //------------------------------------------------------------------------------
 
+/**
+ * @file abstractrhxcontroller.h
+ * @ingroup RhxStimSequencer
+ * @brief Abstract controller API: StimRegister map and programStimReg contract.
+ *
+ * @details Maintenance: see docs/stim-sequencer-maintenance.md
+ */
+
 #ifndef ABSTRACTRHXCONTROLLER_H
 #define ABSTRACTRHXCONTROLLER_H
 
@@ -59,7 +67,13 @@ bool operator >(const StreamChannelPair& a, const StreamChannelPair& b);
 class AbstractRHXController
 {
 public:
-    // Stimulation sequencer register addresses
+    /**
+     * @brief FPGA stim sequencer programming addresses (prog_address on WireIn 0x06).
+     * @ingroup RhxStimSequencer
+     *
+     * Values 0-13 program per-channel amp sequencer events; DAC outputs reuse addresses 9-11
+     * as DacBaseline, DacPositive, and DacNegative. See docs/stim-program-bram-phase1.md.
+     */
     enum StimRegister {
         TriggerParams = 0,
         StimParams = 1,
@@ -207,6 +221,25 @@ public:
 
     virtual void clearTtlOut() = 0;
     virtual void resetSequencers() = 0;
+
+    /**
+     * @brief Programs one stimulation sequencer register for a stream/channel on RHS stim/record hardware.
+     * @ingroup RhxStimSequencer
+     *
+     * @param stream Command stream index on the FPGA.
+     * @param channel Channel index within the stream (or DAC channel semantics for analog-out path).
+     * @param reg Register address; see StimRegister.
+     * @param value Event time in sample-clock ticks, or sentinel to disable an event.
+     *
+     * @note Stock Intan bitfile: 16-bit value on WireIn 0x07 only.
+     * @note Custom RHS bitfile: 32-bit value; LSB on WireIn 0x07, MSB on WireInStimRegWord_S2_USB2 (0x0b).
+     *
+     * @pre Controller type is ControllerStimRecord for hardware implementations.
+     * @post FPGA has latched the register write (implementation triggers prog_trig).
+     *
+     * @see StimRegister
+     * @see ControllerInterface::setStimSequenceParameters
+     */
     virtual void programStimReg(int stream, int channel, StimRegister reg, uint32_t value) = 0;
     virtual void uploadCommandList(const std::vector<unsigned int> &commandList, AuxCmdSlot auxCommandSlot, int bank) = 0;
 

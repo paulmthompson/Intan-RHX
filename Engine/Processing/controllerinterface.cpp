@@ -28,6 +28,19 @@
 //
 //------------------------------------------------------------------------------
 
+/**
+ * @file controllerinterface.cpp
+ * @ingroup RhxStimSequencer
+ * @brief Converts StimParameters (microseconds) to sequencer tick values and calls programStimReg.
+ *
+ * @see ControllerInterface::setStimSequenceParameters
+ * @see ControllerInterface::setAnalogOutSequenceParameters
+ * @see ControllerInterface::setDigitalOutSequenceParameters
+ * @see AbstractRHXController::programStimReg
+ *
+ * @details Maintenance: see docs/stim-sequencer-maintenance.md
+ */
+
 #include <QApplication>
 #include <QtGlobal>
 #include <QElapsedTimer>

@@ -28,6 +28,14 @@
 //
 //------------------------------------------------------------------------------
 
+/**
+ * @file stimparameters.cpp
+ * @brief Constructs StimParameters range items (microsecond maxima per channel type).
+ * @ingroup RhxStimSequencer
+ *
+ * @details Maintenance: see docs/stim-sequencer-maintenance.md
+ */
+
 #include "stimparameters.h"
 
 StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, SignalType signalType_) :

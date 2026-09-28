@@ -28,6 +28,17 @@
 //
 //------------------------------------------------------------------------------
 
+/**
+ * @file abstractrhxcontroller.cpp
+ * @ingroup RhxStimSequencer
+ * @brief Controller initialization including default stim sequencer register values (NEVER sentinel).
+ *
+ * @see AbstractRHXController::initialize
+ * @see AbstractRHXController::programStimReg
+ *
+ * @details Maintenance: see docs/stim-sequencer-maintenance.md
+ */
+
 #include "rhxregisters.h"
 #include "abstractrhxcontroller.h"
 

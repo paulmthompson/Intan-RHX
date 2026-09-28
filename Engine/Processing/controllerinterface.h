@@ -28,6 +28,14 @@
 //
 //------------------------------------------------------------------------------
 
+/**
+ * @file controllerinterface.h
+ * @ingroup RhxStimSequencer
+ * @brief High-level controller facade; declares stim sequence upload entry points.
+ *
+ * @details Maintenance: see docs/stim-sequencer-maintenance.md
+ */
+
 #ifndef CONTROLLERINTERFACE_H
 #define CONTROLLERINTERFACE_H
 
@@ -96,8 +104,43 @@ public:
 
     QString getCurrentAudioChannel() const { return currentAudioChannel; }
 
+    /**
+     * @brief Upload amp-channel stim sequencer program from channel StimParameters.
+     * @ingroup RhxStimSequencer
+     *
+     * Converts timing fields from microseconds to ticks, then calls programStimReg and magnitude aux commands.
+     *
+     * @pre rhxController is live hardware (not synthetic or playback).
+     * @post Sequencer registers and stim magnitudes match ampChannel->stimParameters.
+     *
+     * @see setAnalogOutSequenceParameters
+     * @see setDigitalOutSequenceParameters
+     * @see AbstractRHXController::programStimReg
+     */
     void setStimSequenceParameters(Channel* ampChannel);
+
+    /**
+     * @brief Upload board-DAC stim sequencer program from channel StimParameters.
+     * @ingroup RhxStimSequencer
+     *
+     * @pre rhxController is live hardware (not synthetic or playback).
+     * @post DAC sequencer registers match anOutChannel->stimParameters.
+     *
+     * @see setStimSequenceParameters
+     * @see AbstractRHXController::programStimReg
+     */
     void setAnalogOutSequenceParameters(Channel* anOutChannel);
+
+    /**
+     * @brief Upload digital-out stim sequencer program from channel StimParameters.
+     * @ingroup RhxStimSequencer
+     *
+     * @pre rhxController is live hardware (not synthetic or playback).
+     * @post Digout sequencer registers match digOutChannel->stimParameters.
+     *
+     * @see setStimSequenceParameters
+     * @see AbstractRHXController::programStimReg
+     */
     void setDigitalOutSequenceParameters(Channel* digOutChannel);
 
     void setManualStimTrigger(int trigger, bool triggerOn);

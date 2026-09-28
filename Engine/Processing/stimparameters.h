@@ -28,6 +28,22 @@
 //
 //------------------------------------------------------------------------------
 
+/**
+ * @defgroup RhxStimSequencer RHS stimulation sequencer (host software)
+ * @brief End-to-end path from GUI/state timing limits to FPGA programStimReg.
+ *
+ * When changing timing limits, register width, or Never sentinel behavior, update
+ * all files listed in docs/stim-sequencer-maintenance.md.
+ */
+
+/**
+ * @file stimparameters.h
+ * @brief Persistent stim timing and amplitude settings (XML and state items).
+ * @ingroup RhxStimSequencer
+ *
+ * @details Maintenance: see docs/stim-sequencer-maintenance.md
+ */
+
 #ifndef STIMPARAMETERS_H
 #define STIMPARAMETERS_H
 

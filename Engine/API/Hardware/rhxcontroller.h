@@ -28,6 +28,14 @@
 //
 //------------------------------------------------------------------------------
 
+/**
+ * @file rhxcontroller.h
+ * @ingroup RhxStimSequencer
+ * @brief USB WireIn addresses and hardware RHXController API (including programStimReg).
+ *
+ * @details Maintenance: see docs/stim-sequencer-maintenance.md
+ */
+
 #ifndef RHXCONTROLLER_H
 #define RHXCONTROLLER_H
 

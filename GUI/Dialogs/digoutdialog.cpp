@@ -28,6 +28,14 @@
 //
 //------------------------------------------------------------------------------
 
+/**
+ * @file digoutdialog.cpp
+ * @ingroup RhxStimSequencer
+ * @brief Digital-out stim dialog; pulse duration range must match stimparameters.cpp (digout).
+ *
+ * @details Maintenance: see docs/stim-sequencer-maintenance.md
+ */
+
 #include <QtWidgets>
 #include "signalsources.h"
 #include "smartspinbox.h"

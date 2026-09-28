@@ -28,6 +28,17 @@
 //
 //------------------------------------------------------------------------------
 
+/**
+ * @file rhxcontroller.cpp
+ * @ingroup RhxStimSequencer
+ * @brief Host-to-FPGA implementation of programStimReg (16-bit stock or 32-bit custom WireIns).
+ *
+ * @see RHXController::programStimReg
+ * @see AbstractRHXController::programStimReg
+ *
+ * @details Maintenance: see docs/stim-sequencer-maintenance.md
+ */
+
 #define NOMINMAX
 
 #include <iostream>
@@ -1583,7 +1594,10 @@ void RHXController::resetSequencers()
     dev->ActivateTriggerIn(TrigInSpiStart, 1);
 }
 
-// Set a particular stimulation control register.
+/**
+ * @brief See AbstractRHXController::programStimReg.
+ * @ingroup RhxStimSequencer
+ */
 void RHXController::programStimReg(int stream, int channel, StimRegister reg, uint32_t value)
 {
     if (type != ControllerStimRecord) return;
