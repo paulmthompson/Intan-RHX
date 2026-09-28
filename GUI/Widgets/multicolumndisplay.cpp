@@ -432,7 +432,7 @@ QString MultiColumnDisplay::getDisplaySettingsString() const
 void MultiColumnDisplay::restoreFromDisplaySettingsString(const QString& settings)
 {
     const QString ColumnSeparator = ";";
-    int numSettingsColumns = qBound(0, settings.count(ColumnSeparator) + 1, MaxNumColumns);
+    int numSettingsColumns = qBound(0, settings.count(ColumnSeparator) + 1, this->maxNumColumns());
     while (numColumns() > numSettingsColumns) {
         deleteColumn(numColumns() - 1, true);
     }
