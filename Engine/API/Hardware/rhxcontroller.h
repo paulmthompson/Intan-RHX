@@ -95,6 +95,8 @@ public:
     void setDacRerefSource(int stream, int channel) override;  // not used with ControllerRecordUSB2
     void setExtraStates(unsigned int extraStates) override;
     void setStimCmdMode(bool enabled) override;
+    void setAmpMaintenance(bool enabled) override;
+    void setAuxExecuteDuringMaintenance(bool enabled) override;
     void setAnalogInTriggerThreshold(double voltageThreshold) override;
     void setManualStimTrigger(int trigger, bool triggerOn) override;
     void setGlobalSettlePolicy(bool settleWholeHeadstageA, bool settleWholeHeadstageB, bool settleWholeHeadstageC, bool settleWholeHeadstageD, bool settleAllHeadstages) override;
@@ -279,6 +281,10 @@ private:
     static int endPointWireInSerialDigitalInCntl(bool isUSB3);
     static int endPointWireOutSerialDigitalIn(bool isUSB3);
     static int endPointWireOutBoardMode() { return (int)WireOutBoardMode; }
+
+    /** WireIn 0x05 bit masks (custom amp-maintenance bitfile). */
+    static constexpr unsigned int StimCmdWireInAmpMaintenanceMask = 0x02;
+    static constexpr unsigned int StimCmdWireInAuxExecuteMask = 0x04;
 };
 
 #endif // RHXCONTROLLER_H

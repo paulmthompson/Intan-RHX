@@ -194,6 +194,8 @@ public:
     virtual void setDacRerefSource(int stream, int channel) = 0;
     virtual void setExtraStates(unsigned int extraStates) = 0;
     virtual void setStimCmdMode(bool enabled) = 0;
+    virtual void setAmpMaintenance(bool enabled) = 0;
+    virtual void setAuxExecuteDuringMaintenance(bool enabled) = 0;
     virtual void setAnalogInTriggerThreshold(double voltageThreshold) = 0;
     virtual void setManualStimTrigger(int trigger, bool triggerOn) = 0;
     virtual void setGlobalSettlePolicy(bool settleWholeHeadstageA, bool settleWholeHeadstageB, bool settleWholeHeadstageC, bool settleWholeHeadstageD, bool settleAllHeadstages) = 0;

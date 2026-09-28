@@ -45,6 +45,7 @@ ControlPanelBandwidthTab::ControlPanelBandwidthTab(ControllerInterface* controll
     viewFiltersWindow(nullptr),
     bandwidthLabel(nullptr),
     changeBandwidthButton(nullptr),
+    changeBandwidthLiveButton(nullptr),
     advancedBandwidthButton(nullptr),
     notchFilterComboBox(nullptr),
     lpTypeComboBox(nullptr),
@@ -58,14 +59,20 @@ ControlPanelBandwidthTab::ControlPanelBandwidthTab(ControllerInterface* controll
     viewFiltersButton(nullptr)
 {
     changeBandwidthButton = new QPushButton(tr("Change Bandwidth"), this);
+    changeBandwidthLiveButton = new QPushButton(tr("Change Bandwidth (Live)"), this);
+    changeBandwidthLiveButton->setToolTip(
+        tr("Apply hardware bandwidth while Run is active (amplifier maintenance bitfile). "
+           "Amplifier traces are briefly zeroed."));
     advancedBandwidthButton = new QPushButton(tr("Advanced"), this);
     connect(changeBandwidthButton, SIGNAL(clicked()), this, SLOT(simpleBandwidthDialog()));
+    connect(changeBandwidthLiveButton, SIGNAL(clicked()), this, SLOT(liveMaintenanceBandwidthDialog()));
     connect(advancedBandwidthButton, SIGNAL(clicked()), this, SLOT(advancedBandwidthDialog()));
 
     bandwidthLabel = new QLabel("", this);
 
     QHBoxLayout *changeBandwidthLayout = new QHBoxLayout;
     changeBandwidthLayout->addWidget(changeBandwidthButton);
+    changeBandwidthLayout->addWidget(changeBandwidthLiveButton);
     changeBandwidthLayout->addWidget(advancedBandwidthButton);
     changeBandwidthLayout->addStretch(1);
 
@@ -197,6 +204,8 @@ void ControlPanelBandwidthTab::updateFromState()
     bool notRunning = !(state->running || state->sweeping);
     bool nonPlayback = !(state->playback->getValue());
     changeBandwidthButton->setEnabled(notRunning && nonPlayback);
+    const bool stimRecord = state->getControllerTypeEnum() == ControllerStimRecord;
+    changeBandwidthLiveButton->setEnabled(state->running && !state->sweeping && nonPlayback && stimRecord);
     advancedBandwidthButton->setEnabled(notRunning && nonPlayback);
 
     notchFilterComboBox->setCurrentIndex(state->notchFreq->getIndex());
@@ -271,36 +280,57 @@ double ControlPanelBandwidthTab::secondPoleLocation(double target3dBPoint, doubl
     return target3dBPoint * sqrt((fTargetSquared - f1Squared) / (fTargetSquared + f1Squared));
 }
 
+void ControlPanelBandwidthTab::applySimpleBandwidthSelection(double lower3dBCutoffHz, double upperBandwidthHz)
+{
+    state->desiredLower3dBCutoff->setValueWithLimits(lower3dBCutoffHz);
+    const std::vector<double> dspCutoffFreq = RHXRegisters::getDspFreqTable(state->sampleRate->getNumericValue());
+    state->desiredDspCutoffFreq->setValueWithLimits(dspCutoffFreq[15]);
+    for (int i = 1; i < 16; ++i) {
+        if (dspCutoffFreq[i] < state->desiredLower3dBCutoff->getValue()) {
+            state->desiredDspCutoffFreq->setValueWithLimits(dspCutoffFreq[i]);
+            break;
+        }
+    }
+    state->dspEnabled->setValue(true);
+    const double fL = secondPoleLocation(state->desiredLower3dBCutoff->getValue(), state->desiredDspCutoffFreq->getValue());
+    state->desiredLowerBandwidth->setValueWithLimits(fL);
+    const double FreqRatioLimit = 6.0;
+    if (state->desiredLowerBandwidth->getValue() < state->desiredDspCutoffFreq->getValue() / FreqRatioLimit) {
+        state->desiredLowerBandwidth->setValueWithLimits(state->desiredDspCutoffFreq->getValue() / FreqRatioLimit);
+    }
+    state->desiredUpperBandwidth->setValueWithLimits(upperBandwidthHz);
+}
+
+void ControlPanelBandwidthTab::refreshDisplayedAmplifierBandwidth()
+{
+    state->actualLower3dBCutoff->setValueWithLimits(lower3dBPoint(state->actualLowerBandwidth->getValue(),
+                                                                  state->actualDspCutoffFreq->getValue(),
+                                                                  state->dspEnabled->getValue()));
+    state->forceUpdate();
+}
+
 void ControlPanelBandwidthTab::simpleBandwidthDialog()
 {
     SimpleBandwidthDialog bandwidthDialog(state->desiredLower3dBCutoff->getValue(), state->desiredUpperBandwidth->getValue(),
                                           state->sampleRate->getNumericValue(), this);
     if (bandwidthDialog.exec()) {
-        state->desiredLower3dBCutoff->setValueWithLimits(bandwidthDialog.lowFreqLineEdit->text().toDouble());
-        std::vector<double> dspCutoffFreq = RHXRegisters::getDspFreqTable(state->sampleRate->getNumericValue());
-        state->desiredDspCutoffFreq->setValueWithLimits(dspCutoffFreq[15]);
-        for (int i = 1; i < 16; ++i) {
-            if (dspCutoffFreq[i] < state->desiredLower3dBCutoff->getValue()) {
-                state->desiredDspCutoffFreq->setValueWithLimits(dspCutoffFreq[i]);
-                break;
-            }
-        }
-        state->dspEnabled->setValue(true);
-        double fL = secondPoleLocation(state->desiredLower3dBCutoff->getValue(), state->desiredDspCutoffFreq->getValue());
-        state->desiredLowerBandwidth->setValueWithLimits(fL);
-        const double FreqRatioLimit = 6.0;
-        if (state->desiredLowerBandwidth->getValue() < state->desiredDspCutoffFreq->getValue() / FreqRatioLimit) {
-            state->desiredLowerBandwidth->setValueWithLimits(state->desiredDspCutoffFreq->getValue() / FreqRatioLimit);
-        }
-
-        state->desiredUpperBandwidth->setValueWithLimits(bandwidthDialog.highFreqLineEdit->text().toDouble());
+        applySimpleBandwidthSelection(bandwidthDialog.lowFreqLineEdit->text().toDouble(),
+                                      bandwidthDialog.highFreqLineEdit->text().toDouble());
         controllerInterface->updateChipCommandLists(false);
+        refreshDisplayedAmplifierBandwidth();
+    }
+}
 
-        // Recalculate with new 'actual' filter values.
-        state->actualLower3dBCutoff->setValueWithLimits(lower3dBPoint(state->actualLowerBandwidth->getValue(),
-                                                                      state->actualDspCutoffFreq->getValue(),
-                                                                      state->dspEnabled->getValue()));
-        state->forceUpdate();
+void ControlPanelBandwidthTab::liveMaintenanceBandwidthDialog()
+{
+    SimpleBandwidthDialog bandwidthDialog(state->desiredLower3dBCutoff->getValue(), state->desiredUpperBandwidth->getValue(),
+                                          state->sampleRate->getNumericValue(), this);
+    if (bandwidthDialog.exec()) {
+        applySimpleBandwidthSelection(bandwidthDialog.lowFreqLineEdit->text().toDouble(),
+                                      bandwidthDialog.highFreqLineEdit->text().toDouble());
+        controllerInterface->uploadBandwidthDuringMaintenance();
+        refreshDisplayedAmplifierBandwidth();
+        updateFromState();
     }
 }
 

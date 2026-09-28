@@ -44,6 +44,7 @@
 #include <QApplication>
 #include <QtGlobal>
 #include <QElapsedTimer>
+#include <QThread>
 
 #include <iostream>
 
@@ -734,6 +735,108 @@ void ControllerInterface::updateChipCommandLists(bool updateStimParams)
 
     setDacHighpassFilterEnabled(state->analogOutHighpassFilterEnabled->getValue());
     setDacHighpassFilterFrequency(state->analogOutHighpassFilterFrequency->getValue());
+}
+
+void ControllerInterface::beginAmpMaintenance()
+{
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
+        return;
+    }
+    rhxController->setAuxExecuteDuringMaintenance(false);
+    rhxController->setAmpMaintenance(true);
+    rhxController->resetSequencers();
+}
+
+void ControllerInterface::uploadRhsRegisterConfigDuringMaintenance(bool updateStimParams)
+{
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
+        return;
+    }
+
+    RHXRegisters chipRegisters(state->getControllerTypeEnum(), rhxController->getSampleRate(), state->getStimStepSizeEnum());
+
+    chipRegisters.setDigOutLow(RHXRegisters::DigOut::DigOut1);
+    chipRegisters.setDigOutLow(RHXRegisters::DigOut::DigOut2);
+    chipRegisters.setDigOutLow(RHXRegisters::DigOut::DigOutOD);
+
+    std::vector<unsigned int> commandList;
+    int commandSequenceLength = 0;
+
+    chipRegisters.createCommandListDummy(commandList, 8192,
+                                         chipRegisters.createRHXCommand(RHXRegisters::RHXCommandRegRead, 255));
+    rhxController->uploadCommandList(commandList, RHXController::AuxCmd2, 0);
+    chipRegisters.createCommandListDummy(commandList, 8192,
+                                         chipRegisters.createRHXCommand(RHXRegisters::RHXCommandRegRead, 254));
+    rhxController->uploadCommandList(commandList, RHXController::AuxCmd3, 0);
+    chipRegisters.createCommandListDummy(commandList, 8192,
+                                         chipRegisters.createRHXCommand(RHXRegisters::RHXCommandRegRead, 253));
+    rhxController->uploadCommandList(commandList, RHXController::AuxCmd4, 0);
+
+    state->holdUpdate();
+    state->actualDspCutoffFreq->setValueWithLimits(chipRegisters.setDspCutoffFreq(state->desiredDspCutoffFreq->getValue()));
+    state->actualLowerBandwidth->setValueWithLimits(chipRegisters.setLowerBandwidth(state->desiredLowerBandwidth->getValue(), 0));
+    state->actualLowerSettleBandwidth->setValueWithLimits(
+        chipRegisters.setLowerBandwidth(state->desiredLowerSettleBandwidth->getValue(), 1));
+    state->actualUpperBandwidth->setValueWithLimits(chipRegisters.setUpperBandwidth(state->desiredUpperBandwidth->getValue()));
+    chipRegisters.enableDsp(state->dspEnabled->getValue());
+    state->releaseUpdate();
+
+    commandSequenceLength = chipRegisters.createCommandListRHSRegisterConfig(commandList, updateStimParams);
+    rhxController->uploadCommandList(commandList, RHXController::AuxCmd1, 0);
+    rhxController->selectAuxCommandLength(RHXController::AuxCmd1, 0, commandSequenceLength - 1);
+
+    rhxController->setAuxExecuteDuringMaintenance(true);
+
+    const int samplesPerBlock = RHXDataBlock::samplesPerDataBlock(state->getControllerTypeEnum());
+    const double sampleRate = rhxController->getSampleRate();
+    const int waitMs =
+        static_cast<int>(1000.0 * static_cast<double>(commandSequenceLength + samplesPerBlock) / sampleRate) + 5;
+    QThread::msleep(waitMs);
+
+    rhxController->setAuxExecuteDuringMaintenance(false);
+}
+
+void ControllerInterface::endAmpMaintenance()
+{
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
+        return;
+    }
+
+    rhxController->setAuxExecuteDuringMaintenance(false);
+
+    const int samplesPerBlock = RHXDataBlock::samplesPerDataBlock(state->getControllerTypeEnum());
+    const double sampleRate = rhxController->getSampleRate();
+    constexpr int kSettleFrames = 8;
+    rhxController->setDspSettle(true);
+    const int settleMs = static_cast<int>(1000.0 * static_cast<double>(kSettleFrames * samplesPerBlock) / sampleRate) + 1;
+    QThread::msleep(settleMs);
+    rhxController->setDspSettle(false);
+
+    rhxController->setAmpMaintenance(false);
+}
+
+void ControllerInterface::uploadBandwidthDuringMaintenance()
+{
+    if (rhxController->isSynthetic() || rhxController->isPlayback()) {
+        return;
+    }
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
+        return;
+    }
+    if (!state->running) {
+        sendTCPError("UploadBandwidthDuringMaintenance requires continuous run (press Run first)");
+        return;
+    }
+    if (state->uploadInProgress->getValue()) {
+        sendTCPError("Error - Another upload cannot be started until the previous upload completes");
+        return;
+    }
+
+    state->uploadInProgress->setValue(true);
+    beginAmpMaintenance();
+    uploadRhsRegisterConfigDuringMaintenance(false);
+    endAmpMaintenance();
+    state->uploadInProgress->setValue(false);
 }
 
 void ControllerInterface::runController()

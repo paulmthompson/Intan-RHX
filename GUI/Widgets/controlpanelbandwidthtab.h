@@ -48,6 +48,7 @@ public:
 private slots:
     void simpleBandwidthDialog();
     void advancedBandwidthDialog();
+    void liveMaintenanceBandwidthDialog();
     void viewFiltersSlot();
     void changeNotchFilter(int filterIndex) { state->notchFreq->setIndex(filterIndex); }
     void changeLowType(int lowType) { state->lowType->setIndex(lowType); }
@@ -66,6 +67,7 @@ private:
     QLabel *bandwidthLabel;
 
     QPushButton *changeBandwidthButton;
+    QPushButton *changeBandwidthLiveButton;
     QPushButton *advancedBandwidthButton;
 
     QComboBox *notchFilterComboBox;
@@ -83,6 +85,9 @@ private:
 
     static double lower3dBPoint(double hpf1Cutoff, double hpf2Cutoff, bool hpf2Enabled);
     static double secondPoleLocation(double target3dBPoint, double hpf1Cutoff);
+
+    void applySimpleBandwidthSelection(double lower3dBCutoffHz, double upperBandwidthHz);
+    void refreshDisplayedAmplifierBandwidth();
 };
 
 #endif // CONTROLPANELBANDWIDTHTAB_H

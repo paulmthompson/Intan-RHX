@@ -852,6 +852,26 @@ void RHXController::setStimCmdMode(bool enabled)
     dev->UpdateWireIns();
 }
 
+void RHXController::setAmpMaintenance(bool enabled)
+{
+    if (type != ControllerStimRecord) return;
+    std::lock_guard<std::mutex> lockOk(okMutex);
+
+    dev->SetWireInValue(WireInStimCmdMode_S_USB2, (enabled ? StimCmdWireInAmpMaintenanceMask : 0x00),
+                        StimCmdWireInAmpMaintenanceMask);
+    dev->UpdateWireIns();
+}
+
+void RHXController::setAuxExecuteDuringMaintenance(bool enabled)
+{
+    if (type != ControllerStimRecord) return;
+    std::lock_guard<std::mutex> lockOk(okMutex);
+
+    dev->SetWireInValue(WireInStimCmdMode_S_USB2, (enabled ? StimCmdWireInAuxExecuteMask : 0x00),
+                        StimCmdWireInAuxExecuteMask);
+    dev->UpdateWireIns();
+}
+
 // Set the voltage threshold to be used for digital triggers on Analog In ports.
 void RHXController::setAnalogInTriggerThreshold(double voltageThreshold)
 {

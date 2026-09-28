@@ -78,6 +78,31 @@ public:
     void rescanPorts(bool updateDisplay = false);
 
     void updateChipCommandLists(bool updateStimParams = false);
+
+    /**
+     * @brief Enter amplifier maintenance mode during continuous acquisition (custom bitfile).
+     * @pre ControllerStimRecord, continuous run active; see docs/amp-maintenance-mode.md.
+     * @post Amp FIFO zeros; aux_execute off; stim sequencers held.
+     */
+    void beginAmpMaintenance();
+
+    /**
+     * @brief Upload RHS register-config aux lists and execute them inside maintenance.
+     * @pre beginAmpMaintenance() already called; do not call during PipeIn with aux_execute on.
+     */
+    void uploadRhsRegisterConfigDuringMaintenance(bool updateStimParams = false);
+
+    /**
+     * @brief Leave maintenance mode (brief DSP settle, then clear WireIn bits).
+     */
+    void endAmpMaintenance();
+
+    /**
+     * @brief Apply @c desired* bandwidth/DSP settings while acquisition is running (custom bitfile).
+     * @pre ControllerStimRecord, continuous run; uses amp maintenance + RHS register aux upload.
+     */
+    void uploadBandwidthDuringMaintenance();
+
     void getCableDelay(std::vector<int> &delays) const { rhxController->getCableDelay(delays); }
     void setCableDelay(BoardPort port, int delay) { rhxController->setCableDelay(port, delay); }
     void enableExternalDigOut(BoardPort port, bool enable) { rhxController->enableExternalDigOut(port, enable); }

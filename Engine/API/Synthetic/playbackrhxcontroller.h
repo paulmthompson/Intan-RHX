@@ -79,6 +79,8 @@ public:
     void setDacRerefSource(int, int) override {}
     void setExtraStates(unsigned int) override {}
     void setStimCmdMode(bool) override {}
+    void setAmpMaintenance(bool) override {}
+    void setAuxExecuteDuringMaintenance(bool) override {}
     void setAnalogInTriggerThreshold(double) override {}
     void setManualStimTrigger(int, bool) override {}
     void setGlobalSettlePolicy(bool, bool, bool, bool, bool) override {}
