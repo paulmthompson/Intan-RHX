@@ -90,7 +90,7 @@ public:
      * @brief Upload RHS register-config aux lists and execute them inside maintenance.
      * @pre beginAmpMaintenance() already called; do not call during PipeIn with aux_execute on.
      */
-    void uploadRhsRegisterConfigDuringMaintenance(bool updateStimParams = false);
+    bool uploadRhsRegisterConfigDuringMaintenance(bool updateStimParams = false);
 
     /**
      * @brief Leave maintenance mode (brief DSP settle, then clear WireIn bits).
@@ -102,6 +102,12 @@ public:
      * @pre ControllerStimRecord, continuous run; uses amp maintenance + RHS register aux upload.
      */
     void uploadBandwidthDuringMaintenance();
+
+    /**
+     * @brief Clear amp-maintenance WireIns and upload state (e.g. on Stop or interrupted live upload).
+     * @post aux_execute and amp_maintenance deasserted; DSP settle off; UploadInProgress false.
+     */
+    void abortAmpMaintenanceIfAny();
 
     void getCableDelay(std::vector<int> &delays) const { rhxController->getCableDelay(delays); }
     void setCableDelay(BoardPort port, int delay) { rhxController->setCableDelay(port, delay); }
@@ -247,6 +253,12 @@ private:
     void sendTCPError(QString errorMessage);
     void pipeReadErrorMessage(int errorID);
 
+    /**
+     * @brief Sleep in short slices, processing Qt events so Stop can run.
+     * @return false if @c state->running became false (caller should abort maintenance).
+     */
+    bool sleepMsInterruptible(int totalMs);
+
     SystemState* state;
     AbstractRHXController* rhxController;
     DataFileReader* dataFileReader;
@@ -281,6 +293,9 @@ private:
     std::vector<double> cpuLoadHistory;
 
     bool is7310;
+
+    bool _runControllerActive;
+    bool _ampMaintenanceEntered;
 
     void outOfMemoryError(double memRequiredGB);
 };

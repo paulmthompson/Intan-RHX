@@ -46,6 +46,7 @@
 #include <QElapsedTimer>
 #include <QThread>
 
+#include <algorithm>
 #include <iostream>
 
 #include "controlpanel.h"
@@ -53,6 +54,60 @@
 #include "controllerinterface.h"
 
 #include "ampstimprograms.hpp"
+
+namespace {
+
+constexpr bool kLogRunControllerTeardown = true;
+
+void logTeardown(const char* message)
+{
+    if (kLogRunControllerTeardown) {
+        std::cout << "ControllerInterface teardown: " << message << '\n';
+    }
+}
+
+class MaintenanceUploadGuard {
+public:
+    MaintenanceUploadGuard(SystemState* state_, ControllerInterface* controllerInterface_)
+        : m_state(state_)
+        , m_controllerInterface(controllerInterface_)
+        , m_engaged(false)
+    {
+    }
+
+    bool tryBegin()
+    {
+        if (m_state->uploadInProgress->getValue()) {
+            return false;
+        }
+        m_state->uploadInProgress->setValue(true);
+        m_engaged = true;
+        return true;
+    }
+
+    void release()
+    {
+        if (m_engaged) {
+            m_state->uploadInProgress->setValue(false);
+            m_engaged = false;
+        }
+    }
+
+    ~MaintenanceUploadGuard()
+    {
+        if (m_engaged) {
+            m_controllerInterface->abortAmpMaintenanceIfAny();
+            m_state->uploadInProgress->setValue(false);
+        }
+    }
+
+private:
+    SystemState* m_state;
+    ControllerInterface* m_controllerInterface;
+    bool m_engaged;
+};
+
+} // namespace
 
 ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXController* rhxController_, const QString& boardSerialNumber, bool useOpenCL,
                                          DataFileReader* dataFileReader_, QObject* parent, bool is7310_) :
@@ -74,7 +129,9 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
     spikeSortingDialog(nullptr),
     audioThread(nullptr),
     saveToDiskThread(nullptr),
-    is7310(is7310_)
+    is7310(is7310_),
+    _runControllerActive(false),
+    _ampMaintenanceEntered(false)
 {
     state->writeToLog("Entered ControllerInterface ctor");
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
@@ -737,6 +794,36 @@ void ControllerInterface::updateChipCommandLists(bool updateStimParams)
     setDacHighpassFilterFrequency(state->analogOutHighpassFilterFrequency->getValue());
 }
 
+bool ControllerInterface::sleepMsInterruptible(int totalMs)
+{
+    constexpr int kSliceMs = 10;
+    int elapsedMs = 0;
+    while (elapsedMs < totalMs) {
+        if (!state->running) {
+            return false;
+        }
+        const int sliceMs = std::min(kSliceMs, totalMs - elapsedMs);
+        QThread::msleep(sliceMs);
+        if (qApp) {
+            qApp->processEvents();
+        }
+        elapsedMs += sliceMs;
+    }
+    return state->running;
+}
+
+void ControllerInterface::abortAmpMaintenanceIfAny()
+{
+    if (state->getControllerTypeEnum() == ControllerStimRecord && !rhxController->isSynthetic()
+        && !rhxController->isPlayback()) {
+        rhxController->setAuxExecuteDuringMaintenance(false);
+        rhxController->setDspSettle(false);
+        rhxController->setAmpMaintenance(false);
+    }
+    _ampMaintenanceEntered = false;
+    state->uploadInProgress->setValue(false);
+}
+
 void ControllerInterface::beginAmpMaintenance()
 {
     if (state->getControllerTypeEnum() != ControllerStimRecord) {
@@ -745,12 +832,13 @@ void ControllerInterface::beginAmpMaintenance()
     rhxController->setAuxExecuteDuringMaintenance(false);
     rhxController->setAmpMaintenance(true);
     rhxController->resetSequencers();
+    _ampMaintenanceEntered = true;
 }
 
-void ControllerInterface::uploadRhsRegisterConfigDuringMaintenance(bool updateStimParams)
+bool ControllerInterface::uploadRhsRegisterConfigDuringMaintenance(bool updateStimParams)
 {
     if (state->getControllerTypeEnum() != ControllerStimRecord) {
-        return;
+        return true;
     }
 
     RHXRegisters chipRegisters(state->getControllerTypeEnum(), rhxController->getSampleRate(), state->getStimStepSizeEnum());
@@ -791,9 +879,13 @@ void ControllerInterface::uploadRhsRegisterConfigDuringMaintenance(bool updateSt
     const double sampleRate = rhxController->getSampleRate();
     const int waitMs =
         static_cast<int>(1000.0 * static_cast<double>(commandSequenceLength + samplesPerBlock) / sampleRate) + 5;
-    QThread::msleep(waitMs);
+    if (!sleepMsInterruptible(waitMs)) {
+        rhxController->setAuxExecuteDuringMaintenance(false);
+        return false;
+    }
 
     rhxController->setAuxExecuteDuringMaintenance(false);
+    return true;
 }
 
 void ControllerInterface::endAmpMaintenance()
@@ -809,10 +901,16 @@ void ControllerInterface::endAmpMaintenance()
     constexpr int kSettleFrames = 8;
     rhxController->setDspSettle(true);
     const int settleMs = static_cast<int>(1000.0 * static_cast<double>(kSettleFrames * samplesPerBlock) / sampleRate) + 1;
-    QThread::msleep(settleMs);
+    if (!sleepMsInterruptible(settleMs)) {
+        rhxController->setDspSettle(false);
+        rhxController->setAmpMaintenance(false);
+        _ampMaintenanceEntered = false;
+        return;
+    }
     rhxController->setDspSettle(false);
 
     rhxController->setAmpMaintenance(false);
+    _ampMaintenanceEntered = false;
 }
 
 void ControllerInterface::uploadBandwidthDuringMaintenance()
@@ -827,24 +925,37 @@ void ControllerInterface::uploadBandwidthDuringMaintenance()
         sendTCPError("UploadBandwidthDuringMaintenance requires continuous run (press Run first)");
         return;
     }
-    if (state->uploadInProgress->getValue()) {
+
+    MaintenanceUploadGuard guard(state, this);
+    if (!guard.tryBegin()) {
         sendTCPError("Error - Another upload cannot be started until the previous upload completes");
         return;
     }
 
-    state->uploadInProgress->setValue(true);
+    logTeardown("uploadBandwidthDuringMaintenance begin");
     beginAmpMaintenance();
-    uploadRhsRegisterConfigDuringMaintenance(false);
+    if (!uploadRhsRegisterConfigDuringMaintenance(false)) {
+        logTeardown("uploadBandwidthDuringMaintenance aborted");
+        return;
+    }
     endAmpMaintenance();
-    state->uploadInProgress->setValue(false);
+    guard.release();
+    logTeardown("uploadBandwidthDuringMaintenance end");
 }
 
 void ControllerInterface::runController()
 {
     if (state->uploadInProgress->getValue()) {
         sendTCPError("Error - To avoid data corruption, controller cannot start running until previously started upload function completes");
+        state->running = false;
         return;
     }
+    if (_runControllerActive) {
+        sendTCPError("Error - Controller is still stopping; wait before starting again");
+        state->running = false;
+        return;
+    }
+    _runControllerActive = true;
 
     usbDataThread->start();
     waveformProcessorThread->start();
@@ -1031,6 +1142,9 @@ void ControllerInterface::runController()
         numSamples = display->getSamplesPerRefresh();
     }
 
+    logTeardown("run loop exited");
+    abortAmpMaintenanceIfAny();
+
     if (audioThread) {
         audioThread->stopRunning();
         while (audioThread->isActive()) {
@@ -1046,18 +1160,22 @@ void ControllerInterface::runController()
         tcpDataOutputEnabled = false;
     }
 
+    logTeardown("stopping USB thread");
     usbDataThread->stopRunning();
     while (usbDataThread->isActive()) { // Important: Must wait for usbDataThread to fully stop before we reset usbStreamFifo buffer!
         qApp->processEvents(); // Stay responsive to GUI events during this loop.
     }
+    logTeardown("USB thread stopped");
     QThread::usleep(1000); // Pause briefly to make sure tail end of data gets through waveformProcessorThread before it is also destroyed
 
+    logTeardown("stopping waveform processor");
     waveformProcessorThread->stopRunning();
     while (waveformProcessorThread->isActive()) {
         qApp->processEvents();
     }
     QThread::usleep(1000); // Pause briefly to make sure tail end of data gets through saveToDiskThread before it is also destroyed
 
+    logTeardown("stopping save thread");
     saveToDiskThread->stopRunning();
     while (saveToDiskThread->isActive()) {
         qApp->processEvents();
@@ -1070,6 +1188,8 @@ void ControllerInterface::runController()
     delete [] timeStamps;
     fill(cpuLoadHistory.begin(), cpuLoadHistory.end(), 0.0);
     emit cpuLoadPercent(0.0);
+    _runControllerActive = false;
+    logTeardown("emit haveStopped");
     emit haveStopped();
 }
 

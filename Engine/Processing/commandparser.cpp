@@ -436,11 +436,19 @@ void CommandParser::setRunModeCommand(const QString& value)
             emit TCPErrorSignal("Board must be stopped in order to start running");
             return;
         }
+        if (state->uploadInProgress->getValue()) {
+            emit TCPErrorSignal("Error - Controller cannot start running until the previous upload completes");
+            return;
+        }
         state->running = true;
         state->sweeping = false;
         emit updateGUIFromState();
         state->forceUpdate();
         controllerInterface->runController();
+        if (!state->running) {
+            emit updateGUIFromState();
+            state->forceUpdate();
+        }
     } else if (value == "record") {
         if (state->running) {
             emit TCPErrorSignal("Board must be stopped in order to start recording");
@@ -452,6 +460,10 @@ void CommandParser::setRunModeCommand(const QString& value)
             emit TCPErrorSignal("Filename.BaseFilename and Filename.Path must both be specified before recording can occur");
             return;
         }
+        if (state->uploadInProgress->getValue()) {
+            emit TCPErrorSignal("Error - Controller cannot start recording until the previous upload completes");
+            return;
+        }
 
         state->recording = true;
         state->triggerSet = false;
@@ -461,6 +473,11 @@ void CommandParser::setRunModeCommand(const QString& value)
         emit updateGUIFromState();
         state->forceUpdate();
         controllerInterface->runController();
+        if (!state->running) {
+            state->recording = false;
+            emit updateGUIFromState();
+            state->forceUpdate();
+        }
     } else if (value == "trigger") {
         if (state->running) {
             emit TCPErrorSignal("Board must be stopped in order to start trigger");
@@ -472,6 +489,10 @@ void CommandParser::setRunModeCommand(const QString& value)
             emit TCPErrorSignal("Filename.BaseFilename and Filename.Path must both be specified before triggered recording can occur");
             return;
         }
+        if (state->uploadInProgress->getValue()) {
+            emit TCPErrorSignal("Error - Controller cannot start triggered recording until the previous upload completes");
+            return;
+        }
 
         state->recording = false;
         state->triggerSet = true;
@@ -481,6 +502,11 @@ void CommandParser::setRunModeCommand(const QString& value)
         emit updateGUIFromState();
         state->forceUpdate();
         controllerInterface->runController();
+        if (!state->running) {
+            state->triggerSet = false;
+            emit updateGUIFromState();
+            state->forceUpdate();
+        }
     } else if (value == "stop") {
         if (!state->running) {
             emit TCPErrorSignal("Board must be running in order to stop");
@@ -491,6 +517,7 @@ void CommandParser::setRunModeCommand(const QString& value)
         state->triggered = false;
         state->running = false;
         state->sweeping = false;
+        controllerInterface->abortAmpMaintenanceIfAny();
         emit updateGUIFromState();
         state->forceUpdate();
     } else
