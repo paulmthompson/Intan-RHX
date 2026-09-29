@@ -531,7 +531,7 @@ void ControlPanel::changeDCSScale(int index)
 
 void ControlPanel::openStimParametersDialog()
 {
-    // This slot should only be called when a single channel is selected AND board is not running.
+    // Single stim-capable channel selected; amp channels may apply live during Run (maintenance mode).
     Channel* selectedChannel = state->signalSources->selectedChannel();
     SignalType type = selectedChannel->getSignalType();
 
@@ -546,7 +546,11 @@ void ControlPanel::openStimParametersDialog()
 
         if (stimParamDialog->exec() == QDialog::Accepted) {
             state->stimParamsHaveChanged = true;
-            controllerInterface->uploadStimParameters(selectedChannel);
+            if (state->running) {
+                controllerInterface->uploadStimParametersDuringMaintenance(selectedChannel);
+            } else {
+                controllerInterface->uploadStimParameters(selectedChannel);
+            }
         }
     } else if (type == BoardDigitalOutSignal) {
         if (digOutDialog) {
@@ -638,14 +642,19 @@ void ControlPanel::updateYScales()
 
 void ControlPanel::updateStimParamDialogButton()
 {
-    // If a single channel with stim capability is selected and board is not currently running, then enable the button.
-    bool hasStimCapability = false;
-    if (state->signalSources->numChannelsSelected() == 1) {
+    bool enableSetStim = false;
+    if (state->signalSources->numChannelsSelected() == 1 && !state->sweeping) {
         Channel* channel = state->signalSources->selectedChannel();
-        hasStimCapability = channel->isStimCapable();
+        if (channel->isStimCapable()) {
+            if (!state->running) {
+                enableSetStim = true;
+            } else if (channel->getSignalType() == AmplifierSignal) {
+                enableSetStim = true;
+            }
+        }
     }
 
-    setStimButton->setEnabled(hasStimCapability && !(state->running || state->sweeping));
+    setStimButton->setEnabled(enableSetStim);
 }
 
 void ControlPanel::updateSelectionName()
@@ -760,7 +769,7 @@ void ControlPanel::updateStimTrigger()
         selectionStimTriggerLabel->setText("");
     }
     if (selectedSignals.size() == 1) {
-        setStimButton->setEnabled(!(state->running || state->sweeping));
+        updateStimParamDialogButton();
     }
 }
 

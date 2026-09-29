@@ -104,6 +104,13 @@ public:
     void uploadBandwidthDuringMaintenance();
 
     /**
+     * @brief Apply amp-channel stim sequencer program and magnitudes while acquisition is running (custom bitfile).
+     * @pre ControllerStimRecord, continuous run, @p channel is AmplifierSignal; see docs/amp-maintenance-mode.md.
+     * @post FPGA program bank 0 and RHS2116 DACs match channel stim parameters (active program banks).
+     */
+    void uploadStimParametersDuringMaintenance(Channel* channel);
+
+    /**
      * @brief Clear amp-maintenance WireIns and upload state (e.g. on Stop or interrupted live upload).
      * @post aux_execute and amp_maintenance deasserted; DSP settle off; UploadInProgress false.
      */
@@ -260,6 +267,28 @@ private:
     bool sleepMsInterruptible(int totalMs);
 
     void logTeardownStage(const char* message);
+
+    /**
+     * @brief Program FPGA stim sequencer registers (WireIn / BRAM) for one amp program bank.
+     * @pre Live hardware; @p parameters non-null.
+     * @post Sequencer program words for @p stimProgramBank match @p parameters (no MOSI magnitude upload).
+     */
+    void programAmpStimSequencerRegs(Channel* ampChannel, StimParameters* parameters, int stimProgramBank);
+
+    /**
+     * @brief Upload stim magnitudes on the headstage using a finite aux run (controller stopped).
+     * @pre Bank 0 program; not used during continuous acquisition.
+     * @post RHS2116 magnitude registers updated; aux enabled on all streams.
+     */
+    void uploadAmpStimMagnitudesStopped(Channel* ampChannel, StimParameters* parameters);
+
+    /**
+     * @brief Execute createCommandListSetStimMagnitudes aux list inside an active maintenance window.
+     * @pre beginAmpMaintenance() called; aux_execute off.
+     * @return false if wait aborted (e.g. Stop pressed).
+     * @post aux_execute off; aux routing restored to all streams.
+     */
+    bool uploadAmpStimMagnitudesDuringMaintenance(int stream, int chipChannel, StimParameters* parameters);
 
     SystemState* state;
     AbstractRHXController* rhxController;

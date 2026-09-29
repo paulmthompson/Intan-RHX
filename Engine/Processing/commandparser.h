@@ -136,6 +136,8 @@ private:
     void uploadChargeRecoverySettingsCommand();
     void uploadStimParametersCommand();
     void uploadStimParametersCommand(QString channelName);
+    void uploadStimParametersDuringMaintenanceCommand();
+    void uploadStimParametersDuringMaintenanceCommand(QString channelName);
     void uploadBandwidthSettingsCommand();
 
     void setSpikeDetectionThresholdsCommand();

@@ -328,6 +328,14 @@ void CommandParser::executeCommandSlot(QString action)
                 emit TCPErrorSignal("UploadStimParameters cannot be executed while the board is running");
             }
         }
+    } else if (actionLower == "uploadstimparametersduringmaintenance") {
+        if (state->getControllerTypeEnum() == ControllerStimRecord) {
+            if (state->running) {
+                uploadStimParametersDuringMaintenanceCommand();
+            } else {
+                emit TCPErrorSignal("UploadStimParametersDuringMaintenance requires the board to be running");
+            }
+        }
     } else if (actionLower == "uploadbandwidthsettings") {
         if (!state->running) {
             uploadBandwidthSettingsCommand();
@@ -361,6 +369,14 @@ void CommandParser::executeCommandWithParameterSlot(QString action, QString para
     } else if (actionLower == "uploadstimparameters") {
         if (state->getControllerTypeEnum() == ControllerStimRecord) {
             uploadStimParametersCommand(parameterLower);
+        }
+    } else if (actionLower == "uploadstimparametersduringmaintenance") {
+        if (state->getControllerTypeEnum() == ControllerStimRecord) {
+            if (state->running) {
+                uploadStimParametersDuringMaintenanceCommand(parameterLower);
+            } else {
+                emit TCPErrorSignal("UploadStimParametersDuringMaintenance requires the board to be running");
+            }
         }
     }
 
@@ -727,6 +743,19 @@ void CommandParser::uploadStimParametersCommand(QString channelName)
     Channel *channel = state->signalSources->channelByName(channelName.toUpper());
     if (channel)
         controllerInterface->uploadStimParameters(channel);
+}
+
+void CommandParser::uploadStimParametersDuringMaintenanceCommand()
+{
+    emit TCPErrorSignal("UploadStimParametersDuringMaintenance requires a channel name parameter");
+}
+
+void CommandParser::uploadStimParametersDuringMaintenanceCommand(QString channelName)
+{
+    Channel* channel = state->signalSources->channelByName(channelName.toUpper());
+    if (channel) {
+        controllerInterface->uploadStimParametersDuringMaintenance(channel);
+    }
 }
 
 void CommandParser::setSpikeDetectionThresholdsCommand()
