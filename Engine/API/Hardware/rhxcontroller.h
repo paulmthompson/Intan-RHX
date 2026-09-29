@@ -67,6 +67,21 @@ public:
 
     void run() override;
     bool isRunning() override;
+
+    /**
+     * @brief Flush all remaining data words out of the FPGA SDRAM FIFO.
+     *
+     * @pre SPI data acquisition must be stopped (continuousRunMode == false and
+     *      maxTimeStep == 0, with FPGA having reached ms_wait where isRunning() == false).
+     * @pre Caller must ensure no concurrent WireIn/TriggerIn updates are issued on other threads.
+     *
+     * @post The hardware FIFO is fully drained (numWordsInFifo() == 0).
+     *
+     * @note Maximum execution time is strictly bounded:
+     *       - At most one final shutdown frame can be written by the FPGA (~33–50 µs).
+     *       - Draining remaining words from SDRAM over USB takes < 5 ms under normal conditions.
+     *       - Loop iteration bound: Must terminate in <= (FIFOCapacityInWords / usbBufferSize + 2) iterations.
+     */
     void flush() override;
     void resetFpga() override;
 

@@ -98,8 +98,18 @@ public:
     void endAmpMaintenance();
 
     /**
-     * @brief Apply @c desired* bandwidth/DSP settings while acquisition is running (custom bitfile).
-     * @pre ControllerStimRecord, continuous run; uses amp maintenance + RHS register aux upload.
+     * @brief Live-updates RHS amplifier bandwidth registers during continuous acquisition (custom bitfile).
+     *
+     * @pre Continuous acquisition must be active (state->running == true).
+     * @pre No other upload or maintenance window is currently active (uploadInProgress == false).
+     *
+     * @post Bandwidth registers on chip updated, amplifier settle completed, and normal
+     *       payload streaming restored.
+     *
+     * @note Maximum execution time:
+     *       - Upload: commandSequenceLength / sampleRate (~1–2 ms).
+     *       - Settle wait: (kSettleFrames * samplesPerBlock) / sampleRate (~34 ms at 30 kHz).
+     *       - Total window duration is bounded by ~40 ms.
      */
     void uploadBandwidthDuringMaintenance();
 
@@ -125,6 +135,23 @@ public:
     void toggleAudioThread(bool enabled);
     void runTCPDataOutputThread();
 
+    /**
+     * @brief Main execution loop for real-time data acquisition and display.
+     *
+     * @pre Controller must be completely stopped:
+     *      - state->running == false
+     *      - usbDataThread->isActive() == false
+     *      - waveformProcessorThread->isActive() == false
+     *      - saveToDiskThread->isActive() == false
+     *      - state->uploadInProgress->getValue() == false
+     *
+     * @post On normal loop exit, all worker threads have cleanly ceased execution,
+     *       all hardware FIFOs are flushed, display/time buffers are freed, and haveStopped() is emitted.
+     *
+     * @warning Non-reentrant. Must only be executed from the main GUI thread.
+     *          Event pumping (qApp->processEvents()) during teardown must never dispatch
+     *          actions that re-invoke runController() before the prior invocation returns.
+     */
     void runController();
     void runControllerSilently(double nSeconds, QProgressDialog* progress = nullptr);
     float measureRmsLevel(std::string waveName, double timeSec) const;
@@ -324,8 +351,6 @@ private:
     std::vector<double> cpuLoadHistory;
 
     bool is7310;
-
-    bool _runControllerActive;
     bool _ampMaintenanceEntered;
 
     void outOfMemoryError(double memRequiredGB);

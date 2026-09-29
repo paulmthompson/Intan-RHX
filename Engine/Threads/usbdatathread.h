@@ -50,7 +50,28 @@ public:
 
     void run() override;
     void startRunning();
+
+    /**
+     * @brief Signals the USB data acquisition loop to terminate and flush hardware.
+     *
+     * @pre Thread must be currently active (isActive() == true).
+     * @post keepGoing is set to false. The thread loop finishes reading the current USB block,
+     *       disables continuous run, invokes flush(), and resets running to false.
+     *
+     * @note Execution bound:
+     *       - Finishing the in-flight readDataBlocksRaw() takes at most 1 block period (~4.2 ms at 30 kHz).
+     *       - Subsequent flush() takes < 5 ms.
+     *       - Total latency until isActive() drops to false is expected to be < 15 ms.
+     */
     void stopRunning();
+
+    /**
+     * @brief Query whether the USB acquisition loop or its terminal flush is currently executing.
+     *
+     * @return true if thread is actively reading data or flushing; false if quiescent.
+     * @warning Callers MUST NOT reset USB FIFOs, restart the thread, or re-enter runController()
+     *          until isActive() returns false.
+     */
     bool isActive() const;
     void close();
     void setNumUsbBlocksToRead(int numUsbBlocksToRead_);

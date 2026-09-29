@@ -533,7 +533,6 @@ void CommandParser::setRunModeCommand(const QString& value)
         state->triggered = false;
         state->running = false;
         state->sweeping = false;
-        controllerInterface->abortAmpMaintenanceIfAny();
         emit updateGUIFromState();
         state->forceUpdate();
     } else

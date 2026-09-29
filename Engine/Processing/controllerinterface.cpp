@@ -121,7 +121,6 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
     audioThread(nullptr),
     saveToDiskThread(nullptr),
     is7310(is7310_),
-    _runControllerActive(false),
     _ampMaintenanceEntered(false)
 {
     state->writeToLog("Entered ControllerInterface ctor");
@@ -1203,19 +1202,29 @@ void ControllerInterface::uploadStimParametersDuringMaintenance(Channel* channel
     logTeardownStage("uploadStimParametersDuringMaintenance end");
 }
 
+/**
+ * @brief Main execution loop for real-time data acquisition and display.
+ *
+ * @pre Controller must be completely stopped:
+ *      - state->running == false
+ *      - usbDataThread->isActive() == false
+ *      - waveformProcessorThread->isActive() == false
+ *      - saveToDiskThread->isActive() == false
+ *      - state->uploadInProgress->getValue() == false
+ *
+ * @post On normal loop exit, all worker threads have cleanly ceased execution,
+ *       all hardware FIFOs are flushed, display/time buffers are freed, and haveStopped() is emitted.
+ *
+ * @warning Non-reentrant. Must only be executed from the main GUI thread.
+ *          Event pumping (qApp->processEvents()) during teardown must never dispatch
+ *          actions that re-invoke runController() before the prior invocation returns.
+ */
 void ControllerInterface::runController()
 {
     if (state->uploadInProgress->getValue()) {
         sendTCPError("Error - To avoid data corruption, controller cannot start running until previously started upload function completes");
-        state->running = false;
         return;
     }
-    if (_runControllerActive) {
-        sendTCPError("Error - Controller is still stopping; wait before starting again");
-        state->running = false;
-        return;
-    }
-    _runControllerActive = true;
 
     usbDataThread->start();
     waveformProcessorThread->start();
@@ -1402,9 +1411,6 @@ void ControllerInterface::runController()
         numSamples = display->getSamplesPerRefresh();
     }
 
-    logTeardownStage("run loop exited");
-    abortAmpMaintenanceIfAny();
-
     if (audioThread) {
         audioThread->stopRunning();
         while (audioThread->isActive()) {
@@ -1420,22 +1426,18 @@ void ControllerInterface::runController()
         tcpDataOutputEnabled = false;
     }
 
-    logTeardownStage("stopping USB thread");
     usbDataThread->stopRunning();
     while (usbDataThread->isActive()) { // Important: Must wait for usbDataThread to fully stop before we reset usbStreamFifo buffer!
         qApp->processEvents(); // Stay responsive to GUI events during this loop.
     }
-    logTeardownStage("USB thread stopped");
     QThread::usleep(1000); // Pause briefly to make sure tail end of data gets through waveformProcessorThread before it is also destroyed
 
-    logTeardownStage("stopping waveform processor");
     waveformProcessorThread->stopRunning();
     while (waveformProcessorThread->isActive()) {
         qApp->processEvents();
     }
     QThread::usleep(1000); // Pause briefly to make sure tail end of data gets through saveToDiskThread before it is also destroyed
 
-    logTeardownStage("stopping save thread");
     saveToDiskThread->stopRunning();
     while (saveToDiskThread->isActive()) {
         qApp->processEvents();
@@ -1448,8 +1450,6 @@ void ControllerInterface::runController()
     delete [] timeStamps;
     fill(cpuLoadHistory.begin(), cpuLoadHistory.end(), 0.0);
     emit cpuLoadPercent(0.0);
-    _runControllerActive = false;
-    logTeardownStage("emit haveStopped");
     emit haveStopped();
 }
 
