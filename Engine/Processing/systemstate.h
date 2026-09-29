@@ -150,6 +150,8 @@ public:
 
     bool running;  // streaming data from the board
     bool sweeping;  // rewinding or fast-forwarding (but not fast-forwarding in data file playback mode)
+    /** True from RunMode Stop until haveStopped; keeps Run disabled while runController() tears down. */
+    bool controllerTeardownInProgress;
 
     CPUInfo cpuInfo;
     QVector<GPUInfo> gpuList;

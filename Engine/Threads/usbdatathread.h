@@ -60,6 +60,7 @@ public:
 
 signals:
     void hardwareFifoReport(double percentFull);
+    void teardownStage(QString message);
 
 private:
     AbstractRHXController* controller;

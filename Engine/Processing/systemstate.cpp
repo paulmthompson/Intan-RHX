@@ -87,6 +87,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
 
     // Streaming data from the board
     running = false;
+    controllerTeardownInProgress = false;
 
     int numDigitalInputs = AbstractRHXController::numDigitalIO(getControllerTypeEnum(), expanderConnected_);
     int numAnalogInputs = AbstractRHXController::numAnalogIO(getControllerTypeEnum(), expanderConnected_);

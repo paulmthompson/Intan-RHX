@@ -180,7 +180,7 @@ void USBDataThread::run()
                 }
             }
             if (type == ControllerStimRecord) {
-                std::cout << "USBDataThread: clearing amp maintenance WireIns before shutdown" << '\n';
+                emit teardownStage(QStringLiteral("clearing amp maintenance WireIns before shutdown"));
                 controller->setAuxExecuteDuringMaintenance(false);
                 controller->setDspSettle(false);
                 controller->setAmpMaintenance(false);
@@ -188,9 +188,13 @@ void USBDataThread::run()
             controller->setContinuousRunMode(false);
             controller->setStimCmdMode(false);
             controller->setMaxTimeStep(0);
-            std::cout << "USBDataThread: shutdown flush begin" << '\n';
-            controller->flush();  // Flush USB FIFO on Opal Kelly board.
-            std::cout << "USBDataThread: shutdown flush end" << '\n';
+            emit teardownStage(QStringLiteral("shutdown flush begin"));
+            constexpr int kFlushTimeoutMs = 5000;
+            if (!controller->flushWithTimeLimitMs(kFlushTimeoutMs)) {
+                emit teardownStage(QStringLiteral("shutdown flush timed out; resetting FPGA"));
+                controller->resetFpga();
+            }
+            emit teardownStage(QStringLiteral("shutdown flush end"));
             usbBufferIndex = 0;
 
             if (type == ControllerRecordUSB2) {

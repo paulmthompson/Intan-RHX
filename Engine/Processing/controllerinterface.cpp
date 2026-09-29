@@ -57,15 +57,6 @@
 
 namespace {
 
-constexpr bool kLogRunControllerTeardown = true;
-
-void logTeardown(const char* message)
-{
-    if (kLogRunControllerTeardown) {
-        std::cout << "ControllerInterface teardown: " << message << '\n';
-    }
-}
-
 class MaintenanceUploadGuard {
 public:
     MaintenanceUploadGuard(SystemState* state_, ControllerInterface* controllerInterface_)
@@ -169,6 +160,9 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
     usbDataThread->setNumUsbBlocksToRead(state->playback->getValue() ? 1 : RHXDataBlock::blocksFor30Hz(state->getSampleRateEnum()));
     connect(usbDataThread, SIGNAL(finished()), usbDataThread, SLOT(deleteLater()));
     connect(usbDataThread, SIGNAL(hardwareFifoReport(double)), this, SLOT(updateHardwareFifo(double)));
+    connect(usbDataThread, &USBDataThread::teardownStage, this, [this](const QString& message) {
+        state->writeToLog(QStringLiteral("USBDataThread: ") + message);
+    });
 
     initializeController();
     state->writeToLog("Completed initializeController()");
@@ -794,6 +788,11 @@ void ControllerInterface::updateChipCommandLists(bool updateStimParams)
     setDacHighpassFilterFrequency(state->analogOutHighpassFilterFrequency->getValue());
 }
 
+void ControllerInterface::logTeardownStage(const char* message)
+{
+    state->writeToLog(QStringLiteral("ControllerInterface teardown: ") + QString::fromUtf8(message));
+}
+
 bool ControllerInterface::sleepMsInterruptible(int totalMs)
 {
     constexpr int kSliceMs = 10;
@@ -849,16 +848,6 @@ bool ControllerInterface::uploadRhsRegisterConfigDuringMaintenance(bool updateSt
 
     std::vector<unsigned int> commandList;
     int commandSequenceLength = 0;
-
-    chipRegisters.createCommandListDummy(commandList, 8192,
-                                         chipRegisters.createRHXCommand(RHXRegisters::RHXCommandRegRead, 255));
-    rhxController->uploadCommandList(commandList, RHXController::AuxCmd2, 0);
-    chipRegisters.createCommandListDummy(commandList, 8192,
-                                         chipRegisters.createRHXCommand(RHXRegisters::RHXCommandRegRead, 254));
-    rhxController->uploadCommandList(commandList, RHXController::AuxCmd3, 0);
-    chipRegisters.createCommandListDummy(commandList, 8192,
-                                         chipRegisters.createRHXCommand(RHXRegisters::RHXCommandRegRead, 253));
-    rhxController->uploadCommandList(commandList, RHXController::AuxCmd4, 0);
 
     state->holdUpdate();
     state->actualDspCutoffFreq->setValueWithLimits(chipRegisters.setDspCutoffFreq(state->desiredDspCutoffFreq->getValue()));
@@ -932,15 +921,15 @@ void ControllerInterface::uploadBandwidthDuringMaintenance()
         return;
     }
 
-    logTeardown("uploadBandwidthDuringMaintenance begin");
+    logTeardownStage("uploadBandwidthDuringMaintenance begin");
     beginAmpMaintenance();
     if (!uploadRhsRegisterConfigDuringMaintenance(false)) {
-        logTeardown("uploadBandwidthDuringMaintenance aborted");
+        logTeardownStage("uploadBandwidthDuringMaintenance aborted");
         return;
     }
     endAmpMaintenance();
     guard.release();
-    logTeardown("uploadBandwidthDuringMaintenance end");
+    logTeardownStage("uploadBandwidthDuringMaintenance end");
 }
 
 void ControllerInterface::runController()
@@ -1142,7 +1131,7 @@ void ControllerInterface::runController()
         numSamples = display->getSamplesPerRefresh();
     }
 
-    logTeardown("run loop exited");
+    logTeardownStage("run loop exited");
     abortAmpMaintenanceIfAny();
 
     if (audioThread) {
@@ -1160,22 +1149,22 @@ void ControllerInterface::runController()
         tcpDataOutputEnabled = false;
     }
 
-    logTeardown("stopping USB thread");
+    logTeardownStage("stopping USB thread");
     usbDataThread->stopRunning();
     while (usbDataThread->isActive()) { // Important: Must wait for usbDataThread to fully stop before we reset usbStreamFifo buffer!
         qApp->processEvents(); // Stay responsive to GUI events during this loop.
     }
-    logTeardown("USB thread stopped");
+    logTeardownStage("USB thread stopped");
     QThread::usleep(1000); // Pause briefly to make sure tail end of data gets through waveformProcessorThread before it is also destroyed
 
-    logTeardown("stopping waveform processor");
+    logTeardownStage("stopping waveform processor");
     waveformProcessorThread->stopRunning();
     while (waveformProcessorThread->isActive()) {
         qApp->processEvents();
     }
     QThread::usleep(1000); // Pause briefly to make sure tail end of data gets through saveToDiskThread before it is also destroyed
 
-    logTeardown("stopping save thread");
+    logTeardownStage("stopping save thread");
     saveToDiskThread->stopRunning();
     while (saveToDiskThread->isActive()) {
         qApp->processEvents();
@@ -1189,7 +1178,7 @@ void ControllerInterface::runController()
     fill(cpuLoadHistory.begin(), cpuLoadHistory.end(), 0.0);
     emit cpuLoadPercent(0.0);
     _runControllerActive = false;
-    logTeardown("emit haveStopped");
+    logTeardownStage("emit haveStopped");
     emit haveStopped();
 }
 

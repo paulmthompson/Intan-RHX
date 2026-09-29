@@ -259,6 +259,8 @@ private:
      */
     bool sleepMsInterruptible(int totalMs);
 
+    void logTeardownStage(const char* message);
+
     SystemState* state;
     AbstractRHXController* rhxController;
     DataFileReader* dataFileReader;

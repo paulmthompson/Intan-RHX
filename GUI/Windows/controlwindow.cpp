@@ -143,6 +143,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     stimParametersInterface(nullptr),
     stimClipboard(nullptr),
     currentlyRunning(false),
+    currentlyTeardownInProgress(false),
     currentlyRecording(false),
     fastPlaybackMode(false),
     hwFifoNearlyFull(0),
@@ -772,11 +773,18 @@ void ControlWindow::updateFromState()
     }
 
     // Update which widgets are disabled due to run mode.
-    if (state->running != currentlyRunning || state->recording != currentlyRecording) {
-        if (state->running || state->recording) updateForRun();
-        else updateForStop();
+    if (state->running != currentlyRunning || state->recording != currentlyRecording
+        || state->controllerTeardownInProgress != currentlyTeardownInProgress) {
+        if (state->controllerTeardownInProgress) {
+            updateForStopping();
+        } else if (state->running || state->recording) {
+            updateForRun();
+        } else {
+            updateForStop();
+        }
         currentlyRunning = state->running;
         currentlyRecording = state->recording;
+        currentlyTeardownInProgress = state->controllerTeardownInProgress;
     }
 
     // Update TCP data output enabled window action.
@@ -934,6 +942,47 @@ void ControlWindow::updateForLoad()
     multiColumnDisplay->updateForLoad();
 }
 
+void ControlWindow::updateForStopping()
+{
+    emit setStatusBar(tr("Stopping..."));
+
+    runAction->setEnabled(false);
+    fastForwardAction->setEnabled(false);
+    rewindAction->setEnabled(false);
+    stopAction->setEnabled(false);
+
+    recordAction->setEnabled(false);
+    triggeredRecordAction->setEnabled(false);
+    selectFilenameAction->setEnabled(false);
+    chooseFileFormatAction->setEnabled(false);
+
+    if (state->playback->getValue()) {
+        fastPlaybackAction->setEnabled(false);
+        jumpToEndAction->setEnabled(false);
+        jumpToStartAction->setEnabled(false);
+        jumpBack1SecAction->setEnabled(false);
+        jumpBack10SecAction->setEnabled(false);
+        jumpAction->setEnabled(false);
+    }
+
+    loadSettingsAction->setEnabled(false);
+    defaultSettingsAction->setEnabled(false);
+    saveSettingsAction->setEnabled(false);
+
+    changeBackgroundColorAction->setEnabled(false);
+
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
+        loadStimSettingsAction->setEnabled(false);
+        saveStimSettingsAction->setEnabled(false);
+        ampSettleSettingsAction->setEnabled(false);
+        chargeRecoverySettingsAction->setEnabled(false);
+    }
+
+    performanceAction->setEnabled(false);
+    controlPanel->updateForLoad();
+    multiColumnDisplay->updateForLoad();
+}
+
 void ControlWindow::updateForStop()
 {
     setStatusBarReady();
@@ -996,6 +1045,8 @@ void ControlWindow::updateForStop()
 
 void ControlWindow::stopAndReportAnyErrors()
 {
+    state->controllerTeardownInProgress = false;
+    currentlyTeardownInProgress = false;
     updateForStop();
     if (!queuedErrorMessage.isEmpty()) {
         QMessageBox::critical(this, tr("Error"), queuedErrorMessage);

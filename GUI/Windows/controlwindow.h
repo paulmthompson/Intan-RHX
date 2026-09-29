@@ -316,6 +316,7 @@ private:
     StimParametersClipboard *stimClipboard;
 
     bool currentlyRunning;
+    bool currentlyTeardownInProgress;
     bool currentlyRecording;
     bool fastPlaybackMode;
 
@@ -329,6 +330,7 @@ private:
     void updateForRun();
     void updateForLoad();
     void updateForStop();
+    void updateForStopping();
 
     void createActions();
     void createMenus();
