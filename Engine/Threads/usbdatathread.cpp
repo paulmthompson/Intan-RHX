@@ -1,4 +1,4 @@
-//------------------------------------------------------------------------------
+﻿//------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
 //  Version 3.2.0
@@ -179,22 +179,10 @@ void USBDataThread::run()
                     usleep(100);  // wait 100 microseconds
                 }
             }
-            if (type == ControllerStimRecord) {
-                emit teardownStage(QStringLiteral("clearing amp maintenance WireIns before shutdown"));
-                controller->setAuxExecuteDuringMaintenance(false);
-                controller->setDspSettle(false);
-                controller->setAmpMaintenance(false);
-            }
             controller->setContinuousRunMode(false);
             controller->setStimCmdMode(false);
             controller->setMaxTimeStep(0);
-            emit teardownStage(QStringLiteral("shutdown flush begin"));
-            constexpr int kFlushTimeoutMs = 5000;
-            if (!controller->flushWithTimeLimitMs(kFlushTimeoutMs)) {
-                emit teardownStage(QStringLiteral("shutdown flush timed out; resetting FPGA"));
-                controller->resetFpga();
-            }
-            emit teardownStage(QStringLiteral("shutdown flush end"));
+            controller->flush();  // Flush USB FIFO on Opal Kelly board.
             usbBufferIndex = 0;
 
             if (type == ControllerRecordUSB2) {

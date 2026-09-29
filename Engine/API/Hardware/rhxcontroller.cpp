@@ -41,8 +41,6 @@
 
 #define NOMINMAX
 
-#include <QElapsedTimer>
-
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
@@ -231,42 +229,17 @@ bool RHXController::isRunning()
 // Flush all remaining data out of the FIFO.  (This function should only be called when SPI data acquisition has been stopped.)
 void RHXController::flush()
 {
-    flushWithTimeLimitMs(300000);
-}
-
-bool RHXController::flushWithTimeLimitMs(int maxMilliseconds)
-{
+    //Lock guard?
     std::lock_guard<std::mutex> lockOk(okMutex);
-
-    QElapsedTimer timer;
-    timer.start();
-
-    auto timedOut = [&]() {
-        return maxMilliseconds > 0 && timer.elapsed() >= maxMilliseconds;
-    };
 
     if (type == ControllerRecordUSB3 || is7310) {
         dev->SetWireInValue(WireInResetRun, 1 << 16, 1 << 16); // override pipeout block throttle
         dev->UpdateWireIns();
 
         while (numWordsInFifo() >= usbBufferSize / BytesPerWord) {
-            if (timedOut()) {
-                std::cerr << "RHXController::flushWithTimeLimitMs: timeout with "
-                          << numWordsInFifo() << " words in FIFO (USB3 block read)." << '\n';
-                dev->SetWireInValue(WireInResetRun, 0 << 16, 1 << 16);
-                dev->UpdateWireIns();
-                return false;
-            }
             dev->ReadFromBlockPipeOut(PipeOutData, USB3BlockSize, usbBufferSize, usbBuffer);
         }
         while (numWordsInFifo() > 0) {
-            if (timedOut()) {
-                std::cerr << "RHXController::flushWithTimeLimitMs: timeout with "
-                          << numWordsInFifo() << " words in FIFO (USB3 drain)." << '\n';
-                dev->SetWireInValue(WireInResetRun, 0 << 16, 1 << 16);
-                dev->UpdateWireIns();
-                return false;
-            }
             dev->ReadFromBlockPipeOut(PipeOutData, USB3BlockSize,
                                       USB3BlockSize * std::max(BytesPerWord * numWordsInFifo() / USB3BlockSize, (unsigned int)1),
                                       usbBuffer);
@@ -276,23 +249,12 @@ bool RHXController::flushWithTimeLimitMs(int maxMilliseconds)
         dev->UpdateWireIns();
     } else {
         while (numWordsInFifo() >= usbBufferSize / BytesPerWord) {
-            if (timedOut()) {
-                std::cerr << "RHXController::flushWithTimeLimitMs: timeout with "
-                          << numWordsInFifo() << " words in FIFO (USB2 block read)." << '\n';
-                return false;
-            }
             dev->ReadFromPipeOut(PipeOutData, usbBufferSize, usbBuffer);
         }
         while (numWordsInFifo() > 0) {
-            if (timedOut()) {
-                std::cerr << "RHXController::flushWithTimeLimitMs: timeout with "
-                          << numWordsInFifo() << " words in FIFO (USB2 drain)." << '\n';
-                return false;
-            }
             dev->ReadFromPipeOut(PipeOutData, BytesPerWord * numWordsInFifo(), usbBuffer);
         }
     }
-    return true;
 }
 
 // Low-level FPGA reset.  Call when closing application to make sure everything has stopped.

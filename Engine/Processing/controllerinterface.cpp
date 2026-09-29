@@ -160,9 +160,6 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
     usbDataThread->setNumUsbBlocksToRead(state->playback->getValue() ? 1 : RHXDataBlock::blocksFor30Hz(state->getSampleRateEnum()));
     connect(usbDataThread, SIGNAL(finished()), usbDataThread, SLOT(deleteLater()));
     connect(usbDataThread, SIGNAL(hardwareFifoReport(double)), this, SLOT(updateHardwareFifo(double)));
-    connect(usbDataThread, &USBDataThread::teardownStage, this, [this](const QString& message) {
-        state->writeToLog(QStringLiteral("USBDataThread: ") + message);
-    });
 
     initializeController();
     state->writeToLog("Completed initializeController()");

@@ -43,12 +43,6 @@
 #include "abstractrhxcontroller.h"
 
 #include <iostream>
-
-bool AbstractRHXController::flushWithTimeLimitMs(int maxMilliseconds)
-{
-    flush();
-    return true;
-}
 #include <iomanip>
 #include <cmath>
 

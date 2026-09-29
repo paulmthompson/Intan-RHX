@@ -169,12 +169,6 @@ public:
     virtual void run() = 0;
     virtual bool isRunning() = 0;
     virtual void flush() = 0;
-
-    /**
-     * @brief Drain USB FIFO with a time limit (hardware implementations only).
-     * @return false if the FIFO did not empty before @p maxMilliseconds elapsed.
-     */
-    virtual bool flushWithTimeLimitMs(int maxMilliseconds);
     virtual void resetFpga() = 0;
 
     virtual bool readDataBlock(RHXDataBlock *dataBlock) = 0;

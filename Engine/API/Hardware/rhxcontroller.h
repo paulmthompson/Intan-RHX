@@ -68,7 +68,6 @@ public:
     void run() override;
     bool isRunning() override;
     void flush() override;
-    bool flushWithTimeLimitMs(int maxMilliseconds) override;
     void resetFpga() override;
 
     bool readDataBlock(RHXDataBlock *dataBlock) override;
