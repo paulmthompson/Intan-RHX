@@ -773,18 +773,14 @@ void ControlWindow::updateFromState()
     }
 
     // Update which widgets are disabled due to run mode.
-    if (state->running != currentlyRunning || state->recording != currentlyRecording
-        || state->controllerTeardownInProgress != currentlyTeardownInProgress) {
-        if (state->controllerTeardownInProgress) {
-            updateForStopping();
-        } else if (state->running || state->recording) {
+    if (state->running != currentlyRunning || state->recording != currentlyRecording) {
+        if (state->running || state->recording) {
             updateForRun();
         } else {
             updateForStop();
         }
         currentlyRunning = state->running;
         currentlyRecording = state->recording;
-        currentlyTeardownInProgress = state->controllerTeardownInProgress;
     }
 
     // Update TCP data output enabled window action.
@@ -1045,8 +1041,6 @@ void ControlWindow::updateForStop()
 
 void ControlWindow::stopAndReportAnyErrors()
 {
-    state->controllerTeardownInProgress = false;
-    currentlyTeardownInProgress = false;
     updateForStop();
     if (!queuedErrorMessage.isEmpty()) {
         QMessageBox::critical(this, tr("Error"), queuedErrorMessage);
