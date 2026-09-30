@@ -335,6 +335,7 @@ void ControlPanelAudioAnalogTab::updateFromState()
 
     int noiseSuppressIndex = state->analogOutNoiseSlicerIndex->getValue();
     if (noiseSuppressIndex != noiseSuppressIndexOld) {
+        noiseSuppressIndexOld = noiseSuppressIndex;
         dacNoiseSuppressLabel->setText(PlusMinusSymbol + QString::number(3.12 * noiseSuppressIndex, 'f', 0) +
                                        " " + MicroVoltsSymbol);
         controllerInterface->setAudioNoiseSuppress(noiseSuppressIndex);
