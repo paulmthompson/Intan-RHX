@@ -64,6 +64,7 @@
 #include "psthdialog.h"
 #include "spectrogramdialog.h"
 #include "spikesortingdialog.h"
+#include "pulseresistancedialog.h"
 
 class ControlPanel;
 
@@ -166,6 +167,10 @@ public:
     void setPSTHDialog(PSTHDialog* psthDialog_) { psthDialog = psthDialog_; }
     void setSpectrogramDialog(SpectrogramDialog* spectrogramDialog_) { spectrogramDialog = spectrogramDialog_; }
     void setSpikeSortingDialog(SpikeSortingDialog* spikeSortingDialog_) { spikeSortingDialog = spikeSortingDialog_; }
+    void setPulseResistanceDialog(PulseResistanceDialog* pulseResistanceDialog_)
+    {
+        pulseResistanceDialog = pulseResistanceDialog_;
+    }
 
     QString getCurrentAudioChannel() const { return currentAudioChannel; }
 
@@ -335,6 +340,7 @@ private:
     PSTHDialog* psthDialog;
     SpectrogramDialog* spectrogramDialog;
     SpikeSortingDialog* spikeSortingDialog;
+    PulseResistanceDialog* pulseResistanceDialog;
 
     AudioThread* audioThread;
     SaveToDiskThread* saveToDiskThread;

@@ -352,6 +352,9 @@ public:
     BooleanItem* artifactsShown;
     IntRangeItem* suppressionThreshold;
 
+    // Pulse resistance (RHS stim-pulse DC estimate)
+    ChannelNameItem* pulseResistanceChannel;
+
     // Spike detection threshold setting options
     BooleanItem *absoluteThresholdsEnabled;
     IntRangeItem *absoluteThreshold;

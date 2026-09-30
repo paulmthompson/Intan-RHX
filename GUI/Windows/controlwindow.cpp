@@ -59,6 +59,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     psthDialog(nullptr),
     spectrogramDialog(nullptr),
     spikeSortingDialog(nullptr),
+    pulseResistanceDialog(nullptr),
     fileMenu(nullptr),
     displayMenu(nullptr),
     channelMenu(nullptr),
@@ -130,6 +131,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     psthAction(nullptr),
     performanceAction(nullptr),
     spikeSortingAction(nullptr),
+    pulseResistanceAction(nullptr),
     timeLabel(nullptr),
     topStatusLabel(nullptr),
     statusBarLabel(nullptr),
@@ -341,6 +343,10 @@ ControlWindow::~ControlWindow()
     if (spikeSortingDialog) {
         spikeSortingDialog->close();
         delete spikeSortingDialog;
+    }
+    if (pulseResistanceDialog) {
+        pulseResistanceDialog->close();
+        delete pulseResistanceDialog;
     }
     if (triggerRecordDialog) {
         triggerRecordDialog->close();
@@ -596,6 +602,9 @@ void ControlWindow::createActions()
     spikeSortingAction = new QAction(tr("Spike Scope"), this);
     connect(spikeSortingAction, SIGNAL(triggered()), this, SLOT(spikeSorting()));
 
+    pulseResistanceAction = new QAction(tr("Pulse Resistance"), this);
+    connect(pulseResistanceAction, SIGNAL(triggered()), this, SLOT(pulseResistance()));
+
     // Toolbar actions (within the toolbar, represented by an icon)
     rewindAction = new QAction(QIcon(":/images/rewindicon.png"), tr("Rewind"), this);
     rewindAction->setEnabled(false);
@@ -720,6 +729,9 @@ void ControlWindow::createMenus()
     // Tools menu
     toolsMenu = menuBar()->addMenu(tr("Tools"));
     toolsMenu->addAction(spikeSortingAction);
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
+        toolsMenu->addAction(pulseResistanceAction);
+    }
     toolsMenu->addAction(isiAction);
     toolsMenu->addAction(psthAction);
     toolsMenu->addAction(spectrogramAction);
@@ -815,6 +827,9 @@ void ControlWindow::updateForChangeHeadstages()
     if (spikeSortingDialog) {
         spikeSortingDialog->updateForChangeHeadstages();
     }
+    if (pulseResistanceDialog) {
+        pulseResistanceDialog->updateForChangeHeadstages();
+    }
 }
 
 void ControlWindow::updateForFilename(bool valid)
@@ -880,6 +895,7 @@ void ControlWindow::updateForRun()
     if (psthDialog) psthDialog->updateForRun();
     if (spectrogramDialog) spectrogramDialog->updateForRun();
     if (spikeSortingDialog) spikeSortingDialog->updateForRun();
+    if (pulseResistanceDialog) pulseResistanceDialog->updateForRun();
     if (probeMapWindow) probeMapWindow->updateForRun();
 
     if (!state->recording && !state->triggerSet) {
@@ -930,6 +946,7 @@ void ControlWindow::updateForLoad()
     if (psthDialog) psthDialog->updateForLoad();
     if (spectrogramDialog) spectrogramDialog->updateForLoad();
     if (spikeSortingDialog) spikeSortingDialog->updateForLoad();
+    if (pulseResistanceDialog) pulseResistanceDialog->updateForLoad();
     if (probeMapWindow) probeMapWindow->updateForLoad();
 
     setStatusBarLoading();
@@ -1033,6 +1050,7 @@ void ControlWindow::updateForStop()
     if (psthDialog) psthDialog->updateForStop();
     if (spectrogramDialog) spectrogramDialog->updateForStop();
     if (spikeSortingDialog) spikeSortingDialog->updateForStop();
+    if (pulseResistanceDialog) pulseResistanceDialog->updateForStop();
     if (probeMapWindow) probeMapWindow->updateForStop();
 
     controlPanel->updateForStop();
@@ -1221,6 +1239,18 @@ void ControlWindow::spikeSorting()
         controllerInterface->setSpikeSortingDialog(spikeSortingDialog);
     }
     spikeSortingDialog->activate();
+}
+
+void ControlWindow::pulseResistance()
+{
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
+        return;
+    }
+    if (!pulseResistanceDialog) {
+        pulseResistanceDialog = new PulseResistanceDialog(state, this);
+        controllerInterface->setPulseResistanceDialog(pulseResistanceDialog);
+    }
+    pulseResistanceDialog->activate();
 }
 
 void ControlWindow::chooseFileFormatDialog()
@@ -1876,6 +1906,9 @@ void ControlWindow::updateMenus()
     psthAction->setEnabled(enableTools);
     spectrogramAction->setEnabled(enableTools);
     spikeSortingAction->setEnabled(enableTools);
+    if (pulseResistanceAction) {
+        pulseResistanceAction->setEnabled(enableTools && state->getControllerTypeEnum() == ControllerStimRecord);
+    }
 
     if (!enableTools) {
         if (probeMapWindow) {
@@ -1906,6 +1939,12 @@ void ControlWindow::updateMenus()
             delete spikeSortingDialog;
             spikeSortingDialog = nullptr;
             controllerInterface->setSpikeSortingDialog(spikeSortingDialog);
+        }
+        if (pulseResistanceDialog) {
+            pulseResistanceDialog->close();
+            delete pulseResistanceDialog;
+            pulseResistanceDialog = nullptr;
+            controllerInterface->setPulseResistanceDialog(pulseResistanceDialog);
         }
     }
 

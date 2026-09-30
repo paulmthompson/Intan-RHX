@@ -118,6 +118,7 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
     psthDialog(nullptr),
     spectrogramDialog(nullptr),
     spikeSortingDialog(nullptr),
+    pulseResistanceDialog(nullptr),
     audioThread(nullptr),
     saveToDiskThread(nullptr),
     is7310(is7310_),
@@ -1353,6 +1354,9 @@ void ControllerInterface::runController()
             if (psthDialog) psthDialog->updatePSTH(waveformFifo, numSamples);
             if (spectrogramDialog) spectrogramDialog->updateSpectrogram(waveformFifo, numSamples);
             if (spikeSortingDialog) spikeSortingDialog->updateSpikeScope(waveformFifo, numSamples);
+            if (pulseResistanceDialog && state->getControllerTypeEnum() == ControllerStimRecord) {
+                pulseResistanceDialog->updatePulseResistance(waveformFifo, numSamples);
+            }
 
             waveformFifo->freeOldData(WaveformFifo::ReaderDisplay);
 

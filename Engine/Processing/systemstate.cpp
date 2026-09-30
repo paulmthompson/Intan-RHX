@@ -705,6 +705,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
 
     // Spike scope
     spikeScopeChannel = new ChannelNameItem("SpikeScopeChannel", globalItems, this, "N/A");
+    pulseResistanceChannel = new ChannelNameItem("PulseResistanceChannel", globalItems, this, "N/A");
     yScaleSpikeScope = new DiscreteItemList("SpikeScopeScaleMicroVolts", globalItems, this);
     yScaleSpikeScope->addItem("50", "50 " + MicroVoltsSymbol, 50.0);
     yScaleSpikeScope->addItem("100", "100 " + MicroVoltsSymbol, 100.0);
@@ -1149,6 +1150,7 @@ void SystemState::updateForChangeHeadstages()
     psthChannel->setValue(channelNativeName);
     spectrogramChannel->setValue(channelNativeName);
     spikeScopeChannel->setValue(channelNativeName);
+    pulseResistanceChannel->setValue(channelNativeName);
 
     emit headstagesChanged();
 }

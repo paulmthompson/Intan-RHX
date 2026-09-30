@@ -73,6 +73,7 @@ set(Sources
         Engine/Processing/tcpcommunicator.cpp 
         Engine/Processing/waveformfifo.cpp 
         Engine/Processing/impedancereader.cpp 
+        Engine/Processing/pulseelectroderesistance.cpp
         Engine/Processing/xmlinterface.cpp 
         Engine/Threads/audiothread.cpp 
         Engine/Threads/savetodiskthread.cpp 
@@ -97,6 +98,7 @@ set(Sources
         GUI/Dialogs/performanceoptimizationdialog.cpp 
         GUI/Dialogs/playbackfilepositiondialog.cpp 
         GUI/Dialogs/psthdialog.cpp 
+        GUI/Dialogs/pulseresistancedialog.cpp
         GUI/Dialogs/referenceselectdialog.cpp 
         GUI/Dialogs/renamechanneldialog.cpp 
         GUI/Dialogs/scrollablemessageboxdialog.cpp 
@@ -193,6 +195,7 @@ set(Headers
         Engine/Processing/tcpcommunicator.h 
         Engine/Processing/waveformfifo.h 
         Engine/Processing/impedancereader.h 
+        Engine/Processing/pulseelectroderesistance.hpp
         Engine/Processing/xmlinterface.h 
         Engine/Threads/audiothread.h 
         Engine/Threads/savetodiskthread.h 
@@ -217,6 +220,7 @@ set(Headers
         GUI/Dialogs/performanceoptimizationdialog.h 
         GUI/Dialogs/playbackfilepositiondialog.h 
         GUI/Dialogs/psthdialog.h 
+        GUI/Dialogs/pulseresistancedialog.h
         GUI/Dialogs/referenceselectdialog.h 
         GUI/Dialogs/renamechanneldialog.h 
         GUI/Dialogs/scrollablemessageboxdialog.h 

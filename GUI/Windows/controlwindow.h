@@ -52,6 +52,7 @@
 #include "psthdialog.h"
 #include "spectrogramdialog.h"
 #include "spikesortingdialog.h"
+#include "pulseresistancedialog.h"
 #include "xmlinterface.h"
 #include "stimparametersclipboard.h"
 #include "statusbars.h"
@@ -117,6 +118,7 @@ private slots:
     void psth();
     void spectrogram();
     void spikeSorting();
+    void pulseResistance();
 
     void isi();
 
@@ -208,6 +210,7 @@ private:
     PSTHDialog *psthDialog;
     SpectrogramDialog *spectrogramDialog;
     SpikeSortingDialog *spikeSortingDialog;
+    PulseResistanceDialog *pulseResistanceDialog;
 
     QMenu *fileMenu;
     QMenu *displayMenu;
@@ -291,6 +294,7 @@ private:
     QAction *performanceAction;
 
     QAction *spikeSortingAction;
+    QAction *pulseResistanceAction;
 
     QLabel *timeLabel;
     QLabel *topStatusLabel;
