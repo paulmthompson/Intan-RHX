@@ -43,6 +43,7 @@ ControlPanelBandwidthTab::ControlPanelBandwidthTab(ControllerInterface* controll
     state(state_),
     controllerInterface(controllerInterface_),
     viewFiltersWindow(nullptr),
+    liveBandwidthDialog(nullptr),
     bandwidthLabel(nullptr),
     changeBandwidthButton(nullptr),
     changeBandwidthLiveButton(nullptr),
@@ -83,6 +84,7 @@ ControlPanelBandwidthTab::ControlPanelBandwidthTab(ControllerInterface* controll
     QGroupBox *bandwidthGroupBox = new QGroupBox(tr("Hardware Bandwidth"), this);
     bandwidthGroupBox->setLayout(bandwidthLayout);
 
+    // Software filter controls below are an experimental POC during Run (no maintenance mode); may be removed.
     notchFilterComboBox = new QComboBox(this);
     state->notchFreq->setupComboBox(notchFilterComboBox);
     connect(notchFilterComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(changeNotchFilter(int)));
@@ -180,7 +182,12 @@ ControlPanelBandwidthTab::ControlPanelBandwidthTab(ControllerInterface* controll
 
 ControlPanelBandwidthTab::~ControlPanelBandwidthTab()
 {
-    if (viewFiltersWindow) delete viewFiltersWindow;
+    if (viewFiltersWindow) {
+        delete viewFiltersWindow;
+    }
+    if (liveBandwidthDialog) {
+        delete liveBandwidthDialog;
+    }
 }
 
 void ControlPanelBandwidthTab::updateFromState()
@@ -323,15 +330,31 @@ void ControlPanelBandwidthTab::simpleBandwidthDialog()
 
 void ControlPanelBandwidthTab::liveMaintenanceBandwidthDialog()
 {
-    SimpleBandwidthDialog bandwidthDialog(state->desiredLower3dBCutoff->getValue(), state->desiredUpperBandwidth->getValue(),
-                                          state->sampleRate->getNumericValue(), this);
-    if (bandwidthDialog.exec()) {
-        applySimpleBandwidthSelection(bandwidthDialog.lowFreqLineEdit->text().toDouble(),
-                                      bandwidthDialog.highFreqLineEdit->text().toDouble());
-        controllerInterface->uploadBandwidthDuringMaintenance();
-        refreshDisplayedAmplifierBandwidth();
-        updateFromState();
+    if (liveBandwidthDialog) {
+        disconnect(liveBandwidthDialog, nullptr, this, nullptr);
+        delete liveBandwidthDialog;
+        liveBandwidthDialog = nullptr;
     }
+    liveBandwidthDialog = new SimpleBandwidthDialog(state->desiredLower3dBCutoff->getValue(),
+                                                    state->desiredUpperBandwidth->getValue(),
+                                                    state->sampleRate->getNumericValue(), this);
+    liveBandwidthDialog->setWindowModality(Qt::NonModal);
+    connect(liveBandwidthDialog, SIGNAL(accepted()), this, SLOT(onLiveBandwidthDialogAccepted()));
+    liveBandwidthDialog->show();
+    liveBandwidthDialog->raise();
+    liveBandwidthDialog->activateWindow();
+}
+
+void ControlPanelBandwidthTab::onLiveBandwidthDialogAccepted()
+{
+    if (!liveBandwidthDialog) {
+        return;
+    }
+    applySimpleBandwidthSelection(liveBandwidthDialog->lowFreqLineEdit->text().toDouble(),
+                                  liveBandwidthDialog->highFreqLineEdit->text().toDouble());
+    controllerInterface->uploadBandwidthDuringMaintenance();
+    refreshDisplayedAmplifierBandwidth();
+    updateFromState();
 }
 
 void ControlPanelBandwidthTab::advancedBandwidthDialog()

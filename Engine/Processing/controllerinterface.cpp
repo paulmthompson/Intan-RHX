@@ -122,7 +122,14 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
     audioThread(nullptr),
     saveToDiskThread(nullptr),
     is7310(is7310_),
-    _ampMaintenanceEntered(false)
+    _ampMaintenanceEntered(false),
+    _acquisitionNumSamples(0),
+    _displayTriggerWaitNotify(0),
+    _runTimeStampsPtr(nullptr),
+    _runLastTimeStampPtr(nullptr),
+    _runWorkTimerPtr(nullptr),
+    _runLoopTimerPtr(nullptr),
+    _runReportTimerPtr(nullptr)
 {
     state->writeToLog("Entered ControllerInterface ctor");
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
@@ -800,12 +807,180 @@ bool ControllerInterface::sleepMsInterruptible(int totalMs)
         }
         const int sliceMs = std::min(kSliceMs, totalMs - elapsedMs);
         QThread::msleep(sliceMs);
+        pumpAcquisitionAndDisplay();
         if (qApp) {
             qApp->processEvents();
         }
         elapsedMs += sliceMs;
     }
     return state->running;
+}
+
+void ControllerInterface::pumpAcquisitionAndDisplay()
+{
+    if (!state->running || !display || !waveformFifo) {
+        return;
+    }
+
+    if (rhxController->pipeReadError() != 0) {
+        pipeReadErrorMessage(rhxController->pipeReadError());
+    }
+
+    int numSamples = _acquisitionNumSamples;
+    if (numSamples <= 0) {
+        numSamples = display->getSamplesPerRefresh();
+    }
+
+    if (!state->running || !waveformFifo->requestReadNewData(WaveformFifo::ReaderDisplay, numSamples)) {
+        return;
+    }
+
+    if (_runTimeStampsPtr) {
+        waveformFifo->copyTimeStamps(WaveformFifo::ReaderDisplay, _runTimeStampsPtr, 0, numSamples);
+    }
+
+    YScaleUsed yScaleUsed;
+    if (!state->triggerModeDisplay->getValue()) {
+        yScaleUsed = display->loadWaveformData(waveformFifo);
+        emit setTopStatusLabel("");
+    } else {
+        int numSamplesDisplayed = display->getSamplesPerFullRefresh();
+        if (waveformFifo->numWordsInMemory(WaveformFifo::ReaderDisplay) > numSamplesDisplayed + numSamples) {
+            int memoryPosition = -round((1.0 - state->triggerPositionDisplay->getNumericValue()) * numSamplesDisplayed);
+
+            QString triggerChannelName = state->triggerSourceDisplay->getValueString();
+            bool useAnalogTrigger = triggerChannelName.left(1).toUpper() == "A";
+
+            uint16_t triggerMask = 0x01u;
+            if (!useAnalogTrigger) {
+                triggerMask = 0x01u << (int)state->triggerSourceDisplay->getNumericValue();
+            }
+
+            uint16_t* digitalInWaveform = waveformFifo->getDigitalWaveformPointer("DIGITAL-IN-WORD");
+            float* analogInWaveform = nullptr;
+            float logicThreshold = 0.0F;
+            if (useAnalogTrigger) {
+                analogInWaveform = waveformFifo->getAnalogWaveformPointer(triggerChannelName.toStdString());
+                logicThreshold = (float)state->triggerAnalogVoltageThreshold->getValue();
+            }
+
+            bool risingEdge = state->triggerPolarityDisplay->getValue() == "Rising";
+
+            bool triggerFound = false;
+            int t = memoryPosition - numSamples - 1;
+            bool prevTriggerValue;
+            if (useAnalogTrigger) {
+                prevTriggerValue =
+                    waveformFifo->getAnalogDataAsDigital(WaveformFifo::ReaderDisplay, analogInWaveform, t, logicThreshold) &
+                    triggerMask;
+            } else {
+                prevTriggerValue = waveformFifo->getDigitalData(WaveformFifo::ReaderDisplay, digitalInWaveform, t) &
+                    triggerMask;
+            }
+            for (++t; t <= memoryPosition; ++t) {
+                bool triggerValue;
+                if (useAnalogTrigger) {
+                    triggerValue =
+                        waveformFifo->getAnalogDataAsDigital(WaveformFifo::ReaderDisplay, analogInWaveform, t, logicThreshold) &
+                        triggerMask;
+                } else {
+                    triggerValue = waveformFifo->getDigitalData(WaveformFifo::ReaderDisplay, digitalInWaveform, t) &
+                        triggerMask;
+                }
+                if (risingEdge) {
+                    if (!prevTriggerValue && triggerValue) {
+                        triggerFound = true;
+                        break;
+                    }
+                } else {
+                    if (prevTriggerValue && !triggerValue) {
+                        triggerFound = true;
+                        break;
+                    }
+                }
+                prevTriggerValue = triggerValue;
+            }
+            if (triggerFound) {
+                int startTime = t - round((state->triggerPositionDisplay->getNumericValue()) * numSamplesDisplayed);
+                yScaleUsed = display->loadWaveformDataFromMemory(waveformFifo, startTime, true);
+                emit setTopStatusLabel("");
+                _displayTriggerWaitNotify = 0;
+            } else {
+                if (_displayTriggerWaitNotify++ > 20) {
+                    emit setTopStatusLabel(tr("Waiting for trigger..."));
+                    _displayTriggerWaitNotify = 20;
+                }
+            }
+        }
+    }
+
+    if (controlPanel) {
+        controlPanel->updateSlidersEnabled(yScaleUsed);
+    }
+
+    if (isiDialog) {
+        isiDialog->updateISI(waveformFifo, numSamples);
+    }
+    if (psthDialog) {
+        psthDialog->updatePSTH(waveformFifo, numSamples);
+    }
+    if (spectrogramDialog) {
+        spectrogramDialog->updateSpectrogram(waveformFifo, numSamples);
+    }
+    if (spikeSortingDialog) {
+        spikeSortingDialog->updateSpikeScope(waveformFifo, numSamples);
+    }
+    if (pulseResistanceDialog && state->getControllerTypeEnum() == ControllerStimRecord) {
+        pulseResistanceDialog->updatePulseResistance(waveformFifo, numSamples);
+    }
+
+    waveformFifo->freeOldData(WaveformFifo::ReaderDisplay);
+
+    if (!audioThread) {
+        if (waveformFifo->requestReadNewData(WaveformFifo::ReaderAudio, numSamples)) {
+            waveformFifo->freeOldData(WaveformFifo::ReaderAudio);
+        }
+    }
+
+    if (!tcpDataOutputThread) {
+        if (waveformFifo->requestReadNewData(WaveformFifo::ReaderTCP, numSamples)) {
+            waveformFifo->freeOldData(WaveformFifo::ReaderTCP);
+        }
+    }
+
+    if (_runTimeStampsPtr && _runLastTimeStampPtr) {
+        int currentTimeStamp = 0;
+        for (int i = 0; i < numSamples; ++i) {
+            currentTimeStamp = (int)_runTimeStampsPtr[i];
+            if (currentTimeStamp - *_runLastTimeStampPtr != 1 && *_runLastTimeStampPtr != -1) {
+                std::cout << "Timestamp discontinuity: " << *_runLastTimeStampPtr << " " << currentTimeStamp << '\n';
+            }
+            *_runLastTimeStampPtr = currentTimeStamp;
+        }
+    }
+
+    if (_runWorkTimerPtr && _runLoopTimerPtr && _runReportTimerPtr) {
+        double workTime = (double)_runWorkTimerPtr->nsecsElapsed();
+        double loopTime = (double)_runLoopTimerPtr->nsecsElapsed();
+        _runWorkTimerPtr->restart();
+        _runLoopTimerPtr->restart();
+        if (_runReportTimerPtr->elapsed() >= 2000) {
+            double cpuUsage = 100.0 * workTime / loopTime;
+
+            for (int i = 1; i < (int)cpuLoadHistory.size(); ++i) {
+                cpuLoadHistory[i - 1] = cpuLoadHistory[i];
+            }
+            cpuLoadHistory[cpuLoadHistory.size() - 1] = cpuUsage;
+            double total = 0.0;
+            for (int i = 0; i < (int)cpuLoadHistory.size(); ++i) {
+                total += cpuLoadHistory[i];
+            }
+            double averageCpuLoad = total / (double)(cpuLoadHistory.size());
+
+            emit cpuLoadPercent(averageCpuLoad);
+            _runReportTimerPtr->restart();
+        }
+    }
 }
 
 void ControllerInterface::abortAmpMaintenanceIfAny()
@@ -1243,7 +1418,6 @@ void ControllerInterface::runController()
 
     uint32_t* timeStamps = new uint32_t [display->getMaxSamplesPerRefresh()];
     int lastTimeStamp = -1;
-    int currentTimeStamp = 0;
 
     QElapsedTimer loopTimer, workTimer, reportTimer;
 //    QElapsedTimer plotTimer;
@@ -1258,162 +1432,29 @@ void ControllerInterface::runController()
     waveformFifo->resetBuffer();  // Clear any memory in waveform FIFO from previous running.
     display->reset();
 
-    int triggerWaitNotify = 0;
-    YScaleUsed yScaleUsed;
+    _displayTriggerWaitNotify = 0;
+    _acquisitionNumSamples = numSamples;
+    _runTimeStampsPtr = timeStamps;
+    _runLastTimeStampPtr = &lastTimeStamp;
+    _runWorkTimerPtr = &workTimer;
+    _runLoopTimerPtr = &loopTimer;
+    _runReportTimerPtr = &reportTimer;
+
     while (state->running) {
         workTimer.restart();
 
-        if (rhxController->pipeReadError() != 0) {
-            // Critical read error - displays an error message and exits software
-            pipeReadErrorMessage(rhxController->pipeReadError());
-        }
-
-        if (state->running && waveformFifo->requestReadNewData(WaveformFifo::ReaderDisplay, numSamples)) {
-            waveformFifo->copyTimeStamps(WaveformFifo::ReaderDisplay, timeStamps, 0, numSamples);
-
-            // Main thread plots data:
-//            plotTimer.start();
-
-            if (!state->triggerModeDisplay->getValue()) {
-                // Normal (non-triggered) display
-                yScaleUsed = display->loadWaveformData(waveformFifo);
-                emit setTopStatusLabel("");
-            } else {
-                // Triggered display
-                int numSamplesDisplayed = display->getSamplesPerFullRefresh();
-                if (waveformFifo->numWordsInMemory(WaveformFifo::ReaderDisplay) > numSamplesDisplayed + numSamples) {
-                    int memoryPosition = -round((1.0 - state->triggerPositionDisplay->getNumericValue()) * numSamplesDisplayed);
-
-                    QString triggerChannelName = state->triggerSourceDisplay->getValueString();
-                    bool useAnalogTrigger = triggerChannelName.left(1).toUpper() == "A";
-
-                    uint16_t triggerMask = 0x01u;
-                    if (!useAnalogTrigger) triggerMask = 0x01u << (int)state->triggerSourceDisplay->getNumericValue();
-
-                    uint16_t* digitalInWaveform = waveformFifo->getDigitalWaveformPointer("DIGITAL-IN-WORD");
-                    float* analogInWaveform = nullptr;
-                    float logicThreshold = 0.0F;
-                    if (useAnalogTrigger) {  // Get thresholded analog signal as digital signal
-                        analogInWaveform = waveformFifo->getAnalogWaveformPointer(triggerChannelName.toStdString());
-                        logicThreshold = (float)state->triggerAnalogVoltageThreshold->getValue();
-                    }
-
-                    bool risingEdge = state->triggerPolarityDisplay->getValue() == "Rising";
-
-                    bool triggerFound = false;
-                    int t = memoryPosition - numSamples - 1;
-                    bool prevTriggerValue;
-                    if (useAnalogTrigger) {
-                        prevTriggerValue =
-                                waveformFifo->getAnalogDataAsDigital(WaveformFifo::ReaderDisplay, analogInWaveform, t, logicThreshold) &
-                                triggerMask;
-                    } else {
-                        prevTriggerValue = waveformFifo->getDigitalData(WaveformFifo::ReaderDisplay, digitalInWaveform, t) &
-                                triggerMask;
-                    }
-                    for (++t; t <= memoryPosition; ++t) {
-                        bool triggerValue;
-                        if (useAnalogTrigger) {
-                            triggerValue =
-                                    waveformFifo->getAnalogDataAsDigital(WaveformFifo::ReaderDisplay, analogInWaveform, t, logicThreshold) &
-                                    triggerMask;
-                        } else {
-                            triggerValue = waveformFifo->getDigitalData(WaveformFifo::ReaderDisplay, digitalInWaveform, t) &
-                                    triggerMask;
-                        }
-                        if (risingEdge) {
-                            if (!prevTriggerValue && triggerValue) {
-                                triggerFound = true;
-                                break;
-                            }
-                        } else {
-                            if (prevTriggerValue && !triggerValue) {
-                                triggerFound = true;
-                                break;
-                            }
-                        }
-                        prevTriggerValue = triggerValue;
-                    }
-                    if (triggerFound) {
-                        int startTime = t - round((state->triggerPositionDisplay->getNumericValue()) * numSamplesDisplayed);
-                        yScaleUsed = display->loadWaveformDataFromMemory(waveformFifo, startTime, true);
-                        emit setTopStatusLabel("");
-                        triggerWaitNotify = 0;
-                    } else {
-                        if (triggerWaitNotify++ > 20) {
-                            emit setTopStatusLabel(tr("Waiting for trigger..."));
-                            triggerWaitNotify = 20;
-                        }
-                    }
-                }
-            }
-
-            if (controlPanel) controlPanel->updateSlidersEnabled(yScaleUsed);
-
-            if (isiDialog) isiDialog->updateISI(waveformFifo, numSamples);
-            if (psthDialog) psthDialog->updatePSTH(waveformFifo, numSamples);
-            if (spectrogramDialog) spectrogramDialog->updateSpectrogram(waveformFifo, numSamples);
-            if (spikeSortingDialog) spikeSortingDialog->updateSpikeScope(waveformFifo, numSamples);
-            if (pulseResistanceDialog && state->getControllerTypeEnum() == ControllerStimRecord) {
-                pulseResistanceDialog->updatePulseResistance(waveformFifo, numSamples);
-            }
-
-            waveformFifo->freeOldData(WaveformFifo::ReaderDisplay);
-
-//            double plotTime = (double) plotTimer.nsecsElapsed();
-
-            if (!audioThread) {
-                if (waveformFifo->requestReadNewData(WaveformFifo::ReaderAudio, numSamples)) {
-                    waveformFifo->freeOldData(WaveformFifo::ReaderAudio);
-                }
-            }
-
-            if (!tcpDataOutputThread) {
-                if (waveformFifo->requestReadNewData(WaveformFifo::ReaderTCP, numSamples)) {
-                    waveformFifo->freeOldData(WaveformFifo::ReaderTCP);
-                }
-            }
-
-            for (int i = 0; i < numSamples; ++i) {
-                currentTimeStamp = (int) timeStamps[i];
-                if (currentTimeStamp - lastTimeStamp != 1 && lastTimeStamp != -1) {
-                    std::cout << "Timestamp discontinuity: " << lastTimeStamp << " " << currentTimeStamp << '\n';
-                }
-                lastTimeStamp = currentTimeStamp;
-            }
-
-            double workTime = (double) workTimer.nsecsElapsed();
-            double loopTime = (double) loopTimer.nsecsElapsed();
-            workTimer.restart();
-            loopTimer.restart();
-            if (reportTimer.elapsed() >= 2000) {
-                double cpuUsage = 100.0 * workTime / loopTime;
-
-                // Calculate running average of CPU usage to smooth out fluctuations.
-                for (int i = 1; i < (int) cpuLoadHistory.size(); ++i) {
-                    cpuLoadHistory[i - 1] = cpuLoadHistory[i];
-                }
-                cpuLoadHistory[cpuLoadHistory.size() - 1] = cpuUsage;
-                double total = 0.0;
-                for (int i = 0; i < (int) cpuLoadHistory.size(); ++i) {
-                    total += cpuLoadHistory[i];
-                }
-                double averageCpuLoad = total / (double)(cpuLoadHistory.size());
-
-                emit cpuLoadPercent(averageCpuLoad);
-
-//                std::cout << "        Controller Interface (Main Thread) CPU usage: " << (int) cpuUsage << "%" << EndOfLine;
-//                std::cout << "Plot time = " << plotTime / 1.0e6 << " ms" << EndOfLine;
-//                std::cout << "Work time = " << workTime / 1.0e6 << " ms" << EndOfLine;
-//                std::cout << "Loop time = " << loopTime / 1.0e6 << " ms" << EndOfLine;
-                reportTimer.restart();
-            }
-            qApp->processEvents();
-        }
+        pumpAcquisitionAndDisplay();
 
         qApp->processEvents();
         numSamples = display->getSamplesPerRefresh();
+        _acquisitionNumSamples = numSamples;
     }
+
+    _runTimeStampsPtr = nullptr;
+    _runLastTimeStampPtr = nullptr;
+    _runWorkTimerPtr = nullptr;
+    _runLoopTimerPtr = nullptr;
+    _runReportTimerPtr = nullptr;
 
     if (audioThread) {
         audioThread->stopRunning();

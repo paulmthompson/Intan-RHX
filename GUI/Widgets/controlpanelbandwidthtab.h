@@ -36,6 +36,8 @@
 #include "systemstate.h"
 #include "viewfilterswindow.h"
 
+class SimpleBandwidthDialog;
+
 class ControlPanelBandwidthTab : public QWidget
 {
     Q_OBJECT
@@ -49,6 +51,7 @@ private slots:
     void simpleBandwidthDialog();
     void advancedBandwidthDialog();
     void liveMaintenanceBandwidthDialog();
+    void onLiveBandwidthDialogAccepted();
     void viewFiltersSlot();
     void changeNotchFilter(int filterIndex) { state->notchFreq->setIndex(filterIndex); }
     void changeLowType(int lowType) { state->lowType->setIndex(lowType); }
@@ -63,6 +66,7 @@ private:
     ControllerInterface* controllerInterface;
 
     ViewFiltersWindow *viewFiltersWindow;
+    SimpleBandwidthDialog* liveBandwidthDialog;
 
     QLabel *bandwidthLabel;
 

@@ -101,6 +101,8 @@ private slots:
     void changeAnaScale(int index);
     void changeDCSScale(int index);
     void openStimParametersDialog();
+    void onStimParamDialogAccepted();
+    void onStimParamDialogRejected();
     void enableChannelsSlot();
 
 private:
@@ -123,6 +125,7 @@ private:
     QList<Channel*> selectedSignals;
 
     StimParamDialog* stimParamDialog;
+    Channel* stimParamDialogChannel;
     AnOutDialog* anOutDialog;
     DigOutDialog* digOutDialog;
 

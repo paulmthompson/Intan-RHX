@@ -83,6 +83,7 @@ ControlPanel::ControlPanel(ControllerInterface* controllerInterface_, SystemStat
     configureTab(nullptr),
     triggerTab(nullptr),
     stimParamDialog(nullptr),
+    stimParamDialogChannel(nullptr),
     anOutDialog(nullptr),
     digOutDialog(nullptr),
     selectionNameLabel(nullptr),
@@ -536,22 +537,26 @@ void ControlPanel::openStimParametersDialog()
     SignalType type = selectedChannel->getSignalType();
 
     if (type == AmplifierSignal) {
-        if (stimParamDialog) {
-            disconnect(this, nullptr, stimParamDialog, nullptr);
-            delete stimParamDialog;
-            stimParamDialog = nullptr;
-        }
-        stimParamDialog = new StimParamDialog(state, selectedChannel, this);
-        connect(qApp, SIGNAL(focusChanged(QWidget*, QWidget*)), stimParamDialog, SLOT(notifyFocusChanged(QWidget*, QWidget*)));
-
-        if (stimParamDialog->exec() == QDialog::Accepted) {
-            state->stimParamsHaveChanged = true;
-            if (state->running) {
-                controllerInterface->uploadStimParametersDuringMaintenance(selectedChannel);
-            } else {
-                controllerInterface->uploadStimParameters(selectedChannel);
+        const bool needNewDialog = !stimParamDialog || stimParamDialogChannel != selectedChannel;
+        if (needNewDialog) {
+            if (stimParamDialog) {
+                disconnect(stimParamDialog, nullptr, this, nullptr);
+                disconnect(this, nullptr, stimParamDialog, nullptr);
+                disconnect(qApp, nullptr, stimParamDialog, nullptr);
+                delete stimParamDialog;
+                stimParamDialog = nullptr;
+                stimParamDialogChannel = nullptr;
             }
+            stimParamDialog = new StimParamDialog(state, selectedChannel, this);
+            stimParamDialogChannel = selectedChannel;
+            stimParamDialog->setWindowModality(Qt::NonModal);
+            connect(qApp, SIGNAL(focusChanged(QWidget*, QWidget*)), stimParamDialog, SLOT(notifyFocusChanged(QWidget*, QWidget*)));
+            connect(stimParamDialog, SIGNAL(accepted()), this, SLOT(onStimParamDialogAccepted()));
+            connect(stimParamDialog, SIGNAL(rejected()), this, SLOT(onStimParamDialogRejected()));
+        } else {
+            stimParamDialog->updateFromState();
         }
+        stimParamDialog->activate();
     } else if (type == BoardDigitalOutSignal) {
         if (digOutDialog) {
             disconnect(this, nullptr, digOutDialog, nullptr);
@@ -580,6 +585,28 @@ void ControlPanel::openStimParametersDialog()
         }
     }
     state->forceUpdate();
+}
+
+void ControlPanel::onStimParamDialogAccepted()
+{
+    if (!stimParamDialogChannel) {
+        return;
+    }
+    state->stimParamsHaveChanged = true;
+    if (state->running) {
+        controllerInterface->uploadStimParametersDuringMaintenance(stimParamDialogChannel);
+    } else {
+        controllerInterface->uploadStimParameters(stimParamDialogChannel);
+    }
+    state->forceUpdate();
+}
+
+void ControlPanel::onStimParamDialogRejected()
+{
+    if (!stimParamDialog || !stimParamDialogChannel) {
+        return;
+    }
+    stimParamDialog->updateFromState();
 }
 
 void ControlPanel::updateFromState()

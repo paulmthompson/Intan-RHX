@@ -39,6 +39,7 @@
 #ifndef CONTROLLERINTERFACE_H
 #define CONTROLLERINTERFACE_H
 
+#include <QElapsedTimer>
 #include <QObject>
 #include <QString>
 
@@ -298,6 +299,13 @@ private:
      */
     bool sleepMsInterruptible(int totalMs);
 
+    /**
+     * @brief Drain display (and optional audio/TCP) FIFO readers and refresh plots.
+     * @pre Called from the GUI thread during an active @c runController() loop (@c display and @c waveformFifo valid).
+     * @post When data was available, ReaderDisplay advanced and auxiliary tool windows updated.
+     */
+    void pumpAcquisitionAndDisplay();
+
     void logTeardownStage(const char* message);
 
     /**
@@ -358,6 +366,14 @@ private:
 
     bool is7310;
     bool _ampMaintenanceEntered;
+
+    int _acquisitionNumSamples;
+    int _displayTriggerWaitNotify;
+    uint32_t* _runTimeStampsPtr;
+    int* _runLastTimeStampPtr;
+    QElapsedTimer* _runWorkTimerPtr;
+    QElapsedTimer* _runLoopTimerPtr;
+    QElapsedTimer* _runReportTimerPtr;
 
     void outOfMemoryError(double memRequiredGB);
 };

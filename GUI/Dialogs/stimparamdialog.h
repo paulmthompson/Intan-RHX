@@ -55,13 +55,13 @@ public:
 
     void updateParametersFromState(StimParameters* parameters);
     void activate();
+    void updateFromState();
 
 public slots:
     void accept();
 
 private slots:
     void notifyFocusChanged(QWidget* lostFocus, QWidget* gainedFocus);
-    void updateFromState();
     void onStimProgramIndexChanged(int newIndex);
 
 private:
