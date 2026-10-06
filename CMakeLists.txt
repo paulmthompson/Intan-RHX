@@ -129,6 +129,7 @@ set(Sources
         GUI/Widgets/pageview.cpp 
         GUI/Widgets/plotutilities.cpp 
         GUI/Widgets/psthplot.cpp 
+        GUI/Widgets/pulseresponseplot.cpp 
         GUI/Widgets/scrollbar.cpp 
         GUI/Widgets/smartspinbox.cpp 
         GUI/Widgets/spinboxtooltips.cpp 
@@ -251,6 +252,7 @@ set(Headers
         GUI/Widgets/pageview.h 
         GUI/Widgets/plotutilities.h 
         GUI/Widgets/psthplot.h 
+        GUI/Widgets/pulseresponseplot.h 
         GUI/Widgets/scrollbar.h 
         GUI/Widgets/smartspinbox.h 
         GUI/Widgets/spinboxtooltips.hpp 

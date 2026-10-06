@@ -32,6 +32,7 @@
 
 #include "channel.h"
 #include "pulseresistancedialog.h"
+#include "pulseresponseplot.h"
 #include "signalsources.h"
 #include "waveformfifo.h"
 
@@ -66,9 +67,24 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
 
     QLabel* helpLabel = new QLabel(
         tr("Estimates DC pulse resistance (ΔV/I) from the DC amplifier during stimulation. "
-           "This is not the AC impedance from the Impedance tab (Zcheck)."),
+           "This is not the AC impedance from the Impedance tab (Zcheck). "
+           "Peri-pulse traces show AC (high-pass) and DC (10-bit, ±10 V) with stim onset at the center."),
         this);
     helpLabel->setWordWrap(true);
+
+    traceTimeSpanComboBox = new QComboBox(this);
+    state->pulseResistanceTraceTimeMs->setupComboBox(traceTimeSpanComboBox);
+    connect(traceTimeSpanComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setTraceTimeSpan(int)));
+
+    traceYScaleAcComboBox = new QComboBox(this);
+    state->pulseResistanceTraceYScaleAc->setupComboBox(traceYScaleAcComboBox);
+    connect(traceYScaleAcComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setTraceYScaleAc(int)));
+
+    traceYScaleDcComboBox = new QComboBox(this);
+    state->pulseResistanceTraceYScaleDc->setupComboBox(traceYScaleDcComboBox);
+    connect(traceYScaleDcComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setTraceYScaleDc(int)));
+
+    responsePlot = new PulseResponsePlot(state, this);
 
     historyTable = new QTableWidget(0, 5, this);
     historyTable->setHorizontalHeaderLabels(
@@ -87,6 +103,15 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     buttonRow->addWidget(clearHistoryButton);
     buttonRow->addStretch(1);
 
+    QHBoxLayout* traceControlsRow = new QHBoxLayout;
+    traceControlsRow->addWidget(new QLabel(tr("Trace time:"), this));
+    traceControlsRow->addWidget(traceTimeSpanComboBox);
+    traceControlsRow->addWidget(new QLabel(tr("AC Y:"), this));
+    traceControlsRow->addWidget(traceYScaleAcComboBox);
+    traceControlsRow->addWidget(new QLabel(tr("DC Y:"), this));
+    traceControlsRow->addWidget(traceYScaleDcComboBox);
+    traceControlsRow->addStretch(1);
+
     QVBoxLayout* mainLayout = new QVBoxLayout;
     mainLayout->addLayout(lockRow);
     mainLayout->addLayout(buttonRow);
@@ -95,10 +120,12 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     mainLayout->addWidget(currentLabel);
     mainLayout->addWidget(statusLabel);
     mainLayout->addWidget(helpLabel);
+    mainLayout->addLayout(traceControlsRow);
+    mainLayout->addWidget(responsePlot);
     mainLayout->addWidget(historyTable);
     setLayout(mainLayout);
 
-    resize(520, 480);
+    resize(560, 720);
     updateFromState();
 }
 
@@ -157,6 +184,16 @@ void PulseResistanceDialog::updateFromState()
         channelName->setText(displayName);
     }
 
+    if (traceTimeSpanComboBox->currentIndex() != state->pulseResistanceTraceTimeMs->getIndex()) {
+        traceTimeSpanComboBox->setCurrentIndex(state->pulseResistanceTraceTimeMs->getIndex());
+    }
+    if (traceYScaleAcComboBox->currentIndex() != state->pulseResistanceTraceYScaleAc->getIndex()) {
+        traceYScaleAcComboBox->setCurrentIndex(state->pulseResistanceTraceYScaleAc->getIndex());
+    }
+    if (traceYScaleDcComboBox->currentIndex() != state->pulseResistanceTraceYScaleDc->getIndex()) {
+        traceYScaleDcComboBox->setCurrentIndex(state->pulseResistanceTraceYScaleDc->getIndex());
+    }
+
     updateTitle();
 }
 
@@ -178,11 +215,14 @@ void PulseResistanceDialog::clearHistory()
     currentLabel->setText(tr("I: —"));
     statusLabel->setText(tr("Waiting for stim pulse on watched channel."));
     resetTrackerForChannelChange();
+    responsePlot->clearSnippet();
 }
 
 void PulseResistanceDialog::resetTrackerForChannelChange()
 {
     _trackerState = pulseElectrodeResistance::PulseResistanceTrackerState();
+    _responseCaptureState = pulseElectrodeResistance::PulseResponseCaptureState();
+    responsePlot->clearSnippet();
 }
 
 void PulseResistanceDialog::updateTitle()
@@ -297,6 +337,26 @@ void PulseResistanceDialog::updatePulseResistance(WaveformFifo* waveformFifo, in
     const std::optional<pulseElectrodeResistance::PulseResistanceResult> result =
         pulseElectrodeResistance::processStimPulseSamples(numSamples, sampleRateHz, currentMicroAmps, _trackerState,
                                                         getDcVolts, getStimFlags, getTimeStamp);
+
+    const int numWordsInMemory = waveformFifo->numWordsInMemory(reader);
+    const std::string highBandName = nativeName.toStdString() + "|HIGH";
+    const bool acAvailable = waveformFifo->gpuWaveformPresent(highBandName);
+    GpuWaveformAddress acAddress;
+    if (acAvailable) {
+        acAddress = waveformFifo->getGpuWaveformAddress(highBandName);
+    }
+
+    const double traceTimeMs = state->pulseResistanceTraceTimeMs->getNumericValue();
+    const std::optional<pulseElectrodeResistance::PulseResponseSnippet> snippet =
+        pulseElectrodeResistance::tryCapturePulseResponseSnippet(
+            numSamples, sampleRateHz, traceTimeMs, numWordsInMemory, acAvailable, _responseCaptureState, getStimFlags,
+            getDcVolts, getTimeStamp, [&](int timeIndex) {
+                return waveformFifo->getGpuAmplifierData(reader, acAddress, timeIndex);
+            });
+
+    if (snippet.has_value()) {
+        responsePlot->setLatestSnippet(*snippet);
+    }
 
     if (result.has_value()) {
         applyResult(*result);

@@ -706,6 +706,35 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     // Spike scope
     spikeScopeChannel = new ChannelNameItem("SpikeScopeChannel", globalItems, this, "N/A");
     pulseResistanceChannel = new ChannelNameItem("PulseResistanceChannel", globalItems, this, "N/A");
+    pulseResistanceTraceTimeMs = new DiscreteItemList("PulseResistanceTraceTimeMilliseconds", globalItems, this);
+    pulseResistanceTraceTimeMs->addItem("50", "50 ms", 50.0);
+    pulseResistanceTraceTimeMs->addItem("100", "100 ms", 100.0);
+    pulseResistanceTraceTimeMs->addItem("200", "200 ms", 200.0);
+    pulseResistanceTraceTimeMs->addItem("500", "500 ms", 500.0);
+    pulseResistanceTraceTimeMs->addItem("1000", "1 s", 1000.0);
+    pulseResistanceTraceTimeMs->addItem("2000", "2 s", 2000.0);
+    pulseResistanceTraceTimeMs->setValue("200");
+    pulseResistanceTraceYScaleAc = new DiscreteItemList("PulseResistanceTraceScaleMicroVolts", globalItems, this);
+    pulseResistanceTraceYScaleAc->addItem("50", "50 " + MicroVoltsSymbol, 50.0);
+    pulseResistanceTraceYScaleAc->addItem("100", "100 " + MicroVoltsSymbol, 100.0);
+    pulseResistanceTraceYScaleAc->addItem("200", "200 " + MicroVoltsSymbol, 200.0);
+    pulseResistanceTraceYScaleAc->addItem("500", "500 " + MicroVoltsSymbol, 500.0);
+    pulseResistanceTraceYScaleAc->addItem("1000", "1000 " + MicroVoltsSymbol, 1000.0);
+    pulseResistanceTraceYScaleAc->addItem("2000", "2000 " + MicroVoltsSymbol, 2000.0);
+    pulseResistanceTraceYScaleAc->addItem("5000", "5000 " + MicroVoltsSymbol, 5000.0);
+    pulseResistanceTraceYScaleAc->setValue("500");
+    pulseResistanceTraceYScaleDc = new DiscreteItemList("PulseResistanceTraceScaleVolts", globalItems, this, XMLGroupGeneral,
+                                                        TypeDependencyStim);
+    pulseResistanceTraceYScaleDc->addItem("0.5", "0.5 V", 0.5);
+    pulseResistanceTraceYScaleDc->addItem("1.0", "1 V", 1.0);
+    pulseResistanceTraceYScaleDc->addAlternateValueName("1.0", "1");
+    pulseResistanceTraceYScaleDc->addItem("2.0", "2 V", 2.0);
+    pulseResistanceTraceYScaleDc->addAlternateValueName("2.0", "2");
+    pulseResistanceTraceYScaleDc->addItem("5.0", "5 V", 5.0);
+    pulseResistanceTraceYScaleDc->addAlternateValueName("5.0", "5");
+    pulseResistanceTraceYScaleDc->addItem("10.0", "10 V", 10.0);
+    pulseResistanceTraceYScaleDc->addAlternateValueName("10.0", "10");
+    pulseResistanceTraceYScaleDc->setValue("1.0");
     yScaleSpikeScope = new DiscreteItemList("SpikeScopeScaleMicroVolts", globalItems, this);
     yScaleSpikeScope->addItem("50", "50 " + MicroVoltsSymbol, 50.0);
     yScaleSpikeScope->addItem("100", "100 " + MicroVoltsSymbol, 100.0);

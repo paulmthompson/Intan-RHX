@@ -39,7 +39,9 @@
 class QLabel;
 class QPushButton;
 class QCheckBox;
+class QComboBox;
 class QTableWidget;
+class PulseResponsePlot;
 class WaveformFifo;
 
 class PulseResistanceDialog : public QDialog
@@ -74,6 +76,9 @@ private slots:
     void toggleLock() { updateFromState(); }
     void setToSelected();
     void clearHistory();
+    void setTraceTimeSpan(int index) { state->pulseResistanceTraceTimeMs->setIndex(index); }
+    void setTraceYScaleAc(int index) { state->pulseResistanceTraceYScaleAc->setIndex(index); }
+    void setTraceYScaleDc(int index) { state->pulseResistanceTraceYScaleDc->setIndex(index); }
 
 private:
     void updateTitle();
@@ -96,7 +101,13 @@ private:
 
     QTableWidget* historyTable;
 
+    QComboBox* traceTimeSpanComboBox;
+    QComboBox* traceYScaleAcComboBox;
+    QComboBox* traceYScaleDcComboBox;
+    PulseResponsePlot* responsePlot;
+
     pulseElectrodeResistance::PulseResistanceTrackerState _trackerState;
+    pulseElectrodeResistance::PulseResponseCaptureState _responseCaptureState;
     QString _watchedChannelNativeName;
 
     static constexpr int kMaxHistoryRows = 50;

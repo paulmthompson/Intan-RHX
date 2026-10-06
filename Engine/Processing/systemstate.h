@@ -354,6 +354,9 @@ public:
 
     // Pulse resistance (RHS stim-pulse DC estimate)
     ChannelNameItem* pulseResistanceChannel;
+    DiscreteItemList* pulseResistanceTraceTimeMs;
+    DiscreteItemList* pulseResistanceTraceYScaleAc;
+    DiscreteItemList* pulseResistanceTraceYScaleDc;
 
     // Spike detection threshold setting options
     BooleanItem *absoluteThresholdsEnabled;

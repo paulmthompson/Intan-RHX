@@ -190,4 +190,100 @@ std::optional<PulseResistanceResult> processStimPulseSamples(
     return completedPulse;
 }
 
+namespace {
+
+int halfWindowSamplesFromTotalTimeMs(double totalTimeMs, double sampleRateHz)
+{
+    if (totalTimeMs <= 0.0 || sampleRateHz <= 0.0) {
+        return 0;
+    }
+    return static_cast<int>(std::lround((totalTimeMs * 0.5) * sampleRateHz / 1000.0));
+}
+
+std::optional<PulseResponseSnippet> extractSnippetAtOnset(int onsetIndex, int halfWindowSamples, int numWordsInMemory,
+                                                          bool acAvailable,
+                                                          const std::function<float(int)>& getDcVolts,
+                                                          const std::function<uint32_t(int)>& getTimeStamp,
+                                                          const std::function<float(int)>& getAcMicroVolts)
+{
+    const int windowStart = onsetIndex - halfWindowSamples;
+    const int windowEnd = onsetIndex + halfWindowSamples;
+    if (windowStart < -numWordsInMemory) {
+        return std::nullopt;
+    }
+
+    const int snippetLength = 2 * halfWindowSamples;
+    PulseResponseSnippet snippet;
+    snippet.m_dcVolts.resize(static_cast<std::size_t>(snippetLength));
+    snippet.m_acAvailable = acAvailable;
+    if (acAvailable) {
+        snippet.m_acMicroVolts.resize(static_cast<std::size_t>(snippetLength));
+    }
+
+    int outIndex = 0;
+    for (int i = windowStart; i < windowEnd; ++i) {
+        snippet.m_dcVolts[static_cast<std::size_t>(outIndex)] = getDcVolts(i);
+        if (acAvailable) {
+            snippet.m_acMicroVolts[static_cast<std::size_t>(outIndex)] = getAcMicroVolts(i);
+        }
+        ++outIndex;
+    }
+    snippet.m_timestamp = getTimeStamp(onsetIndex);
+    return snippet;
+}
+
+} // namespace
+
+std::optional<PulseResponseSnippet> tryCapturePulseResponseSnippet(
+    int numSamples,
+    double sampleRateHz,
+    double totalTimeMs,
+    int numWordsInMemory,
+    bool acAvailable,
+    PulseResponseCaptureState& captureState,
+    const std::function<uint16_t(int timeIndex)>& getStimFlags,
+    const std::function<float(int timeIndex)>& getDcVolts,
+    const std::function<uint32_t(int timeIndex)>& getTimeStamp,
+    const std::function<float(int timeIndex)>& getAcMicroVolts)
+{
+    if (numSamples <= 0 || sampleRateHz <= 0.0 || totalTimeMs <= 0.0) {
+        return std::nullopt;
+    }
+
+    const int halfWindowSamples = halfWindowSamplesFromTotalTimeMs(totalTimeMs, sampleRateHz);
+    if (halfWindowSamples <= 0) {
+        return std::nullopt;
+    }
+
+    std::optional<PulseResponseSnippet> captured;
+
+    for (int t = 0; t < numSamples; ++t) {
+        const uint16_t stimFlags = getStimFlags(t);
+        const bool stimOn = (stimFlags & StimOnFlag) != 0;
+
+        const bool stimOnset = stimOn && !captureState.m_lastStimOn;
+        if (stimOnset) {
+            if (halfWindowSamples <= 1) {
+                captured = extractSnippetAtOnset(t, halfWindowSamples, numWordsInMemory, acAvailable, getDcVolts,
+                                                 getTimeStamp, getAcMicroVolts);
+                captureState.m_samplesUntilCapture = -1;
+            } else {
+                captureState.m_samplesUntilCapture = halfWindowSamples - 1;
+            }
+        } else if (captureState.m_samplesUntilCapture > 0) {
+            --captureState.m_samplesUntilCapture;
+            if (captureState.m_samplesUntilCapture == 0) {
+                const int onsetIndex = t - (halfWindowSamples - 1);
+                captured = extractSnippetAtOnset(onsetIndex, halfWindowSamples, numWordsInMemory, acAvailable,
+                                                 getDcVolts, getTimeStamp, getAcMicroVolts);
+                captureState.m_samplesUntilCapture = -1;
+            }
+        }
+
+        captureState.m_lastStimOn = stimOn;
+    }
+
+    return captured;
+}
+
 } // namespace pulseElectrodeResistance

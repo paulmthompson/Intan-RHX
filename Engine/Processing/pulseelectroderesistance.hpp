@@ -70,6 +70,19 @@ struct PulseResistanceTrackerState {
     std::vector<float> m_plateauSamples;
 };
 
+struct PulseResponseSnippet {
+    std::vector<float> m_acMicroVolts;
+    std::vector<float> m_dcVolts;
+    uint32_t m_timestamp = 0;
+    bool m_acAvailable = false;
+};
+
+struct PulseResponseCaptureState {
+    bool m_lastStimOn = false;
+    /** Samples remaining until capture after stim onset; -1 when idle. */
+    int m_samplesUntilCapture = -1;
+};
+
 /**
  * @brief Compute the median of a non-empty sample vector.
  * @pre samples is not empty.
@@ -101,6 +114,24 @@ std::optional<PulseResistanceResult> processStimPulseSamples(
     const std::function<float(int timeIndex)>& getDcVolts,
     const std::function<uint16_t(int timeIndex)>& getStimFlags,
     const std::function<uint32_t(int timeIndex)>& getTimeStamp);
+
+/**
+ * @brief Capture a symmetric AC/DC snippet centered on stim onset when the full window is in FIFO memory.
+ *
+ * @pre getDcVolts and getStimFlags valid for timeIndex in [-numWordsInMemory, numSamples).
+ * @post captureState updated; optional snippet when a pulse onset is centered in a complete window.
+ */
+std::optional<PulseResponseSnippet> tryCapturePulseResponseSnippet(
+    int numSamples,
+    double sampleRateHz,
+    double totalTimeMs,
+    int numWordsInMemory,
+    bool acAvailable,
+    PulseResponseCaptureState& captureState,
+    const std::function<uint16_t(int timeIndex)>& getStimFlags,
+    const std::function<float(int timeIndex)>& getDcVolts,
+    const std::function<uint32_t(int timeIndex)>& getTimeStamp,
+    const std::function<float(int timeIndex)>& getAcMicroVolts);
 
 } // namespace pulseElectrodeResistance
 
