@@ -32,8 +32,18 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace pulseElectrodeResistance {
+
+double resistanceQuantizationUncertaintyPercent(double deltaVolts)
+{
+    const double magnitude = std::abs(deltaVolts);
+    if (magnitude <= 0.0) {
+        return std::numeric_limits<double>::infinity();
+    }
+    return 100.0 * (2.0 * DcAmplifierLsbVolts) / magnitude;
+}
 
 namespace {
 

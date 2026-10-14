@@ -44,6 +44,16 @@ constexpr uint16_t AmpSettleFlag = 0x2000u;
 constexpr uint16_t ChargeRecoveryFlag = 0x4000u;
 constexpr uint16_t ComplianceFlag = 0x8000u;
 
+/** DC amplifier voltage resolution (10-bit, ±10 V) in volts; matches RHXDataReader scaling. */
+constexpr double DcAmplifierLsbVolts = 0.01923;
+
+/**
+ * @brief Relative resistance uncertainty (percent) from 10-bit DC quantization on baseline and plateau.
+ * @pre deltaVolts is the estimated pulse amplitude in volts.
+ * @post Returns 100 * (2 * DcAmplifierLsbVolts) / |deltaVolts|, or infinity if deltaVolts is zero.
+ */
+double resistanceQuantizationUncertaintyPercent(double deltaVolts);
+
 enum class PulseResistanceFailure {
     None,
     Compliance,

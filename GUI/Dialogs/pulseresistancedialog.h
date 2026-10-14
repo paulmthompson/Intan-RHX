@@ -85,6 +85,7 @@ private:
     void resetTrackerForChannelChange();
     void applyResult(const pulseElectrodeResistance::PulseResistanceResult& result);
     static QString formatResistanceOhms(double ohms);
+    static QString formatResistanceOhmsWithUncertainty(double ohms, double deltaVolts);
     static QString failureReasonText(pulseElectrodeResistance::PulseResistanceFailure failure);
 
     SystemState* state;

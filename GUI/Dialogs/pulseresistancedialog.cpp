@@ -28,6 +28,8 @@
 //
 //------------------------------------------------------------------------------
 
+#include <cmath>
+
 #include <QtWidgets>
 
 #include "channel.h"
@@ -241,6 +243,19 @@ QString PulseResistanceDialog::formatResistanceOhms(double ohms)
     return QString::number(ohms, 'f', 1) + tr(" Ω");
 }
 
+QString PulseResistanceDialog::formatResistanceOhmsWithUncertainty(double ohms, double deltaVolts)
+{
+    QString formatted = formatResistanceOhms(ohms);
+    const double uncertaintyPercent = pulseElectrodeResistance::resistanceQuantizationUncertaintyPercent(deltaVolts);
+    if (!std::isfinite(uncertaintyPercent)) {
+        return formatted;
+    }
+    const QString percentText =
+        uncertaintyPercent >= 10.0 ? QString::number(uncertaintyPercent, 'f', 0)
+                                   : QString::number(uncertaintyPercent, 'f', 1);
+    return formatted + tr(" +/- %1%").arg(percentText);
+}
+
 QString PulseResistanceDialog::failureReasonText(pulseElectrodeResistance::PulseResistanceFailure failure)
 {
     using pulseElectrodeResistance::PulseResistanceFailure;
@@ -270,7 +285,8 @@ void PulseResistanceDialog::applyResult(const pulseElectrodeResistance::PulseRes
     statusLabel->setText(status);
 
     if (result.m_valid) {
-        resistanceValueLabel->setText(tr("R: ") + formatResistanceOhms(result.m_resistanceOhms));
+        resistanceValueLabel->setText(tr("R: ")
+                                      + formatResistanceOhmsWithUncertainty(result.m_resistanceOhms, result.m_deltaVolts));
         deltaVoltageLabel->setText(tr("ΔV: ") + QString::number(result.m_deltaVolts * 1000.0, 'f', 3) + tr(" mV"));
         currentLabel->setText(tr("I: ") + QString::number(result.m_currentAmps * 1.0e6, 'f', 3) + tr(" µA"));
     }
@@ -278,7 +294,10 @@ void PulseResistanceDialog::applyResult(const pulseElectrodeResistance::PulseRes
     historyTable->insertRow(0);
     historyTable->setItem(0, 0, new QTableWidgetItem(QString::number(result.m_timestamp)));
     historyTable->setItem(0, 1,
-                          new QTableWidgetItem(result.m_valid ? formatResistanceOhms(result.m_resistanceOhms) : QString()));
+                          new QTableWidgetItem(result.m_valid
+                                                   ? formatResistanceOhmsWithUncertainty(result.m_resistanceOhms,
+                                                                                         result.m_deltaVolts)
+                                                   : QString()));
     historyTable->setItem(0, 2,
                           new QTableWidgetItem(result.m_valid ? QString::number(result.m_deltaVolts * 1000.0, 'f', 3)
                                                               : QString()));
