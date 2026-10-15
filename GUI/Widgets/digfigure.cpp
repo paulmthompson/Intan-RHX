@@ -38,7 +38,8 @@
 ;
 
 DigFigure::DigFigure(StimParameters *stimParameters, QWidget* parent) :
-    AbstractFigure()
+    AbstractFigure(),
+    _manualLevelSource(false)
 {
     generalSetup(stimParameters, parent);
 
@@ -59,6 +60,12 @@ void DigFigure::uniqueRedraw(QPainter &painter)
     // Draw digital pulse.
     int xStimEnd = x0 + 0.3 * xLength;
     int yMaxAmplitude = 0.5 * stimFrame.height();
+    if (_manualLevelSource) {
+        painter.drawLine(xStimBegin, y0, xStimBegin, y0 - yMaxAmplitude);
+        painter.drawLine(xStimBegin, y0 - yMaxAmplitude, xEnd, y0 - yMaxAmplitude);
+        painter.drawText(stimFrame.left(), fontMetrics().height() + 1, "MANUAL LEVEL");
+        return;
+    }
     int xStimBegin2 = 0;
     int xStimEnd2 = 0;
     drawHorizontalArrow(painter, x0, xStimBegin, y0 - yMaxAmplitude - ArrowSize - 3,
@@ -75,14 +82,23 @@ void DigFigure::uniqueRedraw(QPainter &painter)
         xStimEnd2 = x0 + 0.7 * xLength;
         painter.drawLine(x0 + 0.45 * xLength, y0, xStimBegin2, y0);
         drawStimPulse(painter, xStimBegin2, xStimEnd2, y0, yMaxAmplitude);
-        painter.drawLine(xStimEnd2, y0, xEnd, y0);
+        if (localPulseOrTrain == ContinuousTrain) {
+            painter.drawLine(xStimEnd2, y0, x0 + 0.8 * xLength, y0);
+            drawDashedHorizontalLine(
+                painter, x0 + 0.8 * xLength, xEnd, y0,
+                (highlitStimTrace ? currentColorHL : currentColor), 6);
+        } else {
+            painter.drawLine(xStimEnd2, y0, xEnd, y0);
+        }
         drawHorizontalArrow(painter, xStimBegin, xStimBegin2, y0 + ArrowSize + 3,
                             highlitPulseTrainPeriod ? durationLabelColorHL : durationLabelColor, "PULSE PERIOD", false);
     }
 
-    int xStimEndFinal = (localPulseOrTrain == SinglePulse) ? xStimEnd : xStimEnd2;
-    drawHorizontalArrow(painter, xStimEndFinal, xEnd, y0 - yMaxAmplitude - ArrowSize - 3,
-                        highlitRefractoryPeriod ? durationLabelColorHL : durationLabelColor, "REFRACTORY", true);
+    if (localPulseOrTrain != ContinuousTrain) {
+        int xStimEndFinal = (localPulseOrTrain == SinglePulse) ? xStimEnd : xStimEnd2;
+        drawHorizontalArrow(painter, xStimEndFinal, xEnd, y0 - yMaxAmplitude - ArrowSize - 3,
+                            highlitRefractoryPeriod ? durationLabelColorHL : durationLabelColor, "REFRACTORY", true);
+    }
 
     // Draw trigger marker.
     painter.setPen(Qt::darkBlue);
@@ -92,6 +108,12 @@ void DigFigure::uniqueRedraw(QPainter &painter)
     // Draw end marker.
     painter.drawText(stimFrame.right() - EndOfLineabelWidth, fontMetrics().height() + 1, EndOfLineabel);
     painter.drawLine(xEnd, stimFrame.top(), xEnd, frame.bottom() - 5);
+}
+
+void DigFigure::updateSource(int source)
+{
+    _manualLevelSource = source == 0;
+    update();
 }
 
 QSize DigFigure::minimumSizeHint() const

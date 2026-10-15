@@ -63,6 +63,7 @@ set(Sources
         Engine/Processing/filter.cpp 
         Engine/Processing/matfilewriter.cpp 
         Engine/Processing/rhxdatareader.cpp 
+        Engine/Processing/rhsdigoutconfiguration.cpp
         Engine/Processing/signalsources.cpp 
         Engine/Processing/softwarereferenceprocessor.cpp 
         Engine/Processing/stateitem.cpp 
@@ -93,6 +94,7 @@ set(Sources
         GUI/Dialogs/chargerecoverydialog.cpp 
         GUI/Dialogs/demodialog.cpp 
         GUI/Dialogs/digoutdialog.cpp 
+        GUI/Dialogs/digoutdialog.ui
         GUI/Dialogs/isidialog.cpp 
         GUI/Dialogs/keyboardshortcutdialog.cpp 
         GUI/Dialogs/performanceoptimizationdialog.cpp 
@@ -144,7 +146,9 @@ set(Sources
         GUI/Windows/controlwindow.cpp 
         GUI/Windows/probemapwindow.cpp 
         GUI/Dialogs/impedancefreqdialog.cpp 
-        GUI/Widgets/controlpanel.cpp 
+        GUI/Widgets/controlpanel.cpp
+        GUI/Widgets/rhsdigoutlivecontrolswidget.cpp
+        GUI/Widgets/rhsdigoutlivecontrolswidget.ui 
         GUI/Widgets/spectrogramplot.cpp 
         GUI/Windows/viewfilterswindow.cpp
 )
@@ -186,6 +190,7 @@ set(Headers
         Engine/Processing/minmax.h 
         Engine/Processing/probemapdatastructures.h 
         Engine/Processing/rhxdatareader.h 
+        Engine/Processing/rhsdigoutconfiguration.hpp
         Engine/Processing/semaphore.h 
         Engine/Processing/signalsources.h 
         Engine/Processing/softwarereferenceprocessor.h 
@@ -215,7 +220,7 @@ set(Headers
         GUI/Dialogs/cabledelaydialog.h 
         GUI/Dialogs/chargerecoverydialog.h 
         GUI/Dialogs/demodialog.h 
-        GUI/Dialogs/digoutdialog.h 
+        GUI/Dialogs/digoutdialog.hpp
         GUI/Dialogs/isidialog.h 
         GUI/Dialogs/keyboardshortcutdialog.h 
         GUI/Dialogs/performanceoptimizationdialog.h 
@@ -267,7 +272,8 @@ set(Headers
         GUI/Windows/controlwindow.h 
         GUI/Windows/probemapwindow.h 
         GUI/Dialogs/impedancefreqdialog.h 
-        GUI/Widgets/controlpanel.h 
+        GUI/Widgets/controlpanel.h
+        GUI/Widgets/rhsdigoutlivecontrolswidget.hpp 
         GUI/Widgets/spectrogramplot.h 
         GUI/Windows/viewfilterswindow.h
 )

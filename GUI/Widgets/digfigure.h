@@ -42,9 +42,17 @@ public:
     explicit DigFigure(StimParameters* stimParameters, QWidget* parent = nullptr);
     void uniqueRedraw(QPainter &painter);
 
+public slots:
+    /**
+     * @brief Select Manual Level or Sequencer preview rendering.
+     */
+    void updateSource(int source);
+
 private:
     QSize sizeHint() const;
     QSize minimumSizeHint() const;
+
+    bool _manualLevelSource;
 };
 
 

@@ -30,6 +30,8 @@
 
 #include "commandparser.h"
 
+#include "rhsdigoutconfiguration.hpp"
+
 CommandParser::CommandParser(SystemState* state_, ControllerInterface *controllerInterface_, QObject *parent) :
     QObject(parent),
     controllerInterface(controllerInterface_),
@@ -830,10 +832,16 @@ QString CommandParser::validateStimParams(StimParameters *stimParams) const
         if (stimParams->pulseTrainPeriod->getValue() < stimDuration)
             return "PulseTrainPeriodMicroseconds cannot be less than total pulse duration (sum of all phases used for this Shape)";
 
-    case BoardDigitalOutSignal:
-        // PulseTrainPeriod cannot be less than FirstPhaseDuration
-        if (stimParams->pulseTrainPeriod->getValue() < stimParams->firstPhaseDuration->getValue())
-            return "PulseTrainPeriodMicroseconds cannot be less than pulse duration (FirstPhaseDurationMicroseconds)";
+    case BoardDigitalOutSignal: {
+        RhsDigOutQuantizedTiming timing;
+        if (const auto error = validateAndQuantizeRhsDigOutConfiguration(
+                rhsDigOutConfigurationFrom(*stimParams),
+                state->sampleRate->getNumericValue(),
+                timing)) {
+            return *error;
+        }
+        break;
+    }
 
     default:
         break;

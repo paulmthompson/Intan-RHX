@@ -78,7 +78,8 @@ enum TriggerHighOrLow {
 
 enum PulseOrTrain {
     SinglePulse = 0,
-    PulseTrain = 1
+    PulseTrain = 1,
+    ContinuousTrain = 2
 };
 
 
@@ -111,6 +112,18 @@ public:
     DiscreteItemList *pulseOrTrain;
 
     BooleanItem *enabled;
+    /**
+     * @brief Persisted RHS board output source; null for non-digital channels.
+     * @ingroup RhsDigitalOut
+     * @note DAC-threshold ownership remains in the analog-tab state.
+     */
+    DiscreteItemList *digOutSource;
+    /**
+     * @brief Persisted Manual (GUI button) trigger selection for RHS digital output.
+     * @ingroup RhsDigitalOut
+     * @note This maps to TriggerParams bit 8, not trigger-source index 32.
+     */
+    BooleanItem *digOutManualTrigger;
     BooleanItem *maintainAmpSettle;
     BooleanItem *enableAmpSettle;
     BooleanItem *enableChargeRecovery;

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DigOutDialog</class>
+ <widget class="QDialog" name="DigOutDialog">
+  <property name="windowTitle">
+   <string>Digital Output Parameters</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QWidget" name="figurePlaceholder" native="true"/>
+   </item>
+   <item>
+    <widget class="QLabel" name="thresholdOwnershipLabel">
+     <property name="visible"><bool>false</bool></property>
+     <property name="wordWrap"><bool>true</bool></property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QFormLayout" name="sourceForm">
+     <item row="0" column="0"><widget class="QLabel" name="sourceLabel"><property name="text"><string>Output Source:</string></property></widget></item>
+     <item row="0" column="1"><widget class="QComboBox" name="sourceComboBox"/></item>
+     <item row="1" column="0"><widget class="QLabel" name="enableLabel"><property name="text"><string>Sequencer:</string></property></widget></item>
+     <item row="1" column="1"><widget class="QCheckBox" name="enabledCheckBox"><property name="text"><string>Enabled</string></property></widget></item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="triggerGroupBox">
+     <property name="title"><string>Trigger</string></property>
+     <layout class="QFormLayout" name="triggerForm">
+      <item row="0" column="0"><widget class="QLabel" name="triggerSourceLabel"><property name="text"><string>Trigger Source:</string></property></widget></item>
+      <item row="0" column="1"><widget class="QComboBox" name="triggerSourceComboBox"/></item>
+      <item row="1" column="0"><widget class="QLabel" name="edgeLabel"><property name="text"><string>Detection:</string></property></widget></item>
+      <item row="1" column="1"><widget class="QComboBox" name="edgeComboBox"/></item>
+      <item row="2" column="0"><widget class="QLabel" name="polarityLabel"><property name="text"><string>Polarity:</string></property></widget></item>
+      <item row="2" column="1"><widget class="QComboBox" name="polarityComboBox"/></item>
+      <item row="3" column="0"><widget class="QLabel" name="delayLabel"><property name="text"><string>Post-trigger Delay (us):</string></property></widget></item>
+      <item row="3" column="1"><widget class="QDoubleSpinBox" name="delaySpinBox"><property name="maximum"><double>500000.000000000000000</double></property><property name="decimals"><number>3</number></property></widget></item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="waveformGroupBox">
+     <property name="title"><string>Waveform</string></property>
+     <layout class="QFormLayout" name="waveformForm">
+      <item row="0" column="0"><widget class="QLabel" name="modeLabel"><property name="text"><string>Mode:</string></property></widget></item>
+      <item row="0" column="1"><widget class="QComboBox" name="modeComboBox"/></item>
+      <item row="1" column="0"><widget class="QLabel" name="durationLabel"><property name="text"><string>High Duration (us):</string></property></widget></item>
+      <item row="1" column="1"><widget class="QDoubleSpinBox" name="durationSpinBox"><property name="maximum"><double>1000000.000000000000000</double></property><property name="decimals"><number>3</number></property></widget></item>
+      <item row="2" column="0"><widget class="QLabel" name="pulseCountLabel"><property name="text"><string>Number of Pulses:</string></property></widget></item>
+      <item row="2" column="1"><widget class="QSpinBox" name="pulseCountSpinBox"><property name="minimum"><number>2</number></property><property name="maximum"><number>256</number></property></widget></item>
+      <item row="3" column="0"><widget class="QLabel" name="periodLabel"><property name="text"><string>Period (us):</string></property></widget></item>
+      <item row="3" column="1"><widget class="QDoubleSpinBox" name="periodSpinBox"><property name="maximum"><double>1000000.000000000000000</double></property><property name="decimals"><number>3</number></property></widget></item>
+      <item row="4" column="0"><widget class="QLabel" name="refractoryLabel"><property name="text"><string>Refractory Period (us):</string></property></widget></item>
+      <item row="4" column="1"><widget class="QDoubleSpinBox" name="refractorySpinBox"><property name="maximum"><double>1000000.000000000000000</double></property><property name="decimals"><number>3</number></property></widget></item>
+      <item row="5" column="0" colspan="2"><widget class="QLabel" name="achievedLabel"><property name="text"><string>Achieved: --</string></property></widget></item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Apply|QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

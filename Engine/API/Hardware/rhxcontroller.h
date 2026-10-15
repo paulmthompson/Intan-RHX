@@ -139,7 +139,30 @@ public:
     int getNumSPIPorts(bool& expanderBoardDetected) override;
 
     void clearTtlOut() override;                 // not used with ControllerStimRecord
+
+    /**
+     * @brief Pulse TriggerIn 0x41[1] to reset amplifier/analog sequencers.
+     * @pre Controller type is ControllerStimRecord.
+     * @post The matching Step 3 bitfile leaves digital-output sequencing unchanged.
+     * @see AbstractRHXController::resetSequencers
+     */
     void resetSequencers() override;
+
+    /**
+     * @brief Write a 0-based RHS TTL channel/opcode to WireIn 0x0e and execute via 0x41[2].
+     * @ingroup RhsDigitalOut
+     * Holds okMutex across SetWireInValue, UpdateWireIns and ActivateTriggerIn;
+     * non-RHS and older bitfiles ignore the request. Requires XEM6010 RHS
+     * board ID 800 with WireOut 0x27 == 0x4453 ('DS').
+     * @pre @p channel is in [0, 15].
+     * @post The transaction has been sent without FPGA acknowledgement.
+     * @see AbstractRHXController::commandRhsDigOut
+     */
+    void commandRhsDigOut(RhsDigOutCommand command, int channel = 0) override;
+    /**
+     * @brief See AbstractRHXController::supportsRhsDigOutCommands().
+     */
+    bool supportsRhsDigOutCommands() const override { return rhsDigOutCommandsAvailable; }
     void programStimReg(int stream, int channel, StimRegister reg, uint32_t value, int stimProgramBank = 0) override;
     void uploadCommandList(const std::vector<unsigned int> &commandList, AuxCmdSlot auxCommandSlot, int bank = 0) override;
 
@@ -158,6 +181,7 @@ private:
 
     okCFrontPanel *dev;
     bool is7310;
+    bool rhsDigOutCommandsAvailable;
 
     // Opal Kelly module USB interface endpoint addresses common to all controller types
     enum EndPoint {
@@ -264,11 +288,16 @@ private:
         WireInDacReref_S_USB2 = 0x0a,
         WireInAuxEnable_S_USB2 = 0x0c,
         WireInGlobalSettleSelect_S_USB2 = 0x0d,
+        WireInDigOutCommand_S_USB2 = 0x0e,  // RHS TTL channel [3:0], opcode [6:4]
         WireInAdcThreshold_S_USB2 = 0x0f,
         WireInSerialDigitalInCntl_S_USB2 = 0x10,
         WireInLedDisplay_S_USB2 = 0x11,
         WireInManualTriggers_S_USB2 = 0x12,
         WireInTtlOutMode_S_USB2 = 0x13,
+
+        TrigInDigOutCommand_S_USB2 = 0x41,  // ActivateTriggerIn bit 2
+
+        WireOutDigOutProtocol_S_USB2 = 0x27, // 0x4453 for Step 3 XEM6010 RHS
 
         TrigInRamAddrReset_S_USB2 = 0x42,
         TrigInAuxCmdLength_S_USB2 = 0x45,

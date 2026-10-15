@@ -38,22 +38,26 @@
  * @see ControllerInterface::setDigitalOutSequenceParameters
  * @see AbstractRHXController::programStimReg
  *
- * @details Maintenance: see docs/stim-sequencer-maintenance.md
+ * @details RHS digital-output maintenance behavior is documented in
+ * docs/rhs-digital-output-findings-and-goals.md.
  */
 
-#include <QApplication>
-#include <QtGlobal>
-#include <QElapsedTimer>
-#include <QThread>
-
-#include <algorithm>
-#include <iostream>
-
-#include "controlpanel.h"
-#include "impedancereader.h"
 #include "controllerinterface.h"
 
 #include "ampstimprograms.hpp"
+#include "controlpanel.h"
+#include "impedancereader.h"
+
+#include <QApplication>
+#include <QElapsedTimer>
+#include <QThread>
+#include <QTimer>
+#include <QtGlobal>
+
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <iostream>
 
 namespace {
 
@@ -1495,6 +1499,7 @@ void ControllerInterface::runController()
     delete [] timeStamps;
     fill(cpuLoadHistory.begin(), cpuLoadHistory.end(), 0.0);
     emit cpuLoadPercent(0.0);
+    clearRhsDigOutRuntimeState();
     emit haveStopped();
 }
 
@@ -1676,6 +1681,7 @@ void ControllerInterface::sweepDisplay(double speed)
     startTime = qBound(-numSamplesInMemory, startTime, 0);
     currentSweepPosition = startTime;
 
+    clearRhsDigOutRuntimeState();
     emit haveStopped();
 }
 
@@ -1860,44 +1866,38 @@ void ControllerInterface::setAnalogOutSequenceParameters(Channel* anOutChannel)
 
 void ControllerInterface::setDigitalOutSequenceParameters(Channel* digOutChannel)
 {
-    if (rhxController->isSynthetic() || rhxController->isPlayback()) return;
-
-        const uint32_t Never = 0xFFFFFFFF; // PMT
-
-    StimParameters* parameters = digOutChannel->stimParameters;
-    int channel = digOutChannel->getNativeChannelNumber();
-    int stream = 16;
-    double timestep = 1.0e6 / state->sampleRate->getNumericValue();  // time step in microseconds
-
-    int numOfPulses = ((PulseOrTrain) parameters->pulseOrTrain->getIndex() == SinglePulse) ?
-                1 : parameters->numberOfStimPulses->getValue();
-
-    rhxController->configureStimTrigger(stream, channel, parameters->triggerSource->getIndex(),
-                                        parameters->enabled->getValue(),
-                                        ((TriggerEdgeOrLevel) parameters->triggerEdgeOrLevel->getIndex() == TriggerEdge),
-                                        ((TriggerHighOrLow) parameters->triggerHighOrLow->getIndex() == TriggerLow));
-    rhxController->configureStimPulses(stream, channel, numOfPulses, Monophasic, false);
-
-    int postTriggerDelay = round(parameters->postTriggerDelay->getValue() / timestep);
-    int firstPhaseDuration = round(parameters->firstPhaseDuration->getValue() / timestep);
-    int refractoryPeriod = round(parameters->refractoryPeriod->getValue() / timestep);
-    int pulseTrainPeriod = round(parameters->pulseTrainPeriod->getValue() / timestep);
-
-    int eventStartStim = postTriggerDelay;
-    int eventEndStim = eventStartStim + firstPhaseDuration;
-    int eventEnd = eventEndStim + refractoryPeriod;
-    int eventRepeatStim;
-
-    if ((PulseOrTrain) parameters->pulseOrTrain->getIndex() == PulseTrain) {
-        eventRepeatStim = eventStartStim + pulseTrainPeriod;
-    } else {
-        eventRepeatStim = Never;
+    if (rhxController->isSynthetic() || rhxController->isPlayback()) {
+        return;
+    }
+    const RhsDigOutConfiguration configuration =
+        rhsDigOutConfigurationFrom(*digOutChannel->stimParameters);
+    RhsDigOutQuantizedTiming timing;
+    if (const auto error = validateAndQuantizeRhsDigOutConfiguration(
+            configuration, state->sampleRate->getNumericValue(), timing)) {
+        sendTCPError(*error);
+        return;
     }
 
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventStartStim, eventStartStim);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventEndStim, eventEndStim);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventRepeatStim, eventRepeatStim);
-    rhxController->programStimReg(stream, channel, AbstractRHXController::EventEnd, eventEnd);
+    constexpr int stream = 16;
+    const int channel = digOutChannel->getNativeChannelNumber();
+    rhxController->programStimReg(
+        stream, channel, AbstractRHXController::TriggerParams,
+        rhsDigOutTriggerWord(configuration));
+    rhxController->programStimReg(
+        stream, channel, AbstractRHXController::StimParams,
+        rhsDigOutStimWord(configuration));
+    rhxController->programStimReg(
+        stream, channel, AbstractRHXController::EventStartStim,
+        timing.m_startTick);
+    rhxController->programStimReg(
+        stream, channel, AbstractRHXController::EventEndStim,
+        timing.m_endStimTick);
+    rhxController->programStimReg(
+        stream, channel, AbstractRHXController::EventRepeatStim,
+        timing.m_repeatTick);
+    rhxController->programStimReg(
+        stream, channel, AbstractRHXController::EventEnd,
+        timing.m_endTick);
 }
 
 void ControllerInterface::manualStimTriggerOn(QString keyName)
@@ -2095,6 +2095,224 @@ void ControllerInterface::setTtlOutMode(bool mode1, bool mode2, bool mode3, bool
                                         bool mode8)
 {
     rhxController->setTtlOutMode(mode1, mode2, mode3, mode4, mode5, mode6, mode7, mode8);
+}
+
+/**
+ * @brief Validate common host-side eligibility for one RHS live output command.
+ */
+bool ControllerInterface::_rhsDigOutLiveCommandAllowed(int channel, bool allowThresholdOwned)
+{
+    if (state->getControllerTypeEnum() != ControllerStimRecord || is7310 ||
+        rhxController->isSynthetic() || rhxController->isPlayback() ||
+        !rhxController->supportsRhsDigOutCommands() ||
+        channel < 0 || channel > 15) {
+        return false;
+    }
+    if (!state->running || state->uploadInProgress->getValue()) {
+        return false;
+    }
+    if (!allowThresholdOwned && _rhsDigOutThresholdOwned(channel)) {
+        sendTCPError("Disable DAC threshold output before using digital control on this pin");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief Return whether the analog tab owns one RHS TTL output.
+ */
+bool ControllerInterface::_rhsDigOutThresholdOwned(int channel) const
+{
+    if (channel < 0 || channel >= 8) {
+        return false;
+    }
+    BooleanItem* thresholdModes[8] = {
+        state->analogOut1ThresholdEnabled, state->analogOut2ThresholdEnabled,
+        state->analogOut3ThresholdEnabled, state->analogOut4ThresholdEnabled,
+        state->analogOut5ThresholdEnabled, state->analogOut6ThresholdEnabled,
+        state->analogOut7ThresholdEnabled, state->analogOut8ThresholdEnabled
+    };
+    return thresholdModes[channel]->getValue();
+}
+
+bool ControllerInterface::setRhsDigOutManualLevel(int channel, bool high)
+{
+    if (!_rhsDigOutLiveCommandAllowed(channel, false)) {
+        return false;
+    }
+    rhxController->commandRhsDigOut(high ? AbstractRHXController::RhsDigOutManualHigh :
+                                           AbstractRHXController::RhsDigOutManualLow, channel);
+    ++_rhsDigOutFireGeneration[channel];
+    _rhsDigOutRuntime[channel].m_manualLevelHigh = high;
+    _rhsDigOutRuntime[channel].m_continuousRunning = false;
+    _rhsDigOutRuntime[channel].m_manualFireBusy = false;
+    emit rhsDigOutRuntimeChanged(channel);
+    return true;
+}
+
+bool ControllerInterface::startRhsDigOutContinuous(int channel)
+{
+    if (!_rhsDigOutLiveCommandAllowed(channel, false)) {
+        return false;
+    }
+    rhxController->commandRhsDigOut(AbstractRHXController::RhsDigOutContinuousStart, channel);
+    ++_rhsDigOutFireGeneration[channel];
+    _rhsDigOutRuntime[channel].m_manualLevelHigh = false;
+    _rhsDigOutRuntime[channel].m_continuousRunning = true;
+    _rhsDigOutRuntime[channel].m_manualFireBusy = false;
+    emit rhsDigOutRuntimeChanged(channel);
+    return true;
+}
+
+bool ControllerInterface::stopRhsDigOutSequencer(int channel)
+{
+    if (!_rhsDigOutLiveCommandAllowed(channel, true)) {
+        return false;
+    }
+    rhxController->commandRhsDigOut(AbstractRHXController::RhsDigOutSequencerStop, channel);
+    ++_rhsDigOutFireGeneration[channel];
+    _rhsDigOutRuntime[channel].m_continuousRunning = false;
+    _rhsDigOutRuntime[channel].m_manualFireBusy = false;
+    emit rhsDigOutRuntimeChanged(channel);
+    return true;
+}
+
+bool ControllerInterface::fireRhsDigOut(Channel* digOutChannel)
+{
+    if (!digOutChannel || digOutChannel->getSignalType() != BoardDigitalOutSignal) {
+        return false;
+    }
+    const int channel = digOutChannel->getNativeChannelNumber();
+    if (!_rhsDigOutLiveCommandAllowed(channel, false)) {
+        return false;
+    }
+    const RhsDigOutConfiguration configuration =
+        rhsDigOutConfigurationFrom(*digOutChannel->stimParameters);
+    if (configuration.m_source != RhsDigOutSource::Sequencer ||
+        configuration.m_sequenceMode == RhsDigOutSequenceMode::Continuous ||
+        !configuration.m_enabled || !configuration.m_manualFire ||
+        _rhsDigOutRuntime[channel].m_manualFireBusy) {
+        return false;
+    }
+    rhxController->commandRhsDigOut(AbstractRHXController::RhsDigOutFire, channel);
+    _rhsDigOutRuntime[channel].m_manualFireBusy = true;
+    const uint64_t generation = ++_rhsDigOutFireGeneration[channel];
+    emit rhsDigOutRuntimeChanged(channel);
+
+    const int pulses = configuration.m_sequenceMode == RhsDigOutSequenceMode::Finite ?
+        configuration.m_numberOfPulses : 1;
+    const double sampleTickUs =
+        1.0e6 / state->sampleRate->getNumericValue();
+    const double durationUs =
+        configuration.m_postTriggerDelayUs +
+        configuration.m_highDurationUs +
+        configuration.m_refractoryPeriodUs +
+        static_cast<double>(pulses - 1) *
+            (configuration.m_periodUs + sampleTickUs);
+    const int durationMs = std::max(
+        1, static_cast<int>(std::ceil(durationUs / 1000.0)) + 5);
+    QTimer::singleShot(durationMs, this, [this, channel, generation]() {
+        if (_rhsDigOutFireGeneration[channel] != generation) {
+            return;
+        }
+        _rhsDigOutRuntime[channel].m_manualFireBusy = false;
+        emit rhsDigOutRuntimeChanged(channel);
+    });
+    return true;
+}
+
+std::optional<QString> ControllerInterface::commitRhsDigOutConfiguration(
+    Channel* digOutChannel,
+    const RhsDigOutConfiguration& configuration)
+{
+    if (!digOutChannel ||
+        digOutChannel->getSignalType() != BoardDigitalOutSignal) {
+        return QString("The selected channel is not an RHS board digital output.");
+    }
+    const int channel = digOutChannel->getNativeChannelNumber();
+    if (channel < 0 || channel > 15) {
+        return QString("The RHS digital-output channel index is invalid.");
+    }
+    RhsDigOutQuantizedTiming timing;
+    if (auto error = validateAndQuantizeRhsDigOutConfiguration(
+            configuration, state->sampleRate->getNumericValue(), timing)) {
+        return error;
+    }
+    if (_rhsDigOutThresholdOwned(channel)) {
+        return QString("Disable DAC threshold output in the Analog tab before applying digital control to this pin.");
+    }
+    if (state->uploadInProgress->getValue()) {
+        return QString("Another hardware upload is already in progress.");
+    }
+    const bool hardware = !rhxController->isSynthetic() && !rhxController->isPlayback();
+    if (hardware && !supportsRhsDigOutCommands()) {
+        return QString("The loaded RHS bitfile does not support the Step 3 digital-output protocol.");
+    }
+
+    const RhsDigOutConfiguration previous =
+        rhsDigOutConfigurationFrom(*digOutChannel->stimParameters);
+    const bool wasContinuousRunning =
+        _rhsDigOutRuntime[channel].m_continuousRunning;
+    const bool restartContinuous =
+        wasContinuousRunning &&
+        configuration.m_source == RhsDigOutSource::Sequencer &&
+        configuration.m_sequenceMode == RhsDigOutSequenceMode::Continuous &&
+        configuration.m_enabled &&
+        rhsDigOutSameSourceAndMode(previous, configuration);
+
+    if (state->running && hardware) {
+        if (_rhsDigOutRuntime[channel].m_manualLevelHigh &&
+            configuration.m_source != RhsDigOutSource::ManualLevel) {
+            setRhsDigOutManualLevel(channel, false);
+        }
+        if (previous.m_source == RhsDigOutSource::Sequencer ||
+            configuration.m_source == RhsDigOutSource::Sequencer) {
+            stopRhsDigOutSequencer(channel);
+        }
+    }
+
+    applyRhsDigOutConfiguration(configuration, *digOutChannel->stimParameters);
+    state->stimParamsHaveChanged = true;
+    if (hardware) {
+        state->uploadInProgress->setValue(true);
+        setDigitalOutSequenceParameters(digOutChannel);
+        state->uploadInProgress->setValue(false);
+    }
+    if (state->running && hardware && restartContinuous) {
+        startRhsDigOutContinuous(channel);
+    } else if (!restartContinuous) {
+        ++_rhsDigOutFireGeneration[channel];
+        _rhsDigOutRuntime[channel].m_continuousRunning = false;
+        _rhsDigOutRuntime[channel].m_manualFireBusy = false;
+        if (configuration.m_source != RhsDigOutSource::ManualLevel) {
+            _rhsDigOutRuntime[channel].m_manualLevelHigh = false;
+        }
+        emit rhsDigOutRuntimeChanged(channel);
+    }
+    return std::nullopt;
+}
+
+RhsDigOutRuntimeState ControllerInterface::rhsDigOutRuntimeState(int channel) const
+{
+    if (channel < 0 || channel > 15) {
+        return RhsDigOutRuntimeState();
+    }
+    return _rhsDigOutRuntime[channel];
+}
+
+void ControllerInterface::clearRhsDigOutRuntimeState()
+{
+    for (int channel = 0; channel < 16; ++channel) {
+        ++_rhsDigOutFireGeneration[channel];
+        _rhsDigOutRuntime[channel] = RhsDigOutRuntimeState();
+        emit rhsDigOutRuntimeChanged(channel);
+    }
+}
+
+bool ControllerInterface::supportsRhsDigOutCommands() const
+{
+    return state->getControllerTypeEnum() == ControllerStimRecord &&
+           !is7310 && rhxController->supportsRhsDigOutCommands();
 }
 
 void ControllerInterface::enableFastSettle(bool enabled)

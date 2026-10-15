@@ -43,8 +43,11 @@
 #include <QObject>
 #include <QString>
 
-#include <vector>
+#include <array>
+#include <cstdint>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "rhxcontroller.h"
 #include "datafilereader.h"
@@ -66,6 +69,7 @@
 #include "spectrogramdialog.h"
 #include "spikesortingdialog.h"
 #include "pulseresistancedialog.h"
+#include "rhsdigoutconfiguration.hpp"
 
 class ControlPanel;
 
@@ -83,8 +87,10 @@ public:
 
     /**
      * @brief Enter amplifier maintenance mode during continuous acquisition (custom bitfile).
-     * @pre ControllerStimRecord, continuous run active; see docs/amp-maintenance-mode.md.
-     * @post Amp FIFO zeros; aux_execute off; stim sequencers held.
+     * @pre ControllerStimRecord with continuous acquisition active.
+     * @post Amp FIFO zeros and amplifier/analog sequencers reset; RHS board
+     *       digital-output levels and timing continue without interruption.
+     * @see docs/rhs-digital-output-findings-and-goals.md
      */
     void beginAmpMaintenance();
 
@@ -236,6 +242,85 @@ public:
     void setDacEnabled(int dac, bool enabled);
     void setTtlOutMode(bool mode1, bool mode2, bool mode3, bool mode4, bool mode5, bool mode6, bool mode7, bool mode8);
 
+    /**
+     * @brief Latch one RHS board TTL output high or low, without affecting other pins.
+     * @ingroup RhsDigitalOut
+     * @param channel Zero-based digital output index [0, 15] (TTL 1–16).
+     * @return true when the command was host-eligible and sent.
+     * @pre XEM6010 RHS with matching FPGA bitfile; never use for a DAC-threshold-owned pin.
+     * @pre Acquisition is running. Requests while stopped are ignored.
+     * @post An eligible pin selects Manual Level and latches the requested level.
+     * @note FPGA gating drives all physical TTL pins low outside acquisition.
+     * @see AbstractRHXController::commandRhsDigOut
+     */
+    bool setRhsDigOutManualLevel(int channel, bool high);
+
+    /**
+     * @brief Start a fresh FPGA-timed continuous program on one RHS TTL output.
+     * @ingroup RhsDigitalOut
+     * @param channel Zero-based digital output index [0, 15] (TTL 1–16).
+     * @pre Acquisition is running, upload is inactive, DAC threshold does not
+     *      own the pin, and continuous mode has been programmed.
+     * @post An eligible idle channel starts at tick zero; otherwise no change.
+     * @return true when the command was host-eligible and sent.
+     * @note The USB transaction does not acknowledge FPGA acceptance.
+     */
+    bool startRhsDigOutContinuous(int channel);
+
+    /**
+     * @brief Force one RHS digital sequencer low and clear its live state.
+     * @ingroup RhsDigitalOut
+     * @param channel Zero-based digital output index [0, 15] (TTL 1–16).
+     * @pre Acquisition is running and upload is inactive.
+     * @post The FPGA disarms either a finite or continuous program on the channel.
+     * @return true when the command was host-eligible and sent.
+     * @note The USB transaction does not acknowledge FPGA acceptance.
+     */
+    bool stopRhsDigOutSequencer(int channel);
+
+    /**
+     * @brief Request one Manual-triggered single/finite RHS digital program.
+     * @ingroup RhsDigitalOut
+     * @param digOutChannel RHS BoardDigitalOutSignal channel to fire.
+     * @return true when the request was eligible, sent, and marked busy.
+     * @pre Acquisition is running, upload is inactive, DAC threshold does not
+     *      own the pin, and Single/Finite + Manual Fire has been programmed.
+     * @post The idle FPGA channel consumes one Fire; ineligible or busy requests are ignored.
+     * @note Fire is not queued and the USB transaction has no FPGA acknowledgement.
+     */
+    bool fireRhsDigOut(Channel* digOutChannel);
+
+    /**
+     * @brief Validate and commit one RHS digital-output draft.
+     * @ingroup RhsDigitalOut
+     * @return An error suitable for the GUI, or std::nullopt after sending all
+     *         required best-effort writes.
+     * @pre @p digOutChannel is a BoardDigitalOutSignal channel.
+     * @post Invalid drafts do not alter state/hardware. Valid Run-time commits
+     *       stop only this channel and restart only unchanged Continuous mode.
+     * @note FPGA writes have no acknowledgement or rollback.
+     */
+    std::optional<QString> commitRhsDigOutConfiguration(
+        Channel* digOutChannel,
+        const RhsDigOutConfiguration& configuration);
+
+    /**
+     * @brief Return the non-persisted live state for one RHS TTL output.
+     * @pre @p channel is a zero-based index in [0, 15].
+     */
+    RhsDigOutRuntimeState rhsDigOutRuntimeState(int channel) const;
+
+    /**
+     * @brief Clear all host live indicators without sending USB commands.
+     * @post Manual High, Continuous Running, and Fire Busy are false.
+     */
+    void clearRhsDigOutRuntimeState();
+
+    /**
+     * @brief Whether the loaded controller/bitfile supports the Step 3 protocol.
+     */
+    bool supportsRhsDigOutCommands() const;
+
     void enableFastSettle(bool enabled);
     void enableExternalFastSettle(bool enabled);
     void setExternalFastSettleChannel(int channel);
@@ -268,6 +353,7 @@ signals:
     void setHardwareFifoStatus(double percentFull);
     void cpuLoadPercent(double percent);
     void TCPErrorMessage(QString errorMessage);
+    void rhsDigOutRuntimeChanged(int channel);
 
 public slots:
     void updateFromState();
@@ -330,6 +416,22 @@ private:
      */
     bool uploadAmpStimMagnitudesDuringMaintenance(int stream, int chipChannel, StimParameters* parameters);
 
+    /**
+     * @brief Validate common host-side eligibility for one RHS live output command.
+     * @param channel Zero-based board TTL index.
+     * @param allowThresholdOwned Allow Stop/disarm through even if threshold owns the pin.
+     * @return true when the command may be sent to hardware.
+     * @pre Called on the controller thread with a valid SystemState.
+     * @post A threshold conflict emits a TCP error; no hardware command is sent here.
+     */
+    bool _rhsDigOutLiveCommandAllowed(int channel, bool allowThresholdOwned);
+
+    /**
+     * @brief Return whether the analog tab currently owns an RHS TTL pin.
+     * @pre @p channel is in [0, 15].
+     */
+    bool _rhsDigOutThresholdOwned(int channel) const;
+
     SystemState* state;
     AbstractRHXController* rhxController;
     DataFileReader* dataFileReader;
@@ -366,6 +468,8 @@ private:
 
     bool is7310;
     bool _ampMaintenanceEntered;
+    std::array<RhsDigOutRuntimeState, 16> _rhsDigOutRuntime {};
+    std::array<uint64_t, 16> _rhsDigOutFireGeneration {};
 
     int _acquisitionNumSamples;
     int _displayTriggerWaitNotify;

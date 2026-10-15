@@ -1,372 +1,267 @@
 //------------------------------------------------------------------------------
-//
-//  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
-//
-//  Copyright (c) 2020-2023 Intan Technologies
-//
-//  This file is part of the Intan Technologies RHX Data Acquisition Software.
-//
-//  This program is free software: you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published
-//  by the Free Software Foundation, either version 3 of the License, or
-//  (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-//
-//  This software is provided 'as-is', without any express or implied warranty.
-//  In no event will the authors be held liable for any damages arising from
-//  the use of this software.
-//
-//  See <http://www.intantech.com> for documentation and product information.
-//
+// Modeless RHS digital-output configuration dialog.
 //------------------------------------------------------------------------------
 
 /**
  * @file digoutdialog.cpp
- * @ingroup RhxStimSequencer
- * @brief Digital-out stim dialog; pulse duration range must match stimparameters.cpp (digout).
- *
- * @details Maintenance: see docs/stim-sequencer-maintenance.md
+ * @ingroup RhsDigitalOut
  */
 
-#include <QtWidgets>
-#include "signalsources.h"
-#include "smartspinbox.h"
-#include "spinboxtooltips.hpp"
+#include "digoutdialog.hpp"
+
+#include "channel.h"
+#include "controllerinterface.h"
 #include "digfigure.h"
-#include "digoutdialog.h"
+#include "systemstate.h"
+#include "ui_digoutdialog.h"
 
-DigOutDialog::DigOutDialog(SystemState* state_, Channel* channel_, QWidget *parent) :
-    QDialog(parent),
-    state(state_),
-    channel(channel_)
+#include <QAbstractButton>
+#include <QDialogButtonBox>
+#include <QDoubleSpinBox>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QVBoxLayout>
+
+DigOutDialog::DigOutDialog(SystemState* state,
+                           ControllerInterface* controllerInterface,
+                           Channel* channel,
+                           QWidget* parent)
+    : QDialog(parent)
+    , _ui(new Ui::DigOutDialog)
+    , _state(state)
+    , _controllerInterface(controllerInterface)
+    , _channel(channel)
+    , _digFigure(nullptr)
+    , _draft(rhsDigOutConfigurationFrom(*channel->stimParameters))
+    , _appliedBaseline(_draft)
+    , _loading(false)
 {
-    parameters = channel->stimParameters;
-    timestep = 1.0e6 / state->sampleRate->getNumericValue();  // time step in microseconds
+    _ui->setupUi(this);
+    setWindowModality(Qt::NonModal);
+    setAttribute(Qt::WA_DeleteOnClose, false);
 
-    const double kPostTriggerMaxUs = 5.0e5;
-    const double kDigOutPulseMaxUs = 1.0e6;
-    const double kPulseTrainMaxUs = 1.0e6;
+    _ui->sourceComboBox->addItem(tr("Manual Level"));
+    _ui->sourceComboBox->addItem(tr("Sequencer"));
+    _ui->modeComboBox->addItem(tr("Single Pulse"));
+    _ui->modeComboBox->addItem(tr("Finite Train"));
+    _ui->modeComboBox->addItem(tr("Continuous Train"));
+    for (int index = 1; index <= 16; ++index) {
+        _ui->triggerSourceComboBox->addItem(tr("DIGITAL IN %1").arg(index));
+    }
+    for (int index = 1; index <= 8; ++index) {
+        _ui->triggerSourceComboBox->addItem(tr("ANALOG IN %1").arg(index));
+    }
+    for (int index = 1; index <= 8; ++index) {
+        _ui->triggerSourceComboBox->addItem(tr("KEYPRESS: F%1").arg(index));
+    }
+    _ui->triggerSourceComboBox->addItem(tr("Manual (GUI button)"));
+    _ui->edgeComboBox->addItem(tr("Edge Triggered"));
+    _ui->edgeComboBox->addItem(tr("Level Triggered"));
+    _ui->polarityComboBox->addItem(tr("Trigger on High"));
+    _ui->polarityComboBox->addItem(tr("Trigger on Low"));
 
-    digFigure = new DigFigure(parameters, this);
+    _digFigure = new DigFigure(channel->stimParameters, _ui->figurePlaceholder);
+    auto* figureLayout = new QVBoxLayout(_ui->figurePlaceholder);
+    figureLayout->setContentsMargins(0, 0, 0, 0);
+    figureLayout->addWidget(_digFigure);
 
-    QGroupBox* triggerGroupBox = new QGroupBox(tr("Trigger"), this);
+    connect(_ui->buttonBox, &QDialogButtonBox::accepted,
+            this, &DigOutDialog::accept);
+    connect(_ui->buttonBox, &QDialogButtonBox::rejected,
+            this, &DigOutDialog::reject);
+    connect(_ui->buttonBox->button(QDialogButtonBox::Apply),
+            &QAbstractButton::clicked, this, [this]() { applyDraft(); });
 
-    enablePulseCheckBox = new QCheckBox(tr("Enable"), this);
+    const auto changed = [this]() { _readWidgetsIntoDraft(); };
+    connect(_ui->sourceComboBox,
+            qOverload<int>(&QComboBox::currentIndexChanged), this, changed);
+    connect(_ui->modeComboBox,
+            qOverload<int>(&QComboBox::currentIndexChanged), this, changed);
+    connect(_ui->enabledCheckBox, &QCheckBox::toggled, this, changed);
+    connect(_ui->triggerSourceComboBox,
+            qOverload<int>(&QComboBox::currentIndexChanged), this, changed);
+    connect(_ui->edgeComboBox,
+            qOverload<int>(&QComboBox::currentIndexChanged), this, changed);
+    connect(_ui->polarityComboBox,
+            qOverload<int>(&QComboBox::currentIndexChanged), this, changed);
+    connect(_ui->pulseCountSpinBox,
+            qOverload<int>(&QSpinBox::valueChanged), this, changed);
+    connect(_ui->delaySpinBox,
+            qOverload<double>(&QDoubleSpinBox::valueChanged), this, changed);
+    connect(_ui->durationSpinBox,
+            qOverload<double>(&QDoubleSpinBox::valueChanged), this, changed);
+    connect(_ui->periodSpinBox,
+            qOverload<double>(&QDoubleSpinBox::valueChanged), this, changed);
+    connect(_ui->refractorySpinBox,
+            qOverload<double>(&QDoubleSpinBox::valueChanged), this, changed);
 
-    triggerSourceLabel = new QLabel(tr("Trigger Source:"), this);
-    triggerSourceComboBox = new QComboBox(this);
-    QStringList triggerSources;
-    triggerSources << "DIGITAL IN 1" << "DIGITAL IN 2" << "DIGITAL IN 3" << "DIGITAL IN 4" << "DIGITAL IN 5"
-                   << "DIGITAL IN 6" << "DIGITAL IN 7" << "DIGITAL IN 8" << "DIGITAL IN 9" << "DIGITAL IN 10"
-                   << "DIGITAL IN 11" << "DIGITAL IN 12" << "DIGITAL IN 13" << "DIGITAL IN 14" << "DIGITAL IN 15"
-                   << "DIGITAL IN 16" << "ANALOG IN 1" << "ANALOG IN 2" << "ANALOG IN 3" << "ANALOG IN 4"
-                   << "ANALOG IN 5" << "ANALOG IN 6" << "ANALOG IN 7" << "ANALOG IN 8" << "KEYPRESS: F1"
-                   << "KEYPRESS: F2" << "KEYPRESS: F3" << "KEYPRESS: F4" << "KEYPRESS: F5" << "KEYPRESS: F6"
-                   << "KEYPRESS: F7" << "KEYPRESS: F8";
-    triggerSourceComboBox->addItems(triggerSources);
-
-    triggerEdgeOrLevelLabel = new QLabel(tr(" "), this);
-    triggerEdgeOrLevelComboBox = new QComboBox(this);
-    QStringList triggerEdgeOrLevels;
-    triggerEdgeOrLevels << tr("Edge Triggered") << tr("Level Triggered");
-    triggerEdgeOrLevelComboBox->addItems(triggerEdgeOrLevels);
-
-    triggerHighOrLowLabel = new QLabel(tr(" "), this);
-    triggerHighOrLowComboBox = new QComboBox(this);
-    QStringList triggerHighOrLows;
-    triggerHighOrLows << tr("Trigger on High") << tr("Trigger on Low");
-    triggerHighOrLowComboBox->addItems(triggerHighOrLows);
-
-    postTriggerDelaySpinBox = new TimeSpinBox(timestep, this);
-    postTriggerDelayLabel = new QLabel(tr("Post Trigger Delay:"), this);
-    configureMicrosecondSpinLimits(postTriggerDelaySpinBox, postTriggerDelayLabel, 0, kPostTriggerMaxUs, timestep);
-
-    QGroupBox* pulseGroupBox = new QGroupBox(tr("Pulse"), this);
-
-    pulseDurationSpinBox = new TimeSpinBox(timestep, this);
-    pulseDurationLabel = new QLabel(tr("Pulse Duration (D1):"), this);
-    configureMicrosecondSpinLimits(pulseDurationSpinBox, pulseDurationLabel, 0, kDigOutPulseMaxUs, timestep);
-
-    pulseRepetitionComboBox = new QComboBox(this);
-    QStringList pulseRepetitions;
-    pulseRepetitions << tr("Single Pulse") << tr("Pulse Train");
-    pulseRepetitionComboBox->addItems(pulseRepetitions);
-    pulseRepetitionLabel = new QLabel(tr("Pulse Repetition:"), this);
-
-    numPulsesSpinBox = new QSpinBox(this);
-    numPulsesLabel = new QLabel(tr("Number of Pulses:"), this);
-    configurePlainSpinLimits(numPulsesSpinBox, numPulsesLabel, 2, 256, tr("pulses"));
-
-    pulseTrainPeriodSpinBox = new TimeSpinBox(timestep, this);
-    pulseTrainPeriodLabel = new QLabel(tr("Pulse Train Period:"), this);
-    configureMicrosecondSpinLimits(pulseTrainPeriodSpinBox, pulseTrainPeriodLabel, 0, kPulseTrainMaxUs, timestep);
-
-    pulseTrainFrequencyLabel = new QLabel(tr("Pulse Train Frequency: -- Hz"), this);
-
-    refractoryPeriodSpinBox = new TimeSpinBox(timestep, this);
-    refractoryPeriodLabel = new QLabel(tr("Refractory Period:"), this);
-    configureMicrosecondSpinLimits(refractoryPeriodSpinBox, refractoryPeriodLabel, 0, kPulseTrainMaxUs, timestep);
-
-    buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    connect(buttonBox, SIGNAL(accepted()), this, SLOT(accept()));
-    connect(buttonBox, SIGNAL(rejected()), this, SLOT(reject()));
-
-    // Connect internal signals and slots (for rounding and graying out).
-    connect(enablePulseCheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableWidgets()));
-    connect(pulseRepetitionComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(enableWidgets()));
-    connect(postTriggerDelaySpinBox, SIGNAL(editingFinished()), this, SLOT(roundTimeInputs()));
-    connect(pulseDurationSpinBox, SIGNAL(editingFinished()), this, SLOT(roundTimeInputs()));
-    connect(pulseTrainPeriodSpinBox, SIGNAL(editingFinished()), this, SLOT(roundTimeInputs()));
-    connect(refractoryPeriodSpinBox, SIGNAL(editingFinished()), this, SLOT(roundTimeInputs()));
-    connect(pulseTrainPeriodSpinBox, SIGNAL(valueChanged(double)), this, SLOT(calculatePulseTrainFrequency()));
-    connect(pulseDurationSpinBox, SIGNAL(valueChanged(double)), this, SLOT(constrainPulseTrainPeriod()));
-    connect(enablePulseCheckBox, SIGNAL(toggled(bool)), digFigure, SLOT(highlightStimTrace(bool)));
-
-    // Connect signals to stimFigure's non-highlight slots.
-    connect(pulseRepetitionComboBox, SIGNAL(currentIndexChanged(int)), digFigure, SLOT(updatePulseOrTrain(int)));
-
-    // Connect signals to digFigure's highlight slots.
-    connect(this, SIGNAL(highlightFirstPhaseDuration(bool)), digFigure, SLOT(highlightFirstPhaseDuration(bool)));
-    connect(this, SIGNAL(highlightPostTriggerDelay(bool)), digFigure, SLOT(highlightPostTriggerDelay(bool)));
-    connect(this, SIGNAL(highlightPulseTrainPeriod(bool)), digFigure, SLOT(highlightPulseTrainPeriod(bool)));
-    connect(this, SIGNAL(highlightRefractoryPeriod(bool)), digFigure, SLOT(highlightRefractoryPeriod(bool)));
-
-    // Update widgets' states to be different than the default states, so state changes are detected properly.
-    enablePulseCheckBox->setChecked(true);
-    pulseRepetitionComboBox->setCurrentIndex(SinglePulse);
-
-    // Update dialog's state based on structParameters
-    loadParameters(parameters);
-
-    // Trigger information widgets' layout
-    QHBoxLayout *enablePulseRow = new QHBoxLayout;
-    enablePulseRow->addWidget(enablePulseCheckBox);
-
-    QHBoxLayout *triggerSourceRow = new QHBoxLayout;
-    triggerSourceRow->addWidget(triggerSourceLabel);
-    triggerSourceRow->addStretch();
-    triggerSourceRow->addWidget(triggerSourceComboBox);
-
-    QHBoxLayout *triggerEdgeOrLevelRow = new QHBoxLayout;
-    triggerEdgeOrLevelRow->addWidget(triggerEdgeOrLevelLabel);
-    triggerEdgeOrLevelRow->addWidget(triggerEdgeOrLevelComboBox);
-
-    QHBoxLayout *triggerHighOrLowRow = new QHBoxLayout;
-    triggerHighOrLowRow->addWidget(triggerHighOrLowLabel);
-    triggerHighOrLowRow->addWidget(triggerHighOrLowComboBox);
-
-    QHBoxLayout *postTriggerDelayRow = new QHBoxLayout;
-    postTriggerDelayRow->addWidget(postTriggerDelayLabel);
-    postTriggerDelayRow->addStretch();
-    postTriggerDelayRow->addWidget(postTriggerDelaySpinBox);
-
-    QVBoxLayout *triggerLayout = new QVBoxLayout;
-    triggerLayout->addLayout(enablePulseRow);
-    triggerLayout->addLayout(triggerSourceRow);
-    triggerLayout->addStretch();
-    triggerLayout->addLayout(triggerEdgeOrLevelRow);
-    triggerLayout->addStretch();
-    triggerLayout->addLayout(triggerHighOrLowRow);
-    triggerLayout->addStretch();
-    triggerLayout->addLayout(postTriggerDelayRow);
-    triggerGroupBox->setLayout(triggerLayout);
-
-    // Pulse train information widgets' layout
-    QHBoxLayout *pulseDurationRow = new QHBoxLayout;
-    pulseDurationRow->addWidget(pulseDurationLabel);
-    pulseDurationRow->addStretch();
-    pulseDurationRow->addWidget(pulseDurationSpinBox);
-
-    QHBoxLayout *pulseRepetitionRow = new QHBoxLayout;
-    pulseRepetitionRow->addWidget(pulseRepetitionLabel);
-    pulseRepetitionRow->addStretch();
-    pulseRepetitionRow->addWidget(pulseRepetitionComboBox);
-
-    QHBoxLayout *numPulsesRow = new QHBoxLayout;
-    numPulsesRow->addWidget(numPulsesLabel);
-    numPulsesRow->addStretch();
-    numPulsesRow->addWidget(numPulsesSpinBox);
-
-    QHBoxLayout *pulseTrainPeriodRow = new QHBoxLayout;
-    pulseTrainPeriodRow->addWidget(pulseTrainPeriodLabel);
-    pulseTrainPeriodRow->addStretch();
-    pulseTrainPeriodRow->addWidget(pulseTrainPeriodSpinBox);
-
-    QHBoxLayout *pulseTrainFrequencyRow = new QHBoxLayout;
-    pulseTrainFrequencyRow->addWidget(pulseTrainFrequencyLabel);
-
-    QHBoxLayout *refractoryPeriodRow = new QHBoxLayout;
-    refractoryPeriodRow->addWidget(refractoryPeriodLabel);
-    refractoryPeriodRow->addStretch();
-    refractoryPeriodRow->addWidget(refractoryPeriodSpinBox);
-
-    QVBoxLayout *pulseLayout = new QVBoxLayout;
-    pulseLayout->addLayout(pulseDurationRow);
-    pulseLayout->addLayout(pulseRepetitionRow);
-    pulseLayout->addLayout(numPulsesRow);
-    pulseLayout->addLayout(pulseTrainPeriodRow);
-    pulseLayout->addLayout(pulseTrainFrequencyRow);
-    pulseLayout->addLayout(refractoryPeriodRow);
-    pulseGroupBox->setLayout(pulseLayout);
-
-    QVBoxLayout *firstColumn = new QVBoxLayout;
-    firstColumn->addWidget(triggerGroupBox);
-    firstColumn->addStretch();
-
-    QVBoxLayout *secondColumn = new QVBoxLayout;
-    secondColumn->addWidget(pulseGroupBox);
-
-    QHBoxLayout *finalRow = new QHBoxLayout;
-    finalRow->addWidget(buttonBox);
-
-    QHBoxLayout *columns = new QHBoxLayout;
-    columns->addLayout(firstColumn);
-    columns->addLayout(secondColumn);
-
-    QVBoxLayout *mainLayout = new QVBoxLayout;
-    mainLayout->addWidget(digFigure);
-    mainLayout->addLayout(columns);
-    mainLayout->addLayout(finalRow);
-
-    QWidget *mainWidget = new QWidget(this);
-    mainWidget->setLayout(mainLayout);
-
-    QScrollArea *scrollArea = new QScrollArea(this);
-    scrollArea->setWidget(mainWidget);
-    scrollArea->setFrameShape(QFrame::NoFrame);
-
-    QVBoxLayout *scrollLayout = new QVBoxLayout;
-    scrollLayout->addWidget(scrollArea);
-
-    setLayout(scrollLayout);
-
-    // Set dialog initial size to 10% larger than scrollArea's sizeHint - should avoid scroll bars for default size.
-    int initialWidth = round(mainWidget->sizeHint().width() * 1.1);
-    int initialHeight = round(mainWidget->sizeHint().height() * 1.1);
-    resize(initialWidth, initialHeight);
-
-    setWindowTitle("Digital Output Parameters: " + channel->getNativeName() + " (" + channel->getCustomName() + ")");
+    _loadDraftIntoWidgets();
+    setWindowTitle(tr("Digital Output Parameters: %1 (%2)")
+        .arg(channel->getNativeName(), channel->getCustomName()));
 }
 
-void DigOutDialog::loadParameters(StimParameters *parameters)
+DigOutDialog::~DigOutDialog()
 {
-    // Set zero values initially to bring all ranges to microseconds, so values can be set properly.
-    postTriggerDelaySpinBox->setValue(0);
-    pulseDurationSpinBox->setValue(0);
-    pulseTrainPeriodSpinBox->setValue(0);
-    refractoryPeriodSpinBox->setValue(0);
+    delete _ui;
+}
 
-    // Load parameters.
-    enablePulseCheckBox->setChecked(parameters->enabled->getValue());
-    triggerSourceComboBox->setCurrentIndex(parameters->triggerSource->getIndex());
-    triggerEdgeOrLevelComboBox->setCurrentIndex(parameters->triggerEdgeOrLevel->getIndex());
-    triggerHighOrLowComboBox->setCurrentIndex(parameters->triggerHighOrLow->getIndex());
-    postTriggerDelaySpinBox->loadValue(parameters->postTriggerDelay->getValue());
-    pulseDurationSpinBox->loadValue(parameters->firstPhaseDuration->getValue());
-    pulseRepetitionComboBox->setCurrentIndex(parameters->pulseOrTrain->getIndex());
-    numPulsesSpinBox->setValue(parameters->numberOfStimPulses->getValue());
-    pulseTrainPeriodSpinBox->loadValue(parameters->pulseTrainPeriod->getValue());
-    refractoryPeriodSpinBox->loadValue(parameters->refractoryPeriod->getValue());
+void DigOutDialog::activate()
+{
+    show();
+    raise();
+    activateWindow();
+}
 
-    // Calculate frequency so that the first label that is displayed corresponds to the loaded parameters.
-    calculatePulseTrainFrequency();
+bool DigOutDialog::hasUnappliedChanges() const
+{
+    return !rhsDigOutConfigurationsEqual(_draft, _appliedBaseline);
+}
 
-    // Constrain pulse period so that when first loaded, the widget has a proper minimum.
-    constrainPulseTrainPeriod();
+bool DigOutDialog::applyDraft()
+{
+    _readWidgetsIntoDraft();
+    if (_thresholdOwned()) {
+        QMessageBox::warning(
+            this, tr("Digital Output Owned by DAC Threshold"),
+            tr("Disable this output's DAC threshold mode in the Analog tab before applying Manual Level or Sequencer control."));
+        return false;
+    }
+    if (const auto error =
+            _controllerInterface->commitRhsDigOutConfiguration(_channel, _draft)) {
+        QMessageBox::warning(this, tr("Cannot Apply Digital Output"), *error);
+        return false;
+    }
+    _appliedBaseline = _draft;
+    emit configurationApplied(_channel);
+    return true;
+}
+
+void DigOutDialog::discardDraft()
+{
+    _draft = _appliedBaseline;
+    _loadDraftIntoWidgets();
 }
 
 void DigOutDialog::accept()
 {
-    // Save the values of the parameters from the dialog box into the object.
-    parameters->enabled->setValue(enablePulseCheckBox->isChecked());
-    parameters->triggerSource->setIndex(triggerSourceComboBox->currentIndex());
-    parameters->triggerEdgeOrLevel->setIndex(triggerEdgeOrLevelComboBox->currentIndex());
-    parameters->triggerHighOrLow->setIndex(triggerHighOrLowComboBox->currentIndex());
-    parameters->postTriggerDelay->setValue(postTriggerDelaySpinBox->getTrueValue());
-    parameters->firstPhaseDuration->setValue(pulseDurationSpinBox->getTrueValue());
-    parameters->pulseOrTrain->setIndex(pulseRepetitionComboBox->currentIndex());
-    parameters->numberOfStimPulses->setValue(numPulsesSpinBox->value());
-    parameters->pulseTrainPeriod->setValue(pulseTrainPeriodSpinBox->getTrueValue());
-    parameters->refractoryPeriod->setValue(refractoryPeriodSpinBox->getTrueValue());
-
-    // Close the window.
-    done(Accepted);
-}
-
-void DigOutDialog::notifyFocusChanged(QWidget *lostFocus, QWidget *gainedFocus)
-{
-    // Emit signals when a widget loses focus.
-    if (lostFocus == pulseDurationSpinBox->pointer()) emit highlightFirstPhaseDuration(false);
-    if (lostFocus == postTriggerDelaySpinBox->pointer()) emit highlightPostTriggerDelay(false);
-    if (lostFocus == pulseTrainPeriodSpinBox->pointer()) emit highlightPulseTrainPeriod(false);
-    if (lostFocus == refractoryPeriodSpinBox->pointer()) emit highlightRefractoryPeriod(false);
-
-    // Emit signals when a widget gains focus.
-    if (gainedFocus == pulseDurationSpinBox->pointer()) emit highlightFirstPhaseDuration(true);
-    if (gainedFocus == postTriggerDelaySpinBox->pointer()) emit highlightPostTriggerDelay(true);
-    if (gainedFocus == pulseTrainPeriodSpinBox->pointer()) emit highlightPulseTrainPeriod(true);
-    if (gainedFocus == refractoryPeriodSpinBox->pointer()) emit highlightRefractoryPeriod(true);
-}
-
-void DigOutDialog::calculatePulseTrainFrequency()
-{
-    double frequency;
-    QString pulseTrainString = tr("Pulse Train Frequency: ");
-
-    if (pulseTrainPeriodSpinBox->getTrueValue() == 0.0) {
-        pulseTrainFrequencyLabel->setText(pulseTrainString + "-");
-    } else if (pulseTrainPeriodSpinBox->getTrueValue() < 1000.0) {
-        frequency = 1.0 / pulseTrainPeriodSpinBox->getTrueValue();
-        pulseTrainFrequencyLabel->setText(pulseTrainString + QString::number(frequency * 1.0e3, 'f', 2) + " kHz");
-    } else {
-        frequency = 1.0 / pulseTrainPeriodSpinBox->getTrueValue();
-        pulseTrainFrequencyLabel->setText(pulseTrainString + QString::number(frequency * 1.0e6, 'f', 2) + " Hz");
+    if (applyDraft()) {
+        done(QDialog::Accepted);
     }
 }
 
-void DigOutDialog::roundTimeInputs()
+void DigOutDialog::reject()
 {
-    // Round all time inputs to the nearest multiple of timestep.
-    postTriggerDelaySpinBox->roundValue();
-    pulseDurationSpinBox->roundValue();
-    pulseTrainPeriodSpinBox->roundValue();
-    refractoryPeriodSpinBox->roundValue();
-
+    discardDraft();
+    done(QDialog::Rejected);
 }
 
-void DigOutDialog::enableWidgets()
+void DigOutDialog::_readWidgetsIntoDraft()
 {
-    // Trigger Group Box
-    triggerSourceLabel->setEnabled(enablePulseCheckBox->isChecked());
-    triggerSourceComboBox->setEnabled(enablePulseCheckBox->isChecked());
-    triggerEdgeOrLevelComboBox->setEnabled(enablePulseCheckBox->isChecked());
-    triggerHighOrLowComboBox->setEnabled(enablePulseCheckBox->isChecked());
-    postTriggerDelayLabel->setEnabled(enablePulseCheckBox->isChecked());
-    postTriggerDelaySpinBox->setEnabled(enablePulseCheckBox->isChecked());
-
-    // Pulse Group Box
-    pulseDurationLabel->setEnabled(enablePulseCheckBox->isChecked());
-    pulseDurationSpinBox->setEnabled(enablePulseCheckBox->isChecked());
-    pulseRepetitionLabel->setEnabled(enablePulseCheckBox->isChecked());
-    pulseRepetitionComboBox->setEnabled(enablePulseCheckBox->isChecked());
-    numPulsesLabel->setEnabled(enablePulseCheckBox->isChecked() && pulseRepetitionComboBox->currentIndex() == PulseTrain);
-    numPulsesSpinBox->setEnabled(enablePulseCheckBox->isChecked() && pulseRepetitionComboBox->currentIndex() == PulseTrain);
-    pulseTrainPeriodLabel->setEnabled(enablePulseCheckBox->isChecked() && pulseRepetitionComboBox->currentIndex() == PulseTrain);
-    pulseTrainPeriodSpinBox->setEnabled(enablePulseCheckBox->isChecked() && pulseRepetitionComboBox->currentIndex() == PulseTrain);
-    pulseTrainFrequencyLabel->setEnabled(enablePulseCheckBox->isChecked() && pulseRepetitionComboBox->currentIndex() == PulseTrain);
-    refractoryPeriodLabel->setEnabled(enablePulseCheckBox->isChecked());
-    refractoryPeriodSpinBox->setEnabled(enablePulseCheckBox->isChecked());
+    if (_loading) {
+        return;
+    }
+    _draft.m_source =
+        static_cast<RhsDigOutSource>(_ui->sourceComboBox->currentIndex());
+    _draft.m_sequenceMode =
+        static_cast<RhsDigOutSequenceMode>(_ui->modeComboBox->currentIndex());
+    _draft.m_enabled = _ui->enabledCheckBox->isChecked();
+    const int triggerIndex = _ui->triggerSourceComboBox->currentIndex();
+    _draft.m_manualFire = triggerIndex == 32;
+    if (!_draft.m_manualFire) {
+        _draft.m_triggerSource = triggerIndex;
+    }
+    _draft.m_edgeTriggered = _ui->edgeComboBox->currentIndex() == TriggerEdge;
+    _draft.m_triggerOnLow = _ui->polarityComboBox->currentIndex() == TriggerLow;
+    _draft.m_numberOfPulses = _ui->pulseCountSpinBox->value();
+    _draft.m_postTriggerDelayUs = _ui->delaySpinBox->value();
+    _draft.m_highDurationUs = _ui->durationSpinBox->value();
+    _draft.m_periodUs = _ui->periodSpinBox->value();
+    _draft.m_refractoryPeriodUs = _ui->refractorySpinBox->value();
+    _updateWidgetsForMode();
+    _updatePreview();
 }
 
-void DigOutDialog::constrainPulseTrainPeriod()
+void DigOutDialog::_updateWidgetsForMode()
 {
-    pulseTrainPeriodSpinBox->setTrueMinimum(pulseDurationSpinBox->getTrueValue());
+    const bool sequencer = _draft.m_source == RhsDigOutSource::Sequencer;
+    const bool continuous =
+        _draft.m_sequenceMode == RhsDigOutSequenceMode::Continuous;
+    const bool finite =
+        _draft.m_sequenceMode == RhsDigOutSequenceMode::Finite;
+    _ui->enableLabel->setVisible(sequencer);
+    _ui->enabledCheckBox->setVisible(sequencer);
+    _ui->triggerGroupBox->setVisible(sequencer && !continuous);
+    _ui->waveformGroupBox->setVisible(sequencer);
+    _ui->pulseCountLabel->setVisible(finite);
+    _ui->pulseCountSpinBox->setVisible(finite);
+    _ui->periodLabel->setVisible(finite || continuous);
+    _ui->periodSpinBox->setVisible(finite || continuous);
+    const bool externalTrigger = !_draft.m_manualFire;
+    _ui->edgeLabel->setVisible(externalTrigger);
+    _ui->edgeComboBox->setVisible(externalTrigger);
+    _ui->polarityLabel->setVisible(externalTrigger);
+    _ui->polarityComboBox->setVisible(externalTrigger);
+
+    const bool thresholdOwned = _thresholdOwned();
+    _ui->thresholdOwnershipLabel->setVisible(thresholdOwned);
+    _ui->thresholdOwnershipLabel->setText(
+        tr("DAC threshold mode currently owns this pin. Disable it in the Analog tab before applying digital control."));
+}
+
+void DigOutDialog::_loadDraftIntoWidgets()
+{
+    _loading = true;
+    _ui->sourceComboBox->setCurrentIndex(static_cast<int>(_draft.m_source));
+    _ui->modeComboBox->setCurrentIndex(static_cast<int>(_draft.m_sequenceMode));
+    _ui->enabledCheckBox->setChecked(_draft.m_enabled);
+    _ui->triggerSourceComboBox->setCurrentIndex(
+        _draft.m_manualFire ? 32 : _draft.m_triggerSource);
+    _ui->edgeComboBox->setCurrentIndex(
+        _draft.m_edgeTriggered ? TriggerEdge : TriggerLevel);
+    _ui->polarityComboBox->setCurrentIndex(
+        _draft.m_triggerOnLow ? TriggerLow : TriggerHigh);
+    _ui->pulseCountSpinBox->setValue(_draft.m_numberOfPulses);
+    _ui->delaySpinBox->setValue(_draft.m_postTriggerDelayUs);
+    _ui->durationSpinBox->setValue(_draft.m_highDurationUs);
+    _ui->periodSpinBox->setValue(_draft.m_periodUs);
+    _ui->refractorySpinBox->setValue(_draft.m_refractoryPeriodUs);
+    _loading = false;
+    _updateWidgetsForMode();
+    _updatePreview();
+}
+
+void DigOutDialog::_updatePreview()
+{
+    RhsDigOutQuantizedTiming timing;
+    const auto error = validateAndQuantizeRhsDigOutConfiguration(
+        _draft, _state->sampleRate->getNumericValue(), timing);
+    if (error) {
+        _ui->achievedLabel->setText(tr("Achieved: %1").arg(*error));
+    } else if (_draft.m_source == RhsDigOutSource::Sequencer &&
+               _draft.m_sequenceMode != RhsDigOutSequenceMode::Single) {
+        _ui->achievedLabel->setText(
+            tr("Achieved: %1 Hz, %2% duty")
+                .arg(timing.m_achievedFrequencyHz, 0, 'f', 3)
+                .arg(timing.m_achievedDutyPercent, 0, 'f', 2));
+    } else {
+        _ui->achievedLabel->setText(tr("Achieved: --"));
+    }
+    _digFigure->updateSource(static_cast<int>(_draft.m_source));
+    _digFigure->updatePulseOrTrain(static_cast<int>(_draft.m_sequenceMode));
+    _digFigure->update();
+}
+
+bool DigOutDialog::_thresholdOwned() const
+{
+    const int channelIndex = _channel->getNativeChannelNumber();
+    if (channelIndex < 0 || channelIndex >= 8) {
+        return false;
+    }
+    BooleanItem* thresholdModes[8] = {
+        _state->analogOut1ThresholdEnabled, _state->analogOut2ThresholdEnabled,
+        _state->analogOut3ThresholdEnabled, _state->analogOut4ThresholdEnabled,
+        _state->analogOut5ThresholdEnabled, _state->analogOut6ThresholdEnabled,
+        _state->analogOut7ThresholdEnabled, _state->analogOut8ThresholdEnabled
+    };
+    return thresholdModes[channelIndex]->getValue();
 }

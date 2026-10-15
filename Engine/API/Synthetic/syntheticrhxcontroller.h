@@ -105,6 +105,8 @@ public:
 
     void clearTtlOut() override {}
     void resetSequencers() override {}
+    void commandRhsDigOut(RhsDigOutCommand, int = 0) override {}
+    bool supportsRhsDigOutCommands() const override { return false; }
     void programStimReg(int, int, StimRegister, uint32_t, int = 0) override {}
     void uploadCommandList(const std::vector<unsigned int>&, AuxCmdSlot, int) override {}
 

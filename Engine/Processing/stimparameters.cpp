@@ -62,6 +62,8 @@ StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, Sign
     triggerHighOrLow(nullptr),
     pulseOrTrain(nullptr),
     enabled(nullptr),
+    digOutSource(nullptr),
+    digOutManualTrigger(nullptr),
     maintainAmpSettle(nullptr),
     enableAmpSettle(nullptr),
     enableChargeRecovery(nullptr),
@@ -206,6 +208,17 @@ StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, Sign
 
     } else {
 
+        digOutSource = new DiscreteItemList(
+            stimXmlParameterName("DigOutSource", programIndex_), hList_, state_,
+            XMLGroupStimParameters, TypeDependencyStim);
+        digOutSource->addItem("ManualLevel", "Manual Level");
+        digOutSource->addItem("Sequencer", "Sequencer");
+        digOutSource->setValue("Sequencer");
+
+        digOutManualTrigger = new BooleanItem(
+            stimXmlParameterName("DigOutManualTrigger", programIndex_), hList_, state_,
+            false, XMLGroupStimParameters, TypeDependencyStim);
+
         triggerSource = new DiscreteItemList(stimXmlParameterName("Source", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         for (int i = 0; i < 16; ++i) {
             QString channelName = "DigitalIn" + QString("%1").arg(i + 1, 2, 10, QChar('0'));
@@ -234,6 +247,7 @@ StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, Sign
         pulseOrTrain = new DiscreteItemList(stimXmlParameterName("PulseOrTrain", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         pulseOrTrain->addItem("SinglePulse", "SinglePulse");
         pulseOrTrain->addItem("PulseTrain", "PulseTrain");
+        pulseOrTrain->addItem("ContinuousTrain", "ContinuousTrain");
         pulseOrTrain->setValue("SinglePulse");
 
         enabled = new BooleanItem(stimXmlParameterName("StimEnabled", programIndex_), hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
@@ -269,6 +283,12 @@ void StimParameters::populateParametersFrom(const StimParameters *originalStimPa
 
     if (enabled)
         enabled->setValue(originalStimParameters->enabled->getValue());
+
+    if (digOutSource)
+        digOutSource->setIndex(originalStimParameters->digOutSource->getIndex());
+
+    if (digOutManualTrigger)
+        digOutManualTrigger->setValue(originalStimParameters->digOutManualTrigger->getValue());
 
     if (maintainAmpSettle)
         maintainAmpSettle->setValue(originalStimParameters->maintainAmpSettle->getValue());
@@ -370,6 +390,8 @@ bool StimParameters::ownsStateItem(const StateSingleItem* item) const
            itemMatchesProgram(item, triggerHighOrLow) ||
            itemMatchesProgram(item, pulseOrTrain) ||
            itemMatchesProgram(item, enabled) ||
+           itemMatchesProgram(item, digOutSource) ||
+           itemMatchesProgram(item, digOutManualTrigger) ||
            itemMatchesProgram(item, maintainAmpSettle) ||
            itemMatchesProgram(item, enableAmpSettle) ||
            itemMatchesProgram(item, enableChargeRecovery) ||
@@ -399,6 +421,8 @@ QStringList StimParameters::getAttributesForXml(XMLGroup xmlGroup) const
     appendItemAttribute(triggerHighOrLow, xmlGroup, _state, attributeList);
     appendItemAttribute(pulseOrTrain, xmlGroup, _state, attributeList);
     appendItemAttribute(enabled, xmlGroup, _state, attributeList);
+    appendItemAttribute(digOutSource, xmlGroup, _state, attributeList);
+    appendItemAttribute(digOutManualTrigger, xmlGroup, _state, attributeList);
     appendItemAttribute(maintainAmpSettle, xmlGroup, _state, attributeList);
     appendItemAttribute(enableAmpSettle, xmlGroup, _state, attributeList);
     appendItemAttribute(enableChargeRecovery, xmlGroup, _state, attributeList);

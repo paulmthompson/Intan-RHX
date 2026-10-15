@@ -41,6 +41,7 @@ class ControlWindow;
 class StimParamDialog;
 class AnOutDialog;
 class DigOutDialog;
+class RhsDigOutLiveControlsWidget;
 class ControlPanelBandwidthTab;
 class ControlPanelImpedanceTab;
 class ControlPanelAudioAnalogTab;
@@ -103,6 +104,13 @@ private slots:
     void openStimParametersDialog();
     void onStimParamDialogAccepted();
     void onStimParamDialogRejected();
+    /** @brief Refresh main-panel live controls after a successful DigOut Apply/OK. */
+    void onDigOutConfigurationApplied(Channel* channel);
+    /** @brief Sync live Manual/Continuous/Fire controls with selection and runtime. */
+    void updateRhsDigOutLiveControls();
+    void onRhsDigOutManualLevelRequested(bool high);
+    void onRhsDigOutContinuousRequested(bool start);
+    void onRhsDigOutFireRequested();
     void enableChannelsSlot();
 
 private:
@@ -128,6 +136,8 @@ private:
     Channel* stimParamDialogChannel;
     AnOutDialog* anOutDialog;
     DigOutDialog* digOutDialog;
+    Channel* digOutDialogChannel;
+    RhsDigOutLiveControlsWidget* rhsDigOutLiveControlsWidget;
 
     QLabel *selectionNameLabel;
     QLabel *selectionImpedanceLabel;

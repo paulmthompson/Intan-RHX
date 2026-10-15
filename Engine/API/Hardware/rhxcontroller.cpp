@@ -62,7 +62,8 @@
 RHXController::RHXController(ControllerType type_, AmplifierSampleRate sampleRate_, bool is7310_) :
     AbstractRHXController(type_, sampleRate_),
     dev(nullptr),
-    is7310(is7310_)
+    is7310(is7310_),
+    rhsDigOutCommandsAvailable(false)
 {
 }
 
@@ -129,6 +130,7 @@ int RHXController::open()
 // Upload the configuration file (bitfile) to the FPGA.  Return true if successful.
 bool RHXController::uploadFPGABitfile(const std::string& filename)
 {
+    rhsDigOutCommandsAvailable = false;
     okCFrontPanel::ErrorCode errorCode = dev->ConfigureFPGA(filename);
 
     switch (errorCode) {
@@ -172,6 +174,10 @@ bool RHXController::uploadFPGABitfile(const std::string& filename)
     dev->UpdateWireOuts();
     boardId = dev->GetWireOutValue(WireOutBoardId);
     boardVersion = dev->GetWireOutValue(WireOutBoardVersion);
+
+    rhsDigOutCommandsAvailable = (type == ControllerStimRecord && !is7310 &&
+                                  boardId == 800 &&
+                                  dev->GetWireOutValue(WireOutDigOutProtocol_S_USB2) == 0x4453);
 
     std::cout << "Rhythm configuration file successfully loaded.  Rhythm version number: " <<
             boardVersion << "\n\n";
@@ -1602,16 +1608,37 @@ void RHXController::clearTtlOut()
     dev->UpdateWireIns();
 }
 
-// Reset stimulation sequencer units.  This is typically called when data acquisition is stopped.
-// It is possible that a stimulation sequencer could be in the middle of playing out a long pulse train
-// (e.g., 100 stimulation pulses).  If this function is not called, the pulse train will resume after data acquisition
-// is restarted.
+/**
+ * @brief See AbstractRHXController::resetSequencers.
+ */
 void RHXController::resetSequencers()
 {
     if (type != ControllerStimRecord) return;
     std::lock_guard<std::mutex> lockOk(okMutex);
 
     dev->ActivateTriggerIn(TrigInSpiStart, 1);
+}
+
+void RHXController::commandRhsDigOut(RhsDigOutCommand command, int channel)
+{
+    if (type != ControllerStimRecord || is7310 || !dev ||
+        !rhsDigOutCommandsAvailable) return; // versioned XEM6010 RHS bitfile only
+    const bool validCommand = command == RhsDigOutManualHigh ||
+                              command == RhsDigOutManualLow ||
+                              command == RhsDigOutContinuousStart ||
+                              command == RhsDigOutSequencerStop ||
+                              command == RhsDigOutFire;
+    if (!validCommand || channel < 0 || channel > 15) {
+        std::cerr << "Error in RHXController::commandRhsDigOut: invalid command or channel.\n";
+        return;
+    }
+
+    std::lock_guard<std::mutex> lockOk(okMutex);
+    const unsigned int word = (static_cast<unsigned int>(command) << 4) |
+                              static_cast<unsigned int>(channel);
+    dev->SetWireInValue(WireInDigOutCommand_S_USB2, word, 0x007f);
+    dev->UpdateWireIns();
+    dev->ActivateTriggerIn(TrigInDigOutCommand_S_USB2, 2);
 }
 
 /**
@@ -2229,4 +2256,3 @@ int RHXController::endPointWireOutSerialDigitalIn(bool isUSB3)
     if (isUSB3) return (int)WireOutSerialDigitalIn_R_USB3;
     else return (int)WireOutSerialDigitalIn_S_USB2;
 }
-

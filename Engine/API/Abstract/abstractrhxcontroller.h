@@ -224,7 +224,62 @@ public:
     virtual int getNumSPIPorts(bool& expanderBoardDetected) = 0;
 
     virtual void clearTtlOut() = 0;
+
+    /**
+     * @brief Reset RHS amplifier and analog-output stimulation sequencers.
+     * @ingroup RhxStimSequencer
+     * @pre Controller type is ControllerStimRecord.
+     * @post With the matching RHS digital-output bitfile, board digital-output
+     *       sequencing is unchanged; it clears on board reset or acquisition Stop.
+     * @see ControllerInterface::beginAmpMaintenance
+     */
     virtual void resetSequencers() = 0;
+
+    /**
+     * @defgroup RhsDigitalOut RHS board digital outputs
+     * @brief Host commands and FPGA output control for the RHS TTL pins.
+     * @see docs/rhs-digital-output-findings-and-goals.md
+     * @see docs/rhs-digital-output-step1-design.md
+     */
+
+    /**
+     * @brief Command understood by the RHS TTL control on WireIn 0x0e.
+     * @ingroup RhsDigitalOut
+     * Commands are actions, not a continuously streamed set of pin values.
+     * SequencerStop disarms either a finite or continuous program.
+     */
+    enum RhsDigOutCommand {
+        RhsDigOutManualHigh = 0,
+        RhsDigOutManualLow = 1,
+        RhsDigOutContinuousStart = 2,
+        RhsDigOutSequencerStop = 3,
+        RhsDigOutFire = 4
+    };
+
+    /**
+     * @brief Send one RHS TTL command; leave all other channels unchanged.
+     * @ingroup RhsDigitalOut
+     * @param command One of RhsDigOutCommand.
+     * @param channel Zero-based board TTL index [0, 15].
+     * @pre Use with an RHS controller and matching custom FPGA bitfile only.
+     * @post The command transaction has been sent; FPGA acceptance is not acknowledged.
+     * @note The FPGA ignores all commands while stopped. Start and Fire are
+     *       also ignored for an ineligible mode, busy channel, threshold-owned
+     *       pin, or maintenance upload; SequencerStop clears live state.
+     * @note The USB transaction does not acknowledge FPGA acceptance.
+     * @see ControllerInterface::setRhsDigOutManualLevel
+     * @see ControllerInterface::startRhsDigOutContinuous
+     * @see ControllerInterface::stopRhsDigOutSequencer
+     * @see ControllerInterface::fireRhsDigOut
+     */
+    virtual void commandRhsDigOut(RhsDigOutCommand command, int channel = 0) = 0;
+
+    /**
+     * @brief Report whether the loaded RHS bitfile implements the matching digital-output protocol.
+     * @ingroup RhsDigitalOut
+     * @post Returns true only after a matching hardware bitfile has been identified.
+     */
+    virtual bool supportsRhsDigOutCommands() const = 0;
 
     /**
      * @brief Programs one stimulation sequencer register for a stream/channel on RHS stim/record hardware.

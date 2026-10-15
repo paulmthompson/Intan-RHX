@@ -30,7 +30,10 @@
 
 #include "stimparamdialog.h"
 #include "anoutdialog.h"
-#include "digoutdialog.h"
+#include "channel.h"
+#include "digoutdialog.hpp"
+#include "rhsdigoutconfiguration.hpp"
+#include "rhsdigoutlivecontrolswidget.hpp"
 #include "controlpanelbandwidthtab.h"
 #include "controlpanelimpedancetab.h"
 #include "controlpanelaudioanalogtab.h"
@@ -38,6 +41,53 @@
 #include "controlpaneltriggertab.h"
 #include "controlwindow.h"
 #include "controlpanel.h"
+
+#include <QMessageBox>
+
+namespace {
+
+bool rhsDigOutThresholdOwned(SystemState* state, Channel* channel)
+{
+    const int channelIndex = channel->getNativeChannelNumber();
+    if (channelIndex < 0 || channelIndex >= 8) {
+        return false;
+    }
+    BooleanItem* thresholdModes[8] = {
+        state->analogOut1ThresholdEnabled, state->analogOut2ThresholdEnabled,
+        state->analogOut3ThresholdEnabled, state->analogOut4ThresholdEnabled,
+        state->analogOut5ThresholdEnabled, state->analogOut6ThresholdEnabled,
+        state->analogOut7ThresholdEnabled, state->analogOut8ThresholdEnabled
+    };
+    return thresholdModes[channelIndex]->getValue();
+}
+
+bool promptDigOutDialogDirtyResolution(QWidget* parent, DigOutDialog* dialog)
+{
+    if (!dialog->hasUnappliedChanges()) {
+        return true;
+    }
+    QMessageBox box(parent);
+    box.setIcon(QMessageBox::Question);
+    box.setWindowTitle(QObject::tr("Unapplied Digital Output Changes"));
+    box.setText(QObject::tr(
+        "Apply uncommitted digital-output changes before switching channels?"));
+    QPushButton* applyButton =
+        box.addButton(QObject::tr("Apply"), QMessageBox::ApplyRole);
+    QPushButton* discardButton =
+        box.addButton(QObject::tr("Discard"), QMessageBox::DestructiveRole);
+    box.addButton(QMessageBox::Cancel);
+    box.exec();
+    if (box.clickedButton() == applyButton) {
+        return dialog->applyDraft();
+    }
+    if (box.clickedButton() == discardButton) {
+        dialog->discardDraft();
+        return true;
+    }
+    return false;
+}
+
+} // namespace
 
 ColorWidget::ColorWidget(QWidget *parent) :
     QWidget(parent)
@@ -86,6 +136,8 @@ ControlPanel::ControlPanel(ControllerInterface* controllerInterface_, SystemStat
     stimParamDialogChannel(nullptr),
     anOutDialog(nullptr),
     digOutDialog(nullptr),
+    digOutDialogChannel(nullptr),
+    rhsDigOutLiveControlsWidget(nullptr),
     selectionNameLabel(nullptr),
     selectionImpedanceLabel(nullptr),
     selectionReferenceLabel(nullptr),
@@ -171,6 +223,8 @@ ControlPanel::ControlPanel(ControllerInterface* controllerInterface_, SystemStat
 
     YScaleUsed yScaleUsed;
     updateSlidersEnabled(yScaleUsed);
+    connect(controllerInterface, &ControllerInterface::rhsDigOutRuntimeChanged,
+            this, &ControlPanel::updateRhsDigOutLiveControls);
     state->writeToLog("Created layout. About to call updateFromState()");
 
     updateFromState();
@@ -199,6 +253,7 @@ void ControlPanel::updateForStop()
     setEnabled(true);
 
     configureTab->updateForStop();
+    updateRhsDigOutLiveControls();
 }
 
 void ControlPanel::updateSlidersEnabled(YScaleUsed yScaleUsed)
@@ -326,6 +381,17 @@ QHBoxLayout* ControlPanel::createSelectionToolsLayout()
     selectionToolsLayout->addWidget(renameButton);
     selectionToolsLayout->addWidget(setRefButton);
     if (state->getControllerTypeEnum() == ControllerStimRecord) {
+        rhsDigOutLiveControlsWidget = new RhsDigOutLiveControlsWidget(this);
+        connect(rhsDigOutLiveControlsWidget,
+                &RhsDigOutLiveControlsWidget::manualLevelRequested, this,
+                &ControlPanel::onRhsDigOutManualLevelRequested);
+        connect(rhsDigOutLiveControlsWidget,
+                &RhsDigOutLiveControlsWidget::continuousRequested, this,
+                &ControlPanel::onRhsDigOutContinuousRequested);
+        connect(rhsDigOutLiveControlsWidget,
+                &RhsDigOutLiveControlsWidget::fireRequested, this,
+                &ControlPanel::onRhsDigOutFireRequested);
+        selectionToolsLayout->addWidget(rhsDigOutLiveControlsWidget);
         selectionToolsLayout->addWidget(setStimButton);
     }
     selectionToolsLayout->addStretch(1);
@@ -558,18 +624,27 @@ void ControlPanel::openStimParametersDialog()
         }
         stimParamDialog->activate();
     } else if (type == BoardDigitalOutSignal) {
-        if (digOutDialog) {
-            disconnect(this, nullptr, digOutDialog, nullptr);
-            delete digOutDialog;
-            digOutDialog = nullptr;
+        if (digOutDialog && digOutDialogChannel != selectedChannel) {
+            if (!promptDigOutDialogDirtyResolution(this, digOutDialog)) {
+                return;
+            }
         }
-        digOutDialog = new DigOutDialog(state, selectedChannel, this);
-        connect(qApp, SIGNAL(focusChanged(QWidget*, QWidget*)), digOutDialog, SLOT(notifyFocusChanged(QWidget*, QWidget*)));
-
-        if (digOutDialog->exec() == QDialog::Accepted){
-            state->stimParamsHaveChanged = true;
-            controllerInterface->uploadStimParameters(selectedChannel);
+        const bool needNewDialog =
+            !digOutDialog || digOutDialogChannel != selectedChannel;
+        if (needNewDialog) {
+            if (digOutDialog) {
+                disconnect(digOutDialog, nullptr, this, nullptr);
+                delete digOutDialog;
+                digOutDialog = nullptr;
+                digOutDialogChannel = nullptr;
+            }
+            digOutDialog = new DigOutDialog(
+                state, controllerInterface, selectedChannel, this);
+            digOutDialogChannel = selectedChannel;
+            connect(digOutDialog, &DigOutDialog::configurationApplied, this,
+                    &ControlPanel::onDigOutConfigurationApplied);
         }
+        digOutDialog->activate();
     } else if (type == BoardDacSignal) {
         if (anOutDialog) {
             disconnect(this, nullptr, anOutDialog, nullptr);
@@ -607,6 +682,84 @@ void ControlPanel::onStimParamDialogRejected()
         return;
     }
     stimParamDialog->updateFromState();
+}
+
+void ControlPanel::onDigOutConfigurationApplied(Channel* channel)
+{
+    state->stimParamsHaveChanged = true;
+    updateStimTrigger();
+    updateRhsDigOutLiveControls();
+    if (channel == state->signalSources->selectedChannel()) {
+        state->forceUpdate();
+    }
+}
+
+void ControlPanel::updateRhsDigOutLiveControls()
+{
+    if (!rhsDigOutLiveControlsWidget) {
+        return;
+    }
+    if (state->signalSources->numChannelsSelected() != 1) {
+        rhsDigOutLiveControlsWidget->hide();
+        return;
+    }
+    Channel* channel = state->signalSources->selectedChannel();
+    if (channel->getSignalType() != BoardDigitalOutSignal) {
+        rhsDigOutLiveControlsWidget->hide();
+        return;
+    }
+    const RhsDigOutConfiguration configuration =
+        rhsDigOutConfigurationFrom(*channel->stimParameters);
+    const int channelIndex = channel->getNativeChannelNumber();
+    const RhsDigOutRuntimeState runtime =
+        controllerInterface->rhsDigOutRuntimeState(channelIndex);
+    rhsDigOutLiveControlsWidget->updateState(
+        configuration, runtime, state->running,
+        controllerInterface->supportsRhsDigOutCommands(),
+        rhsDigOutThresholdOwned(state, channel),
+        state->uploadInProgress->getValue());
+}
+
+void ControlPanel::onRhsDigOutManualLevelRequested(bool high)
+{
+    if (state->signalSources->numChannelsSelected() != 1) {
+        return;
+    }
+    Channel* channel = state->signalSources->selectedChannel();
+    if (channel->getSignalType() != BoardDigitalOutSignal) {
+        return;
+    }
+    controllerInterface->setRhsDigOutManualLevel(
+        channel->getNativeChannelNumber(), high);
+}
+
+void ControlPanel::onRhsDigOutContinuousRequested(bool start)
+{
+    if (state->signalSources->numChannelsSelected() != 1) {
+        return;
+    }
+    Channel* channel = state->signalSources->selectedChannel();
+    if (channel->getSignalType() != BoardDigitalOutSignal) {
+        return;
+    }
+    const int channelIndex = channel->getNativeChannelNumber();
+    if (start) {
+        controllerInterface->startRhsDigOutContinuous(channelIndex);
+    } else {
+        controllerInterface->stopRhsDigOutSequencer(channelIndex);
+    }
+}
+
+void ControlPanel::onRhsDigOutFireRequested()
+{
+    if (state->signalSources->numChannelsSelected() != 1) {
+        return;
+    }
+    Channel* channel = state->signalSources->selectedChannel();
+    if (channel->getSignalType() != BoardDigitalOutSignal) {
+        return;
+    }
+    controllerInterface->fireRhsDigOut(channel);
 }
 
 void ControlPanel::updateFromState()
@@ -648,6 +801,7 @@ void ControlPanel::updateFromState()
     if (state->getControllerTypeEnum() == ControllerStimRecord) {
         updateStimTrigger();
         updateStimParamDialogButton();
+        updateRhsDigOutLiveControls();
     }
     state->writeToLog("End of ControlPanel::updateFromState()");
 }
@@ -675,7 +829,8 @@ void ControlPanel::updateStimParamDialogButton()
         if (channel->isStimCapable()) {
             if (!state->running) {
                 enableSetStim = true;
-            } else if (channel->getSignalType() == AmplifierSignal) {
+            } else if (channel->getSignalType() == AmplifierSignal ||
+                       channel->getSignalType() == BoardDigitalOutSignal) {
                 enableSetStim = true;
             }
         }
