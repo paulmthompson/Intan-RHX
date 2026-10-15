@@ -352,11 +352,24 @@ public:
     BooleanItem* artifactsShown;
     IntRangeItem* suppressionThreshold;
 
-    // Pulse resistance (RHS stim-pulse DC estimate)
+    // Pulse resistance (RHS stim-pulse DC estimate or external ADC + TTL)
+    DiscreteItemList* pulseResistanceMode;
     ChannelNameItem* pulseResistanceChannel;
     DiscreteItemList* pulseResistanceTraceTimeMs;
     DiscreteItemList* pulseResistanceTraceYScaleAc;
     DiscreteItemList* pulseResistanceTraceYScaleDc;
+    StringItem* pulseResistanceExternalDcAdc;
+    DiscreteItemList* pulseResistanceExternalTraceAdc;
+    DoubleRangeItem* pulseResistanceExternalDcVoltageScale;
+    DoubleRangeItem* pulseResistanceExternalTraceVoltageScale;
+    DoubleRangeItem* pulseResistanceExternalCurrentMicroAmps;
+    DiscreteItemList* pulseResistanceExternalTtlInput;
+    BooleanItem* pulseResistanceExternalTtlActiveHigh;
+
+    /**
+     * @brief True when pulse resistance uses external ADC and TTL inputs.
+     */
+    bool pulseResistanceUsesExternalAdcTtl() const;
 
     // Spike detection threshold setting options
     BooleanItem *absoluteThresholdsEnabled;

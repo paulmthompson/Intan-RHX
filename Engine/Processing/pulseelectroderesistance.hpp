@@ -36,7 +36,12 @@
 #include <optional>
 #include <vector>
 
+#include "rhxglobals.h"
+
 namespace pulseElectrodeResistance {
+
+inline constexpr const char* kPulseResistanceModeRhs = "RhsStimChannel";
+inline constexpr const char* kPulseResistanceModeExternal = "ExternalAdcTtl";
 
 constexpr uint16_t StimOnFlag = 0x0001u;
 constexpr uint16_t StimPolFlag = 0x0100u;
@@ -48,11 +53,31 @@ constexpr uint16_t ComplianceFlag = 0x8000u;
 constexpr double DcAmplifierLsbVolts = 0.01923;
 
 /**
- * @brief Relative resistance uncertainty (percent) from 10-bit DC quantization on baseline and plateau.
- * @pre deltaVolts is the estimated pulse amplitude in volts.
- * @post Returns 100 * (2 * DcAmplifierLsbVolts) / |deltaVolts|, or infinity if deltaVolts is zero.
+ * @brief Relative resistance uncertainty (percent) from voltage quantization on baseline and plateau.
+ * @pre deltaVolts is the estimated pulse amplitude in volts; voltageLsbVolts > 0.
+ * @post Returns 100 * (2 * voltageLsbVolts) / |deltaVolts|, or infinity if deltaVolts is zero.
  */
-double resistanceQuantizationUncertaintyPercent(double deltaVolts);
+double resistanceQuantizationUncertaintyPercent(double deltaVolts, double voltageLsbVolts);
+
+/**
+ * @brief Relative resistance uncertainty using RHS DC amplifier LSB.
+ */
+inline double resistanceQuantizationUncertaintyPercent(double deltaVolts)
+{
+    return resistanceQuantizationUncertaintyPercent(deltaVolts, DcAmplifierLsbVolts);
+}
+
+/**
+ * @brief Board analog input voltage LSB for the given controller type (FIFO volts).
+ */
+double boardAdcLsbVolts(ControllerType controllerType);
+
+/**
+ * @brief Map a TTL digital input word to synthetic stim flags for pulse edge detection.
+ * @pre ttlBitIndex is a valid TTL line index (0-15).
+ * @post Returns StimOnFlag when the selected TTL line indicates stim active, else 0.
+ */
+uint16_t stimFlagsFromTtlWord(uint16_t digitalInWord, int ttlBitIndex, bool activeHigh);
 
 enum class PulseResistanceFailure {
     None,
@@ -83,8 +108,10 @@ struct PulseResistanceTrackerState {
 struct PulseResponseSnippet {
     std::vector<float> m_acMicroVolts;
     std::vector<float> m_dcVolts;
+    std::vector<float> m_traceVolts;
     uint32_t m_timestamp = 0;
     bool m_acAvailable = false;
+    bool m_traceAvailable = false;
 };
 
 struct PulseResponseCaptureState {
@@ -141,7 +168,9 @@ std::optional<PulseResponseSnippet> tryCapturePulseResponseSnippet(
     const std::function<uint16_t(int timeIndex)>& getStimFlags,
     const std::function<float(int timeIndex)>& getDcVolts,
     const std::function<uint32_t(int timeIndex)>& getTimeStamp,
-    const std::function<float(int timeIndex)>& getAcMicroVolts);
+    const std::function<float(int timeIndex)>& getAcMicroVolts,
+    bool traceAvailable = false,
+    const std::function<float(int timeIndex)>& getTraceVolts = {});
 
 } // namespace pulseElectrodeResistance
 

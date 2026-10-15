@@ -1907,7 +1907,7 @@ void ControlWindow::updateMenus()
     spectrogramAction->setEnabled(enableTools);
     spikeSortingAction->setEnabled(enableTools);
     if (pulseResistanceAction) {
-        pulseResistanceAction->setEnabled(enableTools && state->getControllerTypeEnum() == ControllerStimRecord);
+        pulseResistanceAction->setEnabled(enableTools);
     }
 
     if (!enableTools) {

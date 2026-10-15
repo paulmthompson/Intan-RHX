@@ -115,18 +115,21 @@ void PulseResponsePlot::updateCoordinateTranslators()
     const double totalTimeMs = state->pulseResistanceTraceTimeMs->getNumericValue();
     const double tMin = -totalTimeMs * 0.5;
     const double tMax = totalTimeMs * 0.5;
+    const bool externalMode = state->pulseResistanceUsesExternalAdcTtl();
     const double acY = state->pulseResistanceTraceYScaleAc->getNumericValue();
     const double dcY = state->pulseResistanceTraceYScaleDc->getNumericValue();
+    const double upperY = externalMode ? dcY : acY;
+    const QString upperUnit = externalMode ? QStringLiteral("V") : MicroVoltsSymbol;
 
     const QFontMetrics fm = fontMetrics();
-    const int acLeftMargin = leftMarginForYLabels(fm, acY, MicroVoltsSymbol);
+    const int acLeftMargin = leftMarginForYLabels(fm, upperY, upperUnit);
     const int dcLeftMargin = leftMarginForYLabels(fm, dcY, QStringLiteral("V"));
     const int textBoxHeight = fm.height();
     const int bottomMargin = textBoxHeight + 8;
     const QRect acPlot = _acPanelFrame.adjusted(acLeftMargin, textBoxHeight + 8, -8, -bottomMargin);
     const QRect dcPlot = _dcPanelFrame.adjusted(dcLeftMargin, textBoxHeight + 8, -8, -bottomMargin);
 
-    _acCt.set(acPlot, tMin, tMax, -acY, acY);
+    _acCt.set(acPlot, tMin, tMax, -upperY, upperY);
     _dcCt.set(dcPlot, tMin, tMax, -dcY, dcY);
 }
 
@@ -191,19 +194,35 @@ void PulseResponsePlot::paintEvent(QPaintEvent*)
     updatePanelFrames();
     updateCoordinateTranslators();
 
+    const bool externalMode = state->pulseResistanceUsesExternalAdcTtl();
     const double acY = state->pulseResistanceTraceYScaleAc->getNumericValue();
     const double dcY = state->pulseResistanceTraceYScaleDc->getNumericValue();
+    const double upperY = externalMode ? dcY : acY;
 
     if (_snippet.has_value()) {
         const auto& snippet = *_snippet;
-        paintPanel(painter, _acPanelFrame, _acCt, tr("AC (high-pass)"), snippet.m_acMicroVolts, acY, MicroVoltsSymbol,
-                   snippet.m_acAvailable, tr("AC unavailable"));
-        paintPanel(painter, _dcPanelFrame, _dcCt, tr("DC"), snippet.m_dcVolts, dcY, tr("V"), !snippet.m_dcVolts.empty(),
-                   tr("No DC trace"));
+        if (externalMode) {
+            paintPanel(painter, _acPanelFrame, _acCt, tr("Trace ADC (V)"), snippet.m_traceVolts, upperY, tr("V"),
+                       snippet.m_traceAvailable, tr("No trace ADC"));
+            paintPanel(painter, _dcPanelFrame, _dcCt, tr("Resistance ADC (V)"), snippet.m_dcVolts, dcY, tr("V"),
+                       !snippet.m_dcVolts.empty(), tr("No resistance trace"));
+        } else {
+            paintPanel(painter, _acPanelFrame, _acCt, tr("AC (high-pass)"), snippet.m_acMicroVolts, acY,
+                       MicroVoltsSymbol, snippet.m_acAvailable, tr("AC unavailable"));
+            paintPanel(painter, _dcPanelFrame, _dcCt, tr("DC"), snippet.m_dcVolts, dcY, tr("V"),
+                       !snippet.m_dcVolts.empty(), tr("No DC trace"));
+        }
     } else {
-        paintPanel(painter, _acPanelFrame, _acCt, tr("AC (high-pass)"), {}, acY, MicroVoltsSymbol, false,
-                   tr("Waiting for stim pulse..."));
-        paintPanel(painter, _dcPanelFrame, _dcCt, tr("DC"), {}, dcY, tr("V"), false, tr("Waiting for stim pulse..."));
+        if (externalMode) {
+            paintPanel(painter, _acPanelFrame, _acCt, tr("Trace ADC (V)"), {}, upperY, tr("V"), false,
+                       tr("Waiting for stim pulse..."));
+            paintPanel(painter, _dcPanelFrame, _dcCt, tr("Resistance ADC (V)"), {}, dcY, tr("V"), false,
+                       tr("Waiting for stim pulse..."));
+        } else {
+            paintPanel(painter, _acPanelFrame, _acCt, tr("AC (high-pass)"), {}, acY, MicroVoltsSymbol, false,
+                       tr("Waiting for stim pulse..."));
+            paintPanel(painter, _dcPanelFrame, _dcCt, tr("DC"), {}, dcY, tr("V"), false, tr("Waiting for stim pulse..."));
+        }
     }
 
     QPainter widgetPainter(this);

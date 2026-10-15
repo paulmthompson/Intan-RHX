@@ -36,13 +36,32 @@
 
 namespace pulseElectrodeResistance {
 
-double resistanceQuantizationUncertaintyPercent(double deltaVolts)
+double resistanceQuantizationUncertaintyPercent(double deltaVolts, double voltageLsbVolts)
 {
     const double magnitude = std::abs(deltaVolts);
-    if (magnitude <= 0.0) {
+    if (magnitude <= 0.0 || voltageLsbVolts <= 0.0) {
         return std::numeric_limits<double>::infinity();
     }
-    return 100.0 * (2.0 * DcAmplifierLsbVolts) / magnitude;
+    return 100.0 * (2.0 * voltageLsbVolts) / magnitude;
+}
+
+double boardAdcLsbVolts(ControllerType controllerType)
+{
+    if (controllerType == ControllerRecordUSB2) {
+        return 50.354e-6;
+    }
+    return 312.5e-6;
+}
+
+uint16_t stimFlagsFromTtlWord(uint16_t digitalInWord, int ttlBitIndex, bool activeHigh)
+{
+    if (ttlBitIndex < 0) {
+        return 0;
+    }
+    const uint16_t mask = static_cast<uint16_t>(0x01u << ttlBitIndex);
+    const bool lineHigh = (digitalInWord & mask) != 0;
+    const bool stimActive = activeHigh ? lineHigh : !lineHigh;
+    return stimActive ? StimOnFlag : 0;
 }
 
 namespace {
@@ -211,10 +230,11 @@ int halfWindowSamplesFromTotalTimeMs(double totalTimeMs, double sampleRateHz)
 }
 
 std::optional<PulseResponseSnippet> extractSnippetAtOnset(int onsetIndex, int halfWindowSamples, int numWordsInMemory,
-                                                          bool acAvailable,
+                                                          bool acAvailable, bool traceAvailable,
                                                           const std::function<float(int)>& getDcVolts,
                                                           const std::function<uint32_t(int)>& getTimeStamp,
-                                                          const std::function<float(int)>& getAcMicroVolts)
+                                                          const std::function<float(int)>& getAcMicroVolts,
+                                                          const std::function<float(int)>& getTraceVolts)
 {
     const int windowStart = onsetIndex - halfWindowSamples;
     const int windowEnd = onsetIndex + halfWindowSamples;
@@ -226,8 +246,12 @@ std::optional<PulseResponseSnippet> extractSnippetAtOnset(int onsetIndex, int ha
     PulseResponseSnippet snippet;
     snippet.m_dcVolts.resize(static_cast<std::size_t>(snippetLength));
     snippet.m_acAvailable = acAvailable;
+    snippet.m_traceAvailable = traceAvailable;
     if (acAvailable) {
         snippet.m_acMicroVolts.resize(static_cast<std::size_t>(snippetLength));
+    }
+    if (traceAvailable) {
+        snippet.m_traceVolts.resize(static_cast<std::size_t>(snippetLength));
     }
 
     int outIndex = 0;
@@ -235,6 +259,9 @@ std::optional<PulseResponseSnippet> extractSnippetAtOnset(int onsetIndex, int ha
         snippet.m_dcVolts[static_cast<std::size_t>(outIndex)] = getDcVolts(i);
         if (acAvailable) {
             snippet.m_acMicroVolts[static_cast<std::size_t>(outIndex)] = getAcMicroVolts(i);
+        }
+        if (traceAvailable) {
+            snippet.m_traceVolts[static_cast<std::size_t>(outIndex)] = getTraceVolts(i);
         }
         ++outIndex;
     }
@@ -254,7 +281,9 @@ std::optional<PulseResponseSnippet> tryCapturePulseResponseSnippet(
     const std::function<uint16_t(int timeIndex)>& getStimFlags,
     const std::function<float(int timeIndex)>& getDcVolts,
     const std::function<uint32_t(int timeIndex)>& getTimeStamp,
-    const std::function<float(int timeIndex)>& getAcMicroVolts)
+    const std::function<float(int timeIndex)>& getAcMicroVolts,
+    bool traceAvailable,
+    const std::function<float(int timeIndex)>& getTraceVolts)
 {
     if (numSamples <= 0 || sampleRateHz <= 0.0 || totalTimeMs <= 0.0) {
         return std::nullopt;
@@ -274,8 +303,8 @@ std::optional<PulseResponseSnippet> tryCapturePulseResponseSnippet(
         const bool stimOnset = stimOn && !captureState.m_lastStimOn;
         if (stimOnset) {
             if (halfWindowSamples <= 1) {
-                captured = extractSnippetAtOnset(t, halfWindowSamples, numWordsInMemory, acAvailable, getDcVolts,
-                                                 getTimeStamp, getAcMicroVolts);
+                captured = extractSnippetAtOnset(t, halfWindowSamples, numWordsInMemory, acAvailable, traceAvailable,
+                                                 getDcVolts, getTimeStamp, getAcMicroVolts, getTraceVolts);
                 captureState.m_samplesUntilCapture = -1;
             } else {
                 captureState.m_samplesUntilCapture = halfWindowSamples - 1;
@@ -285,7 +314,8 @@ std::optional<PulseResponseSnippet> tryCapturePulseResponseSnippet(
             if (captureState.m_samplesUntilCapture == 0) {
                 const int onsetIndex = t - (halfWindowSamples - 1);
                 captured = extractSnippetAtOnset(onsetIndex, halfWindowSamples, numWordsInMemory, acAvailable,
-                                                 getDcVolts, getTimeStamp, getAcMicroVolts);
+                                                 traceAvailable, getDcVolts, getTimeStamp, getAcMicroVolts,
+                                                 getTraceVolts);
                 captureState.m_samplesUntilCapture = -1;
             }
         }

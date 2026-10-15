@@ -705,6 +705,10 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
 
     // Spike scope
     spikeScopeChannel = new ChannelNameItem("SpikeScopeChannel", globalItems, this, "N/A");
+    pulseResistanceMode = new DiscreteItemList("PulseResistanceMode", globalItems, this);
+    pulseResistanceMode->addItem("RhsStimChannel", tr("RHS stim channel"), 0);
+    pulseResistanceMode->addItem("ExternalAdcTtl", tr("External ADC + TTL"), 1);
+    pulseResistanceMode->setValue("RhsStimChannel");
     pulseResistanceChannel = new ChannelNameItem("PulseResistanceChannel", globalItems, this, "N/A");
     pulseResistanceTraceTimeMs = new DiscreteItemList("PulseResistanceTraceTimeMilliseconds", globalItems, this);
     pulseResistanceTraceTimeMs->addItem("50", "50 ms", 50.0);
@@ -735,6 +739,36 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     pulseResistanceTraceYScaleDc->addItem("10.0", "10 V", 10.0);
     pulseResistanceTraceYScaleDc->addAlternateValueName("10.0", "10");
     pulseResistanceTraceYScaleDc->setValue("1.0");
+
+    QString defaultAnalogInName;
+    if (numAnalogInputs > 0) {
+        defaultAnalogInName =
+            QString::fromStdString(AbstractRHXController::getAnalogInputChannelName(getControllerTypeEnum(), 0));
+    }
+    pulseResistanceExternalDcAdc =
+        new StringItem("PulseResistanceExternalDcAdc", globalItems, this, defaultAnalogInName);
+    pulseResistanceExternalTraceAdc = new DiscreteItemList("PulseResistanceExternalTraceAdc", globalItems, this);
+    pulseResistanceExternalTraceAdc->addItem("None", tr("None"), -1);
+    for (int i = 0; i < numAnalogInputs; ++i) {
+        QString name = QString::fromStdString(AbstractRHXController::getAnalogInputChannelName(getControllerTypeEnum(), i));
+        pulseResistanceExternalTraceAdc->addItem(name, name, i);
+    }
+    pulseResistanceExternalTraceAdc->setValue("None");
+    pulseResistanceExternalDcVoltageScale =
+        new DoubleRangeItem("PulseResistanceExternalDcVoltageScale", globalItems, this, 1.0e-6, 1000.0, 1.0);
+    pulseResistanceExternalTraceVoltageScale =
+        new DoubleRangeItem("PulseResistanceExternalTraceVoltageScale", globalItems, this, 1.0e-6, 1000.0, 1.0);
+    pulseResistanceExternalCurrentMicroAmps =
+        new DoubleRangeItem("PulseResistanceExternalCurrentMicroAmps", globalItems, this, 0.0, 10000.0, 100.0);
+    pulseResistanceExternalTtlInput = new DiscreteItemList("PulseResistanceExternalTtlInput", globalItems, this);
+    for (int i = 0; i < numDigitalInputs; ++i) {
+        QString name = QString::fromStdString(AbstractRHXController::getDigitalInputChannelName(getControllerTypeEnum(), i));
+        pulseResistanceExternalTtlInput->addItem(name, name, i);
+    }
+    pulseResistanceExternalTtlInput->setIndex(0);
+    pulseResistanceExternalTtlActiveHigh =
+        new BooleanItem("PulseResistanceExternalTtlActiveHigh", globalItems, this, true);
+
     yScaleSpikeScope = new DiscreteItemList("SpikeScopeScaleMicroVolts", globalItems, this);
     yScaleSpikeScope->addItem("50", "50 " + MicroVoltsSymbol, 50.0);
     yScaleSpikeScope->addItem("100", "100 " + MicroVoltsSymbol, 100.0);
@@ -1245,6 +1279,11 @@ void SystemState::setReportSpikes(bool enable)
 bool SystemState::getReportSpikes()
 {
     return reportSpikes;
+}
+
+bool SystemState::pulseResistanceUsesExternalAdcTtl() const
+{
+    return pulseResistanceMode->getValue() == QStringLiteral("ExternalAdcTtl");
 }
 
 void SystemState::setDecayTime(double time)

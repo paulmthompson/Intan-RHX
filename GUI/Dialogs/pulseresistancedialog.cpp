@@ -41,17 +41,70 @@
 PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* parent) :
     QDialog(parent),
     state(state_),
-    _watchedChannelNativeName(QString())
+    _watchedChannelNativeName(QString()),
+    _configFingerprint(QString()),
+    _voltageQuantizationLsbVolts(pulseElectrodeResistance::DcAmplifierLsbVolts)
 {
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
 
-    channelName = new QLabel(QString(), this);
+    modeComboBox = new QComboBox(this);
+    state->pulseResistanceMode->setupComboBox(modeComboBox);
+    connect(modeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setMode(int)));
 
-    lockScopeCheckbox = new QCheckBox(tr("Lock Plot to Selected"), this);
+    rhsPage = new QWidget(this);
+    channelName = new QLabel(QString(), rhsPage);
+    lockScopeCheckbox = new QCheckBox(tr("Lock Plot to Selected"), rhsPage);
     connect(lockScopeCheckbox, SIGNAL(clicked()), this, SLOT(toggleLock()));
-
-    setToSelectedButton = new QPushButton(tr("Set to Selected"), this);
+    setToSelectedButton = new QPushButton(tr("Set to Selected"), rhsPage);
     connect(setToSelectedButton, SIGNAL(clicked()), this, SLOT(setToSelected()));
+    QHBoxLayout* rhsTopRow = new QHBoxLayout;
+    rhsTopRow->addWidget(channelName);
+    rhsTopRow->addStretch(1);
+    rhsTopRow->addWidget(lockScopeCheckbox);
+    QHBoxLayout* rhsButtonRow = new QHBoxLayout;
+    rhsButtonRow->addWidget(setToSelectedButton);
+    rhsButtonRow->addStretch(1);
+    QVBoxLayout* rhsLayout = new QVBoxLayout(rhsPage);
+    rhsLayout->addLayout(rhsTopRow);
+    rhsLayout->addLayout(rhsButtonRow);
+
+    externalPage = new QWidget(this);
+    externalDcAdcComboBox = new QComboBox(externalPage);
+    connect(externalDcAdcComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setExternalDcAdc(int)));
+    externalTraceAdcComboBox = new QComboBox(externalPage);
+    state->pulseResistanceExternalTraceAdc->setupComboBox(externalTraceAdcComboBox);
+    connect(externalTraceAdcComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setExternalTraceAdc(int)));
+    externalDcVoltageScaleSpinBox = new QDoubleSpinBox(externalPage);
+    state->pulseResistanceExternalDcVoltageScale->setupSpinBox(externalDcVoltageScaleSpinBox);
+    connect(externalDcVoltageScaleSpinBox, SIGNAL(valueChanged(double)), this, SLOT(setExternalDcVoltageScale(double)));
+    externalTraceVoltageScaleSpinBox = new QDoubleSpinBox(externalPage);
+    state->pulseResistanceExternalTraceVoltageScale->setupSpinBox(externalTraceVoltageScaleSpinBox);
+    connect(externalTraceVoltageScaleSpinBox, SIGNAL(valueChanged(double)), this,
+            SLOT(setExternalTraceVoltageScale(double)));
+    externalCurrentSpinBox = new QDoubleSpinBox(externalPage);
+    state->pulseResistanceExternalCurrentMicroAmps->setupSpinBox(externalCurrentSpinBox);
+    connect(externalCurrentSpinBox, SIGNAL(valueChanged(double)), this, SLOT(setExternalCurrentMicroAmps(double)));
+    externalTtlInputComboBox = new QComboBox(externalPage);
+    state->pulseResistanceExternalTtlInput->setupComboBox(externalTtlInputComboBox);
+    connect(externalTtlInputComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setExternalTtlInput(int)));
+    externalTtlActiveHighCheckbox = new QCheckBox(tr("Stim active when TTL high"), externalPage);
+    externalTtlActiveHighCheckbox->setChecked(state->pulseResistanceExternalTtlActiveHigh->getValue());
+    connect(externalTtlActiveHighCheckbox, SIGNAL(toggled(bool)), this, SLOT(setExternalTtlActiveHigh(bool)));
+
+    QFormLayout* externalForm = new QFormLayout;
+    externalForm->addRow(tr("Resistance ADC:"), externalDcAdcComboBox);
+    externalForm->addRow(tr("Resistance voltage scale:"), externalDcVoltageScaleSpinBox);
+    externalForm->addRow(tr("Trace ADC (optional):"), externalTraceAdcComboBox);
+    externalForm->addRow(tr("Trace voltage scale:"), externalTraceVoltageScaleSpinBox);
+    externalForm->addRow(tr("Stimulus current (µA):"), externalCurrentSpinBox);
+    externalForm->addRow(tr("Stim TTL input:"), externalTtlInputComboBox);
+    externalForm->addRow(QString(), externalTtlActiveHighCheckbox);
+    QVBoxLayout* externalLayout = new QVBoxLayout(externalPage);
+    externalLayout->addLayout(externalForm);
+
+    modeStack = new QStackedWidget(this);
+    modeStack->addWidget(rhsPage);
+    modeStack->addWidget(externalPage);
 
     clearHistoryButton = new QPushButton(tr("Clear History"), this);
     connect(clearHistoryButton, SIGNAL(clicked()), this, SLOT(clearHistory()));
@@ -67,17 +120,14 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     statusLabel = new QLabel(tr("Waiting for stim pulse on watched channel."), this);
     statusLabel->setWordWrap(true);
 
-    QLabel* helpLabel = new QLabel(
-        tr("Estimates DC pulse resistance (ΔV/I) from the DC amplifier during stimulation. "
-           "This is not the AC impedance from the Impedance tab (Zcheck). "
-           "Peri-pulse traces show AC (high-pass) and DC (10-bit, ±10 V) with stim onset at the center."),
-        this);
+    helpLabel = new QLabel(QString(), this);
     helpLabel->setWordWrap(true);
 
     traceTimeSpanComboBox = new QComboBox(this);
     state->pulseResistanceTraceTimeMs->setupComboBox(traceTimeSpanComboBox);
     connect(traceTimeSpanComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setTraceTimeSpan(int)));
 
+    traceYScaleAcLabel = new QLabel(tr("AC Y:"), this);
     traceYScaleAcComboBox = new QComboBox(this);
     state->pulseResistanceTraceYScaleAc->setupComboBox(traceYScaleAcComboBox);
     connect(traceYScaleAcComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setTraceYScaleAc(int)));
@@ -95,27 +145,23 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     historyTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     historyTable->setSelectionBehavior(QAbstractItemView::SelectRows);
 
-    QHBoxLayout* lockRow = new QHBoxLayout;
-    lockRow->addWidget(channelName);
-    lockRow->addStretch(1);
-    lockRow->addWidget(lockScopeCheckbox);
-
     QHBoxLayout* buttonRow = new QHBoxLayout;
-    buttonRow->addWidget(setToSelectedButton);
     buttonRow->addWidget(clearHistoryButton);
     buttonRow->addStretch(1);
 
     QHBoxLayout* traceControlsRow = new QHBoxLayout;
     traceControlsRow->addWidget(new QLabel(tr("Trace time:"), this));
     traceControlsRow->addWidget(traceTimeSpanComboBox);
-    traceControlsRow->addWidget(new QLabel(tr("AC Y:"), this));
+    traceControlsRow->addWidget(traceYScaleAcLabel);
     traceControlsRow->addWidget(traceYScaleAcComboBox);
     traceControlsRow->addWidget(new QLabel(tr("DC Y:"), this));
     traceControlsRow->addWidget(traceYScaleDcComboBox);
     traceControlsRow->addStretch(1);
 
     QVBoxLayout* mainLayout = new QVBoxLayout;
-    mainLayout->addLayout(lockRow);
+    mainLayout->addWidget(new QLabel(tr("Mode:"), this));
+    mainLayout->addWidget(modeComboBox);
+    mainLayout->addWidget(modeStack);
     mainLayout->addLayout(buttonRow);
     mainLayout->addWidget(resistanceValueLabel);
     mainLayout->addWidget(deltaVoltageLabel);
@@ -127,7 +173,8 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     mainLayout->addWidget(historyTable);
     setLayout(mainLayout);
 
-    resize(560, 720);
+    resize(560, 780);
+    refreshExternalAdcComboBoxes();
     updateFromState();
 }
 
@@ -147,6 +194,7 @@ void PulseResistanceDialog::updateForStop()
 void PulseResistanceDialog::updateForChangeHeadstages()
 {
     resetTrackerForChannelChange();
+    refreshExternalAdcComboBoxes();
     updateFromState();
 }
 
@@ -158,32 +206,217 @@ void PulseResistanceDialog::activate()
     activateWindow();
 }
 
-void PulseResistanceDialog::updateFromState()
+QStringList PulseResistanceDialog::boardAdcChannelNames() const
 {
-    QString channelNativeName = state->signalSources->singleSelectedAmplifierChannelName();
-    if (channelNativeName != state->pulseResistanceChannel->getValue()) {
-        if (!channelNativeName.isEmpty()) {
-            setToSelectedButton->setEnabled(true);
-            if (lockScopeCheckbox->isChecked()) {
-                changeCurrentChannel(channelNativeName);
+    QStringList names;
+    for (int groupIndex = 0; groupIndex < state->signalSources->numGroups(); ++groupIndex) {
+        const SignalGroup* group = state->signalSources->groupByIndex(groupIndex);
+        for (int channelIndex = 0; channelIndex < group->numChannels(); ++channelIndex) {
+            const Channel* channel = group->channelByIndex(channelIndex);
+            if (channel->getSignalType() == BoardAdcSignal) {
+                names.append(channel->getNativeName());
             }
-        } else {
-            setToSelectedButton->setEnabled(false);
         }
     }
+    names.sort();
+    return names;
+}
 
-    const QString watched = state->pulseResistanceChannel->getValue();
-    if (watched != _watchedChannelNativeName) {
-        _watchedChannelNativeName = watched;
+void PulseResistanceDialog::refreshExternalAdcComboBoxes()
+{
+    const QStringList adcNames = boardAdcChannelNames();
+    const QString currentDc = state->pulseResistanceExternalDcAdc->getValueString();
+
+    externalDcAdcComboBox->blockSignals(true);
+    externalDcAdcComboBox->clear();
+    for (const QString& name : adcNames) {
+        externalDcAdcComboBox->addItem(name);
+    }
+    int dcIndex = externalDcAdcComboBox->findText(currentDc);
+    if (dcIndex < 0 && !adcNames.isEmpty()) {
+        dcIndex = 0;
+        state->pulseResistanceExternalDcAdc->setValue(adcNames.first());
+    }
+    if (dcIndex >= 0) {
+        externalDcAdcComboBox->setCurrentIndex(dcIndex);
+    }
+    externalDcAdcComboBox->blockSignals(false);
+}
+
+void PulseResistanceDialog::setMode(int index)
+{
+    state->pulseResistanceMode->setIndex(index);
+}
+
+void PulseResistanceDialog::setExternalDcAdc(int index)
+{
+    if (index < 0 || index >= externalDcAdcComboBox->count()) {
+        return;
+    }
+    state->pulseResistanceExternalDcAdc->setValue(externalDcAdcComboBox->itemText(index));
+}
+
+void PulseResistanceDialog::setExternalTraceAdc(int index)
+{
+    state->pulseResistanceExternalTraceAdc->setIndex(index);
+}
+
+void PulseResistanceDialog::setExternalDcVoltageScale(double value)
+{
+    state->pulseResistanceExternalDcVoltageScale->setValue(value);
+}
+
+void PulseResistanceDialog::setExternalTraceVoltageScale(double value)
+{
+    state->pulseResistanceExternalTraceVoltageScale->setValue(value);
+}
+
+void PulseResistanceDialog::setExternalCurrentMicroAmps(double value)
+{
+    state->pulseResistanceExternalCurrentMicroAmps->setValue(value);
+}
+
+void PulseResistanceDialog::setExternalTtlInput(int index)
+{
+    state->pulseResistanceExternalTtlInput->setIndex(index);
+}
+
+void PulseResistanceDialog::setExternalTtlActiveHigh(bool activeHigh)
+{
+    state->pulseResistanceExternalTtlActiveHigh->setValue(activeHigh);
+}
+
+QString PulseResistanceDialog::buildConfigFingerprint() const
+{
+    if (state->pulseResistanceUsesExternalAdcTtl()) {
+        return QStringLiteral("ext|") + state->pulseResistanceExternalDcAdc->getValueString() + QLatin1Char('|')
+               + state->pulseResistanceExternalTraceAdc->getValueString() + QLatin1Char('|')
+               + QString::number(state->pulseResistanceExternalDcVoltageScale->getValue()) + QLatin1Char('|')
+               + QString::number(state->pulseResistanceExternalTraceVoltageScale->getValue()) + QLatin1Char('|')
+               + QString::number(state->pulseResistanceExternalCurrentMicroAmps->getValue()) + QLatin1Char('|')
+               + state->pulseResistanceExternalTtlInput->getValueString() + QLatin1Char('|')
+               + QString::number(state->pulseResistanceExternalTtlActiveHigh->getValue());
+    }
+    return QStringLiteral("rhs|") + state->pulseResistanceChannel->getValue();
+}
+
+void PulseResistanceDialog::syncConfigFingerprint()
+{
+    const QString fingerprint = buildConfigFingerprint();
+    if (fingerprint != _configFingerprint) {
+        _configFingerprint = fingerprint;
         resetTrackerForChannelChange();
     }
+}
 
-    QString displayName = state->signalSources->getNativeAndCustomNames(watched);
-    if (displayName.isEmpty()) {
-        displayName = tr("N/A");
+void PulseResistanceDialog::updateHelpText()
+{
+    if (state->pulseResistanceUsesExternalAdcTtl()) {
+        helpLabel->setText(
+            tr("Estimates pulse resistance (ΔV/I) from a board analog input during TTL-marked stimulation. "
+               "Physical voltage = (ADC volts) × voltage scale (e.g. 50× amplifier gain → scale 0.02). "
+               "Enter the stimulus current you apply externally. Enable analog inputs in the acquisition stream. "
+               "This is not AC impedance from the Impedance tab."));
+    } else {
+        helpLabel->setText(
+            tr("Estimates DC pulse resistance (ΔV/I) from the DC amplifier during stimulation. "
+               "This is not the AC impedance from the Impedance tab (Zcheck). "
+               "Peri-pulse traces show AC (high-pass) and DC (10-bit, ±10 V) with stim onset at the center."));
     }
-    if (channelName->text() != displayName) {
-        channelName->setText(displayName);
+}
+
+void PulseResistanceDialog::updateModeUi()
+{
+    const bool external = state->pulseResistanceUsesExternalAdcTtl();
+    modeStack->setCurrentWidget(external ? externalPage : rhsPage);
+    traceYScaleAcLabel->setVisible(!external);
+    traceYScaleAcComboBox->setVisible(!external);
+    updateHelpText();
+}
+
+void PulseResistanceDialog::updateFromState()
+{
+    syncConfigFingerprint();
+
+    if (modeComboBox->currentIndex() != state->pulseResistanceMode->getIndex()) {
+        modeComboBox->blockSignals(true);
+        modeComboBox->setCurrentIndex(state->pulseResistanceMode->getIndex());
+        modeComboBox->blockSignals(false);
+    }
+    updateModeUi();
+
+    const bool external = state->pulseResistanceUsesExternalAdcTtl();
+    const bool stimRecord = state->getControllerTypeEnum() == ControllerStimRecord;
+
+    if (!external) {
+        QString channelNativeName = state->signalSources->singleSelectedAmplifierChannelName();
+        if (channelNativeName != state->pulseResistanceChannel->getValue()) {
+            if (!channelNativeName.isEmpty()) {
+                setToSelectedButton->setEnabled(stimRecord);
+                if (lockScopeCheckbox->isChecked()) {
+                    changeCurrentChannel(channelNativeName);
+                }
+            } else {
+                setToSelectedButton->setEnabled(false);
+            }
+        }
+
+        const QString watched = state->pulseResistanceChannel->getValue();
+        if (watched != _watchedChannelNativeName) {
+            _watchedChannelNativeName = watched;
+            resetTrackerForChannelChange();
+        }
+
+        QString displayName = state->signalSources->getNativeAndCustomNames(watched);
+        if (displayName.isEmpty()) {
+            displayName = tr("N/A");
+        }
+        if (channelName->text() != displayName) {
+            channelName->setText(displayName);
+        }
+        lockScopeCheckbox->setEnabled(stimRecord);
+        setToSelectedButton->setEnabled(stimRecord && !state->signalSources->singleSelectedAmplifierChannelName().isEmpty());
+
+        if (!stimRecord) {
+            statusLabel->setText(tr("RHS stim channel mode requires an RHS stim/record controller."));
+        }
+    } else {
+        refreshExternalAdcComboBoxes();
+
+        if (externalTraceAdcComboBox->currentIndex() != state->pulseResistanceExternalTraceAdc->getIndex()) {
+            externalTraceAdcComboBox->blockSignals(true);
+            externalTraceAdcComboBox->setCurrentIndex(state->pulseResistanceExternalTraceAdc->getIndex());
+            externalTraceAdcComboBox->blockSignals(false);
+        }
+        if (externalTtlInputComboBox->currentIndex() != state->pulseResistanceExternalTtlInput->getIndex()) {
+            externalTtlInputComboBox->blockSignals(true);
+            externalTtlInputComboBox->setCurrentIndex(state->pulseResistanceExternalTtlInput->getIndex());
+            externalTtlInputComboBox->blockSignals(false);
+        }
+        if (std::abs(externalDcVoltageScaleSpinBox->value() - state->pulseResistanceExternalDcVoltageScale->getValue())
+            > 1.0e-9) {
+            externalDcVoltageScaleSpinBox->blockSignals(true);
+            externalDcVoltageScaleSpinBox->setValue(state->pulseResistanceExternalDcVoltageScale->getValue());
+            externalDcVoltageScaleSpinBox->blockSignals(false);
+        }
+        if (std::abs(externalTraceVoltageScaleSpinBox->value()
+                     - state->pulseResistanceExternalTraceVoltageScale->getValue())
+            > 1.0e-9) {
+            externalTraceVoltageScaleSpinBox->blockSignals(true);
+            externalTraceVoltageScaleSpinBox->setValue(state->pulseResistanceExternalTraceVoltageScale->getValue());
+            externalTraceVoltageScaleSpinBox->blockSignals(false);
+        }
+        if (std::abs(externalCurrentSpinBox->value() - state->pulseResistanceExternalCurrentMicroAmps->getValue())
+            > 1.0e-9) {
+            externalCurrentSpinBox->blockSignals(true);
+            externalCurrentSpinBox->setValue(state->pulseResistanceExternalCurrentMicroAmps->getValue());
+            externalCurrentSpinBox->blockSignals(false);
+        }
+        if (externalTtlActiveHighCheckbox->isChecked() != state->pulseResistanceExternalTtlActiveHigh->getValue()) {
+            externalTtlActiveHighCheckbox->blockSignals(true);
+            externalTtlActiveHighCheckbox->setChecked(state->pulseResistanceExternalTtlActiveHigh->getValue());
+            externalTtlActiveHighCheckbox->blockSignals(false);
+        }
     }
 
     if (traceTimeSpanComboBox->currentIndex() != state->pulseResistanceTraceTimeMs->getIndex()) {
@@ -215,7 +448,9 @@ void PulseResistanceDialog::clearHistory()
     resistanceValueLabel->setText(tr("R: —"));
     deltaVoltageLabel->setText(tr("ΔV: —"));
     currentLabel->setText(tr("I: —"));
-    statusLabel->setText(tr("Waiting for stim pulse on watched channel."));
+    statusLabel->setText(state->pulseResistanceUsesExternalAdcTtl()
+                             ? tr("Waiting for TTL-marked stim pulse.")
+                             : tr("Waiting for stim pulse on watched channel."));
     resetTrackerForChannelChange();
     responsePlot->clearSnippet();
 }
@@ -229,7 +464,12 @@ void PulseResistanceDialog::resetTrackerForChannelChange()
 
 void PulseResistanceDialog::updateTitle()
 {
-    setWindowTitle(tr("Pulse Resistance") + " (" + state->pulseResistanceChannel->getValue() + ")");
+    if (state->pulseResistanceUsesExternalAdcTtl()) {
+        setWindowTitle(tr("Pulse Resistance") + " ("
+                       + state->pulseResistanceExternalDcAdc->getValueString() + ")");
+    } else {
+        setWindowTitle(tr("Pulse Resistance") + " (" + state->pulseResistanceChannel->getValue() + ")");
+    }
 }
 
 QString PulseResistanceDialog::formatResistanceOhms(double ohms)
@@ -243,10 +483,11 @@ QString PulseResistanceDialog::formatResistanceOhms(double ohms)
     return QString::number(ohms, 'f', 1) + tr(" Ω");
 }
 
-QString PulseResistanceDialog::formatResistanceOhmsWithUncertainty(double ohms, double deltaVolts)
+QString PulseResistanceDialog::formatResistanceOhmsWithUncertainty(double ohms, double deltaVolts) const
 {
     QString formatted = formatResistanceOhms(ohms);
-    const double uncertaintyPercent = pulseElectrodeResistance::resistanceQuantizationUncertaintyPercent(deltaVolts);
+    const double uncertaintyPercent =
+        pulseElectrodeResistance::resistanceQuantizationUncertaintyPercent(deltaVolts, _voltageQuantizationLsbVolts);
     if (!std::isfinite(uncertaintyPercent)) {
         return formatted;
     }
@@ -316,6 +557,23 @@ void PulseResistanceDialog::updatePulseResistance(WaveformFifo* waveformFifo, in
         return;
     }
 
+    syncConfigFingerprint();
+
+    if (state->pulseResistanceUsesExternalAdcTtl()) {
+        updatePulseResistanceExternal(waveformFifo, numSamples);
+    } else {
+        updatePulseResistanceRhs(waveformFifo, numSamples);
+    }
+}
+
+void PulseResistanceDialog::updatePulseResistanceRhs(WaveformFifo* waveformFifo, int numSamples)
+{
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
+        return;
+    }
+
+    _voltageQuantizationLsbVolts = pulseElectrodeResistance::DcAmplifierLsbVolts;
+
     const QString nativeName = state->pulseResistanceChannel->getValue();
     if (nativeName.isEmpty() || nativeName == QStringLiteral("N/A")) {
         return;
@@ -355,7 +613,7 @@ void PulseResistanceDialog::updatePulseResistance(WaveformFifo* waveformFifo, in
 
     const std::optional<pulseElectrodeResistance::PulseResistanceResult> result =
         pulseElectrodeResistance::processStimPulseSamples(numSamples, sampleRateHz, currentMicroAmps, _trackerState,
-                                                        getDcVolts, getStimFlags, getTimeStamp);
+                                                          getDcVolts, getStimFlags, getTimeStamp);
 
     const int numWordsInMemory = waveformFifo->numWordsInMemory(reader);
     const std::string highBandName = nativeName.toStdString() + "|HIGH";
@@ -383,6 +641,95 @@ void PulseResistanceDialog::updatePulseResistance(WaveformFifo* waveformFifo, in
         const QString currentStatus = statusLabel->text();
         if (!currentStatus.startsWith(tr("Invalid"))) {
             statusLabel->setText(tr("Waiting for stim pulse on watched channel."));
+        }
+    }
+}
+
+void PulseResistanceDialog::updatePulseResistanceExternal(WaveformFifo* waveformFifo, int numSamples)
+{
+    _voltageQuantizationLsbVolts =
+        pulseElectrodeResistance::boardAdcLsbVolts(state->getControllerTypeEnum())
+        * state->pulseResistanceExternalDcVoltageScale->getValue();
+
+    const QString dcAdcName = state->pulseResistanceExternalDcAdc->getValueString();
+    if (dcAdcName.isEmpty()) {
+        statusLabel->setText(tr("Select a resistance ADC input."));
+        return;
+    }
+
+    const float* dcWaveform = waveformFifo->getAnalogWaveformPointer(dcAdcName.toStdString());
+    const uint16_t* digitalInWord = waveformFifo->getDigitalWaveformPointer("DIGITAL-IN-WORD");
+    if (!dcWaveform || !digitalInWord) {
+        statusLabel->setText(tr("ADC or digital input waveforms unavailable."));
+        return;
+    }
+
+    const double currentMicroAmps = state->pulseResistanceExternalCurrentMicroAmps->getValue();
+    if (currentMicroAmps <= 0.0) {
+        statusLabel->setText(tr("Enter a positive stimulus current (µA)."));
+        return;
+    }
+
+    const int ttlBitIndex = static_cast<int>(state->pulseResistanceExternalTtlInput->getNumericValue());
+    const bool ttlActiveHigh = state->pulseResistanceExternalTtlActiveHigh->getValue();
+    const double dcScale = state->pulseResistanceExternalDcVoltageScale->getValue();
+    const double traceScale = state->pulseResistanceExternalTraceVoltageScale->getValue();
+
+    const QString traceAdcValue = state->pulseResistanceExternalTraceAdc->getValueString();
+    const bool traceEnabled = traceAdcValue != QStringLiteral("None");
+    const float* traceWaveform = nullptr;
+    if (traceEnabled) {
+        traceWaveform = waveformFifo->getAnalogWaveformPointer(traceAdcValue.toStdString());
+        if (!traceWaveform) {
+            statusLabel->setText(tr("Trace ADC waveform unavailable."));
+            return;
+        }
+    }
+
+    const double sampleRateHz = state->sampleRate->getNumericValue();
+    const WaveformFifo::Reader reader = WaveformFifo::ReaderDisplay;
+
+    auto getDcVolts = [&](int timeIndex) {
+        return static_cast<float>(waveformFifo->getAnalogData(reader, dcWaveform, timeIndex) * dcScale);
+    };
+    auto getStimFlags = [&](int timeIndex) {
+        const uint16_t word = waveformFifo->getDigitalData(reader, digitalInWord, timeIndex);
+        return pulseElectrodeResistance::stimFlagsFromTtlWord(word, ttlBitIndex, ttlActiveHigh);
+    };
+    auto getTimeStamp = [&](int timeIndex) {
+        return waveformFifo->getTimeStamp(reader, timeIndex);
+    };
+
+    const std::optional<pulseElectrodeResistance::PulseResistanceResult> result =
+        pulseElectrodeResistance::processStimPulseSamples(numSamples, sampleRateHz, currentMicroAmps, _trackerState,
+                                                          getDcVolts, getStimFlags, getTimeStamp);
+
+    const int numWordsInMemory = waveformFifo->numWordsInMemory(reader);
+    const double traceTimeMs = state->pulseResistanceTraceTimeMs->getNumericValue();
+
+    std::function<float(int)> getTraceVolts;
+    if (traceEnabled && traceWaveform) {
+        getTraceVolts = [&](int timeIndex) {
+            return static_cast<float>(waveformFifo->getAnalogData(reader, traceWaveform, timeIndex) * traceScale);
+        };
+    }
+
+    const std::optional<pulseElectrodeResistance::PulseResponseSnippet> snippet =
+        pulseElectrodeResistance::tryCapturePulseResponseSnippet(
+            numSamples, sampleRateHz, traceTimeMs, numWordsInMemory, false, _responseCaptureState, getStimFlags,
+            getDcVolts, getTimeStamp, {}, traceEnabled && traceWaveform, getTraceVolts);
+
+    if (snippet.has_value()) {
+        responsePlot->setLatestSnippet(*snippet);
+    }
+
+    if (result.has_value()) {
+        applyResult(*result);
+    } else {
+        const QString currentStatus = statusLabel->text();
+        if (!currentStatus.startsWith(tr("Invalid")) && !currentStatus.contains(tr("Enter a positive"))
+            && !currentStatus.contains(tr("unavailable")) && !currentStatus.contains(tr("Select"))) {
+            statusLabel->setText(tr("Waiting for TTL-marked stim pulse."));
         }
     }
 }

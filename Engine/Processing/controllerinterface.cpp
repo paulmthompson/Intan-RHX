@@ -930,7 +930,7 @@ void ControllerInterface::pumpAcquisitionAndDisplay()
     if (spikeSortingDialog) {
         spikeSortingDialog->updateSpikeScope(waveformFifo, numSamples);
     }
-    if (pulseResistanceDialog && state->getControllerTypeEnum() == ControllerStimRecord) {
+    if (pulseResistanceDialog) {
         pulseResistanceDialog->updatePulseResistance(waveformFifo, numSamples);
     }
 

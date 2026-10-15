@@ -40,6 +40,8 @@ class QLabel;
 class QPushButton;
 class QCheckBox;
 class QComboBox;
+class QDoubleSpinBox;
+class QStackedWidget;
 class QTableWidget;
 class PulseResponsePlot;
 class WaveformFifo;
@@ -56,9 +58,9 @@ public:
     void updateForChangeHeadstages();
 
     /**
-     * @brief Process new display FIFO data for the watched channel.
+     * @brief Process new display FIFO data for the watched channel or external ADC inputs.
      * @pre Acquisition running and dialog visible for meaningful updates.
-     * @post UI updated when a stim pulse completes on the watched channel.
+     * @post UI updated when a stim pulse completes.
      */
     void updatePulseResistance(WaveformFifo* waveformFifo, int numSamples);
 
@@ -76,6 +78,14 @@ private slots:
     void toggleLock() { updateFromState(); }
     void setToSelected();
     void clearHistory();
+    void setMode(int index);
+    void setExternalDcAdc(int index);
+    void setExternalTraceAdc(int index);
+    void setExternalDcVoltageScale(double value);
+    void setExternalTraceVoltageScale(double value);
+    void setExternalCurrentMicroAmps(double value);
+    void setExternalTtlInput(int index);
+    void setExternalTtlActiveHigh(bool activeHigh);
     void setTraceTimeSpan(int index) { state->pulseResistanceTraceTimeMs->setIndex(index); }
     void setTraceYScaleAc(int index) { state->pulseResistanceTraceYScaleAc->setIndex(index); }
     void setTraceYScaleDc(int index) { state->pulseResistanceTraceYScaleDc->setIndex(index); }
@@ -83,33 +93,59 @@ private slots:
 private:
     void updateTitle();
     void resetTrackerForChannelChange();
+    void syncConfigFingerprint();
+    QString buildConfigFingerprint() const;
+    QStringList boardAdcChannelNames() const;
+    void refreshExternalAdcComboBoxes();
+    void updateHelpText();
+    void updateModeUi();
     void applyResult(const pulseElectrodeResistance::PulseResistanceResult& result);
+    void updatePulseResistanceRhs(WaveformFifo* waveformFifo, int numSamples);
+    void updatePulseResistanceExternal(WaveformFifo* waveformFifo, int numSamples);
     static QString formatResistanceOhms(double ohms);
-    static QString formatResistanceOhmsWithUncertainty(double ohms, double deltaVolts);
+    QString formatResistanceOhmsWithUncertainty(double ohms, double deltaVolts) const;
     static QString failureReasonText(pulseElectrodeResistance::PulseResistanceFailure failure);
 
     SystemState* state;
 
+    QComboBox* modeComboBox;
+    QStackedWidget* modeStack;
+
+    QWidget* rhsPage;
     QLabel* channelName;
     QCheckBox* lockScopeCheckbox;
     QPushButton* setToSelectedButton;
+
+    QWidget* externalPage;
+    QComboBox* externalDcAdcComboBox;
+    QComboBox* externalTraceAdcComboBox;
+    QDoubleSpinBox* externalDcVoltageScaleSpinBox;
+    QDoubleSpinBox* externalTraceVoltageScaleSpinBox;
+    QDoubleSpinBox* externalCurrentSpinBox;
+    QComboBox* externalTtlInputComboBox;
+    QCheckBox* externalTtlActiveHighCheckbox;
+
     QPushButton* clearHistoryButton;
 
     QLabel* resistanceValueLabel;
     QLabel* deltaVoltageLabel;
     QLabel* currentLabel;
     QLabel* statusLabel;
+    QLabel* helpLabel;
 
     QTableWidget* historyTable;
 
     QComboBox* traceTimeSpanComboBox;
     QComboBox* traceYScaleAcComboBox;
+    QLabel* traceYScaleAcLabel;
     QComboBox* traceYScaleDcComboBox;
     PulseResponsePlot* responsePlot;
 
     pulseElectrodeResistance::PulseResistanceTrackerState _trackerState;
     pulseElectrodeResistance::PulseResponseCaptureState _responseCaptureState;
     QString _watchedChannelNativeName;
+    QString _configFingerprint;
+    double _voltageQuantizationLsbVolts;
 
     static constexpr int kMaxHistoryRows = 50;
 };
