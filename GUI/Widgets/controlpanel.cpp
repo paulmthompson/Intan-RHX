@@ -744,6 +744,8 @@ void ControlPanel::onRhsDigOutContinuousRequested(bool start)
     }
     const int channelIndex = channel->getNativeChannelNumber();
     if (start) {
+        // Push committed timing into stream 16 before Start; Start does not program events.
+        controllerInterface->uploadStimParameters(channel);
         controllerInterface->startRhsDigOutContinuous(channelIndex);
     } else {
         controllerInterface->stopRhsDigOutSequencer(channelIndex);

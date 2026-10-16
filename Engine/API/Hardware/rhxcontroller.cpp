@@ -1653,18 +1653,10 @@ void RHXController::programStimReg(int stream, int channel, StimRegister reg, ui
     const unsigned int address = static_cast<unsigned int>((stream << 8) + (channel << 4) + reg +
                                                            ((stimProgramBank & 0x3) << 13));
     dev->SetWireInValue(WireInStimRegAddr_S_USB2, address);
-    dev->SetWireInValue(WireInStimRegWord_S_USB2, value & 0xFFFF );
+    dev->SetWireInValue(WireInStimRegWord_S_USB2, value & 0xFFFF);
 
-    // split 32-bit value into 2 16 bit values
-    auto value_msb = (value &  0xFFFF0000U) >> 16;
-
-    std::cout << "Stream: " << stream << std::endl;
-    std::cout << "Channel: " << channel << std::endl;
-    std::cout << "Register: " << static_cast<int>(reg) << std::endl;
-    std::cout << "value: " << static_cast<int>(value  & 0xFFFF) << std::endl;
-    std::cout << "value msb " << value_msb << std::endl;
-
-    dev->SetWireInValue(WireInStimRegWord_S2_USB2, value_msb & 0xFFFF);
+    const auto valueMsb = (value & 0xFFFF0000U) >> 16;
+    dev->SetWireInValue(WireInStimRegWord_S2_USB2, valueMsb & 0xFFFF);
     dev->UpdateWireIns();
     dev->ActivateTriggerIn(TrigInRamAddrReset_S_USB2, 1);
 

@@ -97,6 +97,8 @@ std::optional<QString> validateAndQuantizeRhsDigOutConfiguration(
     if (configuration.m_source == RhsDigOutSource::ManualLevel ||
         !configuration.m_enabled) {
         timing = RhsDigOutQuantizedTiming();
+        // Do not leave the default Never repeat on the FPGA when disarmed.
+        timing.m_repeatTick = 0U;
         return std::nullopt;
     }
 
@@ -126,6 +128,14 @@ std::optional<QString> validateAndQuantizeRhsDigOutConfiguration(
     if (configuration.m_sequenceMode != RhsDigOutSequenceMode::Single &&
         highTicks >= periodTicks) {
         return QString("Pulse duration must be shorter than the period after sample-rate rounding.");
+    }
+    // Continuous/finite counters wrap when counter+1 == repeat. The low tick (end_stim)
+    // must be visited before that wrap; with start=delay this needs period > high+1 ticks.
+    if (configuration.m_sequenceMode != RhsDigOutSequenceMode::Single &&
+        periodTicks <= highTicks + 1U) {
+        return QString(
+            "After sample-rate rounding, the pulse period must be at least two sample "
+            "ticks longer than the pulse width.");
     }
 
     const uint64_t endStim = static_cast<uint64_t>(delayTicks) + highTicks;
@@ -175,7 +185,8 @@ uint32_t rhsDigOutTriggerWord(const RhsDigOutConfiguration& configuration)
 
 uint32_t rhsDigOutStimWord(const RhsDigOutConfiguration& configuration)
 {
-    if (configuration.m_source != RhsDigOutSource::Sequencer) {
+    if (configuration.m_source != RhsDigOutSource::Sequencer ||
+        !configuration.m_enabled) {
         return 0U;
     }
     const int pulses = configuration.m_sequenceMode == RhsDigOutSequenceMode::Finite ?
