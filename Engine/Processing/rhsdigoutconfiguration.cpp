@@ -157,8 +157,10 @@ std::optional<QString> validateAndQuantizeRhsDigOutConfiguration(
 
 uint32_t rhsDigOutTriggerWord(const RhsDigOutConfiguration& configuration)
 {
-    const bool enabled = configuration.m_enabled &&
-        configuration.m_source == RhsDigOutSource::Sequencer;
+    if (configuration.m_source != RhsDigOutSource::Sequencer) {
+        return 0U;
+    }
+    const bool enabled = configuration.m_enabled;
     const bool softwareTriggered =
         configuration.m_manualFire ||
         configuration.m_sequenceMode == RhsDigOutSequenceMode::Continuous;
@@ -173,6 +175,9 @@ uint32_t rhsDigOutTriggerWord(const RhsDigOutConfiguration& configuration)
 
 uint32_t rhsDigOutStimWord(const RhsDigOutConfiguration& configuration)
 {
+    if (configuration.m_source != RhsDigOutSource::Sequencer) {
+        return 0U;
+    }
     const int pulses = configuration.m_sequenceMode == RhsDigOutSequenceMode::Finite ?
         configuration.m_numberOfPulses : 1;
     return static_cast<uint32_t>(pulses - 1) |

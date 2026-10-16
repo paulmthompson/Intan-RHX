@@ -2177,6 +2177,24 @@ bool ControllerInterface::stopRhsDigOutSequencer(int channel)
     return true;
 }
 
+void ControllerInterface::_finishRhsDigOutManualFireBusy(int channel,
+                                                       uint64_t generation,
+                                                       bool rearmWhenCurrent)
+{
+    if (channel < 0 || channel > 15 ||
+        !_rhsDigOutRuntime[channel].m_manualFireBusy) {
+        return;
+    }
+    const bool generationCurrent =
+        _rhsDigOutFireGeneration[channel] == generation;
+    _rhsDigOutRuntime[channel].m_manualFireBusy = false;
+    if (rearmWhenCurrent && generationCurrent) {
+        stopRhsDigOutSequencer(channel);
+        return;
+    }
+    emit rhsDigOutRuntimeChanged(channel);
+}
+
 bool ControllerInterface::fireRhsDigOut(Channel* digOutChannel)
 {
     if (!digOutChannel || digOutChannel->getSignalType() != BoardDigitalOutSignal) {
@@ -2194,29 +2212,36 @@ bool ControllerInterface::fireRhsDigOut(Channel* digOutChannel)
         _rhsDigOutRuntime[channel].m_manualFireBusy) {
         return false;
     }
+    RhsDigOutQuantizedTiming timing;
+    if (validateAndQuantizeRhsDigOutConfiguration(
+            configuration, state->sampleRate->getNumericValue(), timing)) {
+        return false;
+    }
     rhxController->commandRhsDigOut(AbstractRHXController::RhsDigOutFire, channel);
     _rhsDigOutRuntime[channel].m_manualFireBusy = true;
     const uint64_t generation = ++_rhsDigOutFireGeneration[channel];
     emit rhsDigOutRuntimeChanged(channel);
 
-    const int pulses = configuration.m_sequenceMode == RhsDigOutSequenceMode::Finite ?
-        configuration.m_numberOfPulses : 1;
-    const double sampleTickUs =
-        1.0e6 / state->sampleRate->getNumericValue();
-    const double durationUs =
-        configuration.m_postTriggerDelayUs +
-        configuration.m_highDurationUs +
-        configuration.m_refractoryPeriodUs +
-        static_cast<double>(pulses - 1) *
-            (configuration.m_periodUs + sampleTickUs);
+    const double sampleRateHz = state->sampleRate->getNumericValue();
+    const double sampleTickUs = 1.0e6 / sampleRateHz;
+    double durationUs = 0.0;
+    if (configuration.m_sequenceMode == RhsDigOutSequenceMode::Single) {
+        durationUs = static_cast<double>(timing.m_endTick) * sampleTickUs;
+    } else {
+        const int pulses = configuration.m_numberOfPulses;
+        durationUs =
+            configuration.m_postTriggerDelayUs +
+            configuration.m_highDurationUs +
+            configuration.m_refractoryPeriodUs +
+            static_cast<double>(pulses - 1) *
+                (configuration.m_periodUs + sampleTickUs);
+    }
     const int durationMs = std::max(
         1, static_cast<int>(std::ceil(durationUs / 1000.0)) + 5);
     QTimer::singleShot(durationMs, this, [this, channel, generation]() {
-        if (_rhsDigOutFireGeneration[channel] != generation) {
-            return;
-        }
-        _rhsDigOutRuntime[channel].m_manualFireBusy = false;
-        emit rhsDigOutRuntimeChanged(channel);
+        const bool generationCurrent =
+            _rhsDigOutFireGeneration[channel] == generation;
+        _finishRhsDigOutManualFireBusy(channel, generation, generationCurrent);
     });
     return true;
 }
@@ -2260,14 +2285,31 @@ std::optional<QString> ControllerInterface::commitRhsDigOutConfiguration(
         configuration.m_enabled &&
         rhsDigOutSameSourceAndMode(previous, configuration);
 
+    bool disarmedSequencerDuringCommit = false;
     if (state->running && hardware) {
-        if (_rhsDigOutRuntime[channel].m_manualLevelHigh &&
-            configuration.m_source != RhsDigOutSource::ManualLevel) {
-            setRhsDigOutManualLevel(channel, false);
+        const bool leavingManualLevel =
+            previous.m_source == RhsDigOutSource::ManualLevel &&
+            configuration.m_source != RhsDigOutSource::ManualLevel;
+        const bool involvesSequencer =
+            previous.m_source == RhsDigOutSource::Sequencer ||
+            configuration.m_source == RhsDigOutSource::Sequencer;
+        // FPGA manual ownership is latched until Sequencer Stop (Manual Low alone
+        // keeps manual_source set). Match apply_sequencer_config_running in the
+        // integration bench: Manual Low, then Stop, then program.
+        if (leavingManualLevel ||
+            (_rhsDigOutRuntime[channel].m_manualLevelHigh &&
+             configuration.m_source != RhsDigOutSource::ManualLevel)) {
+            if (!setRhsDigOutManualLevel(channel, false)) {
+                return QString(
+                    "Failed to release manual level control on the hardware.");
+            }
         }
-        if (previous.m_source == RhsDigOutSource::Sequencer ||
-            configuration.m_source == RhsDigOutSource::Sequencer) {
-            stopRhsDigOutSequencer(channel);
+        if (leavingManualLevel || involvesSequencer) {
+            if (!stopRhsDigOutSequencer(channel)) {
+                return QString(
+                    "Failed to stop or disarm the digital output on the hardware.");
+            }
+            disarmedSequencerDuringCommit = true;
         }
     }
 
@@ -2281,7 +2323,9 @@ std::optional<QString> ControllerInterface::commitRhsDigOutConfiguration(
     if (state->running && hardware && restartContinuous) {
         startRhsDigOutContinuous(channel);
     } else if (!restartContinuous) {
-        ++_rhsDigOutFireGeneration[channel];
+        if (!disarmedSequencerDuringCommit) {
+            ++_rhsDigOutFireGeneration[channel];
+        }
         _rhsDigOutRuntime[channel].m_continuousRunning = false;
         _rhsDigOutRuntime[channel].m_manualFireBusy = false;
         if (configuration.m_source != RhsDigOutSource::ManualLevel) {

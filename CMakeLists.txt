@@ -388,3 +388,20 @@ add_custom_target(open_cl_kernel
 )
 
 add_dependencies(IntanRHX fpga_bitfiles open_cl_kernel)
+
+add_executable(rhsdigoutconfiguration_golden_test
+    tests/rhsdigoutconfiguration_golden_test.cpp
+    Engine/Processing/rhsdigoutconfiguration.cpp)
+set_target_properties(rhsdigoutconfiguration_golden_test PROPERTIES
+    AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+target_link_libraries(rhsdigoutconfiguration_golden_test PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+target_include_directories(rhsdigoutconfiguration_golden_test PRIVATE
+    Engine/Processing
+    Engine/API/Hardware
+    Engine/API/Abstract
+    includes)
+target_compile_options(rhsdigoutconfiguration_golden_test PRIVATE
+    -ffunction-sections -fdata-sections)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_link_options(rhsdigoutconfiguration_golden_test PRIVATE -Wl,--gc-sections)
+endif()

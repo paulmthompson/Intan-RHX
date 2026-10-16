@@ -432,6 +432,18 @@ private:
      */
     bool _rhsDigOutThresholdOwned(int channel) const;
 
+    /**
+     * @brief End the host Manual Fire busy window and optionally re-arm the FPGA.
+     * @param channel Zero-based board TTL index in [0, 15].
+     * @param generation Busy generation captured when Fire was sent.
+     * @param rearmWhenCurrent When true and @p generation is still current, send Stop
+     *        so the channel returns to waiting-for-trigger (same effect as Apply).
+     * @post Manual Fire busy is cleared; stale timers never leave the button stuck.
+     */
+    void _finishRhsDigOutManualFireBusy(int channel,
+                                       uint64_t generation,
+                                       bool rearmWhenCurrent);
+
     SystemState* state;
     AbstractRHXController* rhxController;
     DataFileReader* dataFileReader;
