@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>772</width>
+    <width>982</width>
     <height>443</height>
    </rect>
   </property>
@@ -63,6 +63,103 @@
         </item>
        </layout>
       </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" name="Condition_select_box">
+     <item>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <layout class="QHBoxLayout" name="statisticsRow_baseline">
+         <item>
+          <widget class="QLabel" name="baselineHitRateLabel">
+           <property name="text">
+            <string>Baseline hit rate: N/A</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="baselineLatencyStatsLabel">
+           <property name="text">
+            <string>Baseline latency: N/A</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="statisticsSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="statisticsRow_collision">
+         <item>
+          <widget class="QLabel" name="collisionHitRateLabel">
+           <property name="text">
+            <string>Collision hit rate: N/A</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="collisionLatencyStatsLabel">
+           <property name="text">
+            <string>Collision latency: N/A</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_2">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QLabel" name="comparisonConditionLabel">
+         <property name="text">
+          <string>Condition:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="comparisonConditionComboBox"/>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
      </item>
     </layout>
    </item>
@@ -198,37 +295,6 @@
     </layout>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="statisticsRow">
-     <item>
-      <widget class="QLabel" name="hitRateLabel">
-       <property name="text">
-        <string>Hit rate: N/A</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="latencyStatsLabel">
-       <property name="text">
-        <string>Latency: N/A</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="statisticsSpacer">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-    </layout>
-   </item>
-   <item>
     <layout class="QHBoxLayout" name="traceControlsRow">
      <item>
       <widget class="QLabel" name="traceTimeLabel">
@@ -280,7 +346,14 @@
      <item>
       <widget class="QPushButton" name="clearTracesButton">
        <property name="text">
-        <string>Clear Traces</string>
+        <string>Clear active</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="clearAllTracesButton">
+       <property name="text">
+        <string>Clear all</string>
        </property>
       </widget>
      </item>

@@ -40,6 +40,7 @@ AntidromicTracePlot::AntidromicTracePlot(SystemState* state, QWidget* parent)
     , _overlayThreshold(0.0)
     , _overlayWindowCenterMs(0.0)
     , _overlayWindowWidthMs(1.0)
+    , _latestTraceIsCollision(false)
     , _tStepMsec(0.0)
 {
     connect(_state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
@@ -59,23 +60,44 @@ void AntidromicTracePlot::setBoardAdcRecording(bool boardAdc)
     update();
 }
 
-void AntidromicTracePlot::setLatestTrace(const antidromicTraceCapture::AntidromicTraceSnippet& snippet)
+void AntidromicTracePlot::setLatestTrace(const antidromicTraceCapture::AntidromicTraceSnippet& snippet,
+                                         bool isCollisionCondition)
 {
     _latestTrace = snippet;
+    _latestTraceIsCollision = isCollisionCondition;
     update();
 }
 
-void AntidromicTracePlot::setHeldTraces(const std::deque<antidromicTraceCapture::AntidromicTraceSnippet>& traces)
+void AntidromicTracePlot::setComparisonHeldTraces(
+    const std::deque<antidromicTraceCapture::AntidromicTraceSnippet>& baselineTraces,
+    const std::deque<antidromicTraceCapture::AntidromicTraceSnippet>& collisionTraces)
 {
-    _heldTraces = traces;
+    _baselineHeldTraces = baselineTraces;
+    _collisionHeldTraces = collisionTraces;
     update();
 }
 
 void AntidromicTracePlot::clearTraces()
 {
     _latestTrace.reset();
-    _heldTraces.clear();
+    _baselineHeldTraces.clear();
+    _collisionHeldTraces.clear();
     update();
+}
+
+void AntidromicTracePlot::paintHeldTraceStack(
+    QPainter& painter, const std::deque<antidromicTraceCapture::AntidromicTraceSnippet>& traces,
+    const QColor& baseColor)
+{
+    const bool warmPalette = baseColor.red() >= baseColor.blue();
+    const int length = static_cast<int>(traces.size());
+    for (int i = 0; i < length; ++i) {
+        const int value = 255 - static_cast<int>(200.0 * (static_cast<double>(length - i - 1))
+                                                 / static_cast<double>(std::max(length, 1)));
+        const QColor color =
+            warmPalette ? QColor(value, 80, 80) : QColor(80, static_cast<int>(value * 0.6), 200);
+        paintTrace(painter, traces[static_cast<std::size_t>(i)].samples, color);
+    }
 }
 
 void AntidromicTracePlot::setDetectionOverlay(double threshold, double windowCenterMs, double windowWidthMs)
@@ -237,23 +259,31 @@ void AntidromicTracePlot::paintEvent(QPaintEvent*)
     painter.drawRect(_ct.borderRect());
     painter.setClipRect(_ct.clippingRect());
 
-    const bool holdEnabled = _state->antidromicTraceHoldEnabled->getValue();
-    if (holdEnabled) {
-        const int length = static_cast<int>(_heldTraces.size());
-        for (int i = 0; i < length; ++i) {
-            const int value = 255 - static_cast<int>(200.0 * (static_cast<double>(length - i - 1))
-                                                     / static_cast<double>(std::max(length, 1)));
-            paintTrace(painter, _heldTraces[static_cast<std::size_t>(i)].samples, QColor(value, 80, 80));
-        }
+    const bool hasComparisonTraces = !_baselineHeldTraces.empty() || !_collisionHeldTraces.empty();
+    if (hasComparisonTraces) {
+        paintHeldTraceStack(painter, _baselineHeldTraces, QColor(200, 80, 80));
+        paintHeldTraceStack(painter, _collisionHeldTraces, QColor(80, 120, 220));
+
+        painter.setClipping(false);
+        const QFontMetrics labelMetrics = fontMetrics();
+        painter.setPen(QColor(255, 120, 120));
+        plotDecorator.writeLabel(tr("Baseline"), _plotFrame.right() - 4, _plotFrame.top() + 2,
+                                 Qt::AlignRight | Qt::AlignTop);
+        painter.setPen(QColor(120, 180, 255));
+        plotDecorator.writeLabel(tr("Collision"), _plotFrame.right() - 4,
+                                 _plotFrame.top() + 2 + labelMetrics.height(), Qt::AlignRight | Qt::AlignTop);
+        painter.setClipRect(_ct.clippingRect());
     } else if (_latestTrace.has_value()) {
-        paintTrace(painter, _latestTrace->samples, QColor(0, 200, 255));
+        const QColor latestColor =
+            _latestTraceIsCollision ? QColor(0, 200, 255) : QColor(255, 120, 80);
+        paintTrace(painter, _latestTrace->samples, latestColor);
     }
 
     paintDetectionOverlay(painter, plotDecorator);
 
     painter.setClipping(false);
 
-    if ((holdEnabled && _heldTraces.empty()) || (!holdEnabled && !_latestTrace.has_value())) {
+    if (!hasComparisonTraces && !_latestTrace.has_value()) {
         painter.setPen(Qt::gray);
         plotDecorator.writeLabel(tr("Waiting for stim pulse on stimulation channel..."),
                                  _ct.xLeft() + 4, (_ct.yTop() + _ct.yBottom()) / 2, Qt::AlignLeft | Qt::AlignVCenter);

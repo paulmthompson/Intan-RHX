@@ -806,6 +806,10 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     antidromicTraceYScaleVolts->addAlternateValueName("10.0", "10");
     antidromicTraceYScaleVolts->setValue("1.0");
     antidromicTraceHoldEnabled = new BooleanItem("AntidromicTraceHoldEnabled", globalItems, this, false);
+    antidromicComparisonCondition = new DiscreteItemList("AntidromicComparisonCondition", globalItems, this);
+    antidromicComparisonCondition->addItem("Baseline", tr("Baseline"), 0);
+    antidromicComparisonCondition->addItem("Collision", tr("Collision"), 1);
+    antidromicComparisonCondition->setValue("Baseline");
     antidromicHoldMaxTraces = new DiscreteItemList("AntidromicHoldMaxTraces", globalItems, this);
     antidromicHoldMaxTraces->addItem("20", "20", 20);
     antidromicHoldMaxTraces->addItem("50", "50", 50);

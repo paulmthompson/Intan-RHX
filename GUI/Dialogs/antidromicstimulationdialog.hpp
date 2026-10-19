@@ -25,6 +25,15 @@ class AntidromicStimulationDialog;
 }
 
 /**
+ * @brief Session buffers for one antidromic comparison condition (baseline or collision).
+ */
+struct AntidromicConditionBuffers
+{
+    std::deque<antidromicTraceCapture::AntidromicTraceSnippet> traces;
+    std::deque<std::optional<double>> latenciesMs;
+};
+
+/**
  * @brief Antidromic stimulation channel selection and stim-aligned recording trace display.
  */
 class AntidromicStimulationDialog : public QDialog
@@ -55,6 +64,9 @@ public:
     void updateForRun();
     void updateForStop();
 
+protected:
+    void closeEvent(QCloseEvent* event) override;
+
 private slots:
     void updateFromState();
     void stimChannelIndexChanged(int index);
@@ -65,7 +77,9 @@ private slots:
     void setTraceYScaleVolts(int index);
     void setHoldEnabled(bool enabled);
     void setHoldMaxTraces(int index);
-    void clearHeldTraces();
+    void comparisonConditionIndexChanged(int index);
+    void clearActiveConditionTraces();
+    void clearAllConditionTraces();
     void thresholdSliderChanged(int value);
     void windowCenterSliderChanged(int value);
     void windowWidthChanged(double value);
@@ -73,12 +87,21 @@ private slots:
     void syncWindowCenterSliderMargins();
 
 private:
+    enum class AntidromicComparisonCondition { Baseline, Collision };
+
     void refreshChannelComboBoxes();
     void populateStimChannelComboBox();
     void populateRecordingChannelComboBox();
     int stimComboIndexForNativeName(const QString& nativeName) const;
     int recordingComboIndexForNativeName(const QString& nativeName) const;
     bool recordingSourceIsBoardAdc() const;
+    bool comparisonConditionIsCollision() const;
+    AntidromicComparisonCondition activeComparisonCondition() const;
+    AntidromicConditionBuffers& activeConditionBuffers();
+    const AntidromicConditionBuffers& activeConditionBuffers() const;
+    void trimConditionBuffers(AntidromicConditionBuffers& buffers);
+    void clearSessionBuffers();
+    void clearConditionBuffers(AntidromicComparisonCondition which);
     void updateYScaleUi();
     void syncConfigFingerprint();
     QString buildConfigFingerprint() const;
@@ -92,16 +115,22 @@ private:
     void syncThresholdSliderRange();
     void syncDetectionWidgetsFromState();
     void updateDetectionOverlay();
+    void recomputeConditionDetections(AntidromicConditionBuffers& buffers);
     void recomputeAllDetections();
     void updateStatisticsLabels();
+    void updateStatusHint();
+    QString formatConditionHitRateLabel(const QString& prefix,
+                                        const antidromicSpikeDetection::AntidromicHeldTraceStats& stats) const;
+    QString formatConditionLatencyLabel(const QString& prefix,
+                                        const antidromicSpikeDetection::AntidromicHeldTraceStats& stats) const;
 
     SystemState* _state;
     Ui::AntidromicStimulationDialog* _ui;
     AntidromicTracePlot* _tracePlot;
     bool _loading;
     antidromicTraceCapture::AntidromicTraceCaptureState _captureState;
-    std::deque<antidromicTraceCapture::AntidromicTraceSnippet> _heldTraces;
-    std::deque<std::optional<double>> _heldLatenciesMs;
+    AntidromicConditionBuffers _baselineBuffers;
+    AntidromicConditionBuffers _collisionBuffers;
     antidromicTraceCapture::AntidromicTraceSnippet _latestTrace;
     bool _hasLatestTrace;
     QString _configFingerprint;

@@ -374,6 +374,7 @@ public:
     DiscreteItemList* antidromicTraceYScaleMicroVolts;
     DiscreteItemList* antidromicTraceYScaleVolts;
     BooleanItem* antidromicTraceHoldEnabled;
+    DiscreteItemList* antidromicComparisonCondition;
     DiscreteItemList* antidromicHoldMaxTraces;
     IntRangeItem* antidromicDetectionThresholdMicroVolts;
     DoubleRangeItem* antidromicDetectionThresholdVolts;

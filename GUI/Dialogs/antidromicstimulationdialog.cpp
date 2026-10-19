@@ -16,7 +16,9 @@
 
 #include <cmath>
 
+#include <QCloseEvent>
 #include <QComboBox>
+#include <QLabel>
 #include <QDialogButtonBox>
 #include <QSpacerItem>
 #include <QVBoxLayout>
@@ -51,6 +53,7 @@ AntidromicStimulationDialog::AntidromicStimulationDialog(SystemState* state, QWi
     _state->antidromicTraceYScaleMicroVolts->setupComboBox(_ui->traceYScaleMicroVoltsComboBox);
     _state->antidromicTraceYScaleVolts->setupComboBox(_ui->traceYScaleVoltsComboBox);
     _state->antidromicHoldMaxTraces->setupComboBox(_ui->holdMaxTracesComboBox);
+    _state->antidromicComparisonCondition->setupComboBox(_ui->comparisonConditionComboBox);
 
     connect(_state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
     connect(_ui->buttonBox, &QDialogButtonBox::rejected, this, &QDialog::close);
@@ -65,7 +68,10 @@ AntidromicStimulationDialog::AntidromicStimulationDialog(SystemState* state, QWi
     connect(_ui->traceYScaleVoltsComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setTraceYScaleVolts(int)));
     connect(_ui->holdTracesCheckBox, SIGNAL(toggled(bool)), this, SLOT(setHoldEnabled(bool)));
     connect(_ui->holdMaxTracesComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setHoldMaxTraces(int)));
-    connect(_ui->clearTracesButton, SIGNAL(clicked()), this, SLOT(clearHeldTraces()));
+    connect(_ui->comparisonConditionComboBox, SIGNAL(currentIndexChanged(int)), this,
+            SLOT(comparisonConditionIndexChanged(int)));
+    connect(_ui->clearTracesButton, SIGNAL(clicked()), this, SLOT(clearActiveConditionTraces()));
+    connect(_ui->clearAllTracesButton, SIGNAL(clicked()), this, SLOT(clearAllConditionTraces()));
 
     _state->antidromicDetectionWindowWidthMs->setupSpinBox(_ui->windowWidthSpinBox);
     _state->antidromicDetectionCrossing->setupComboBox(_ui->crossingComboBox);
@@ -85,11 +91,18 @@ AntidromicStimulationDialog::AntidromicStimulationDialog(SystemState* state, QWi
     updateStatisticsLabels();
     updateFromState();
     syncWindowCenterSliderMargins();
+    updateStatusHint();
 }
 
 AntidromicStimulationDialog::~AntidromicStimulationDialog()
 {
     delete _ui;
+}
+
+void AntidromicStimulationDialog::closeEvent(QCloseEvent* event)
+{
+    clearSessionBuffers();
+    QDialog::closeEvent(event);
 }
 
 void AntidromicStimulationDialog::activate()
@@ -237,12 +250,62 @@ void AntidromicStimulationDialog::syncConfigFingerprint()
 void AntidromicStimulationDialog::resetCaptureForConfigChange()
 {
     _captureState = antidromicTraceCapture::AntidromicTraceCaptureState();
-    _heldTraces.clear();
-    _heldLatenciesMs.clear();
+    clearSessionBuffers();
+}
+
+bool AntidromicStimulationDialog::comparisonConditionIsCollision() const
+{
+    return _state->antidromicComparisonCondition->getValue() == QStringLiteral("Collision");
+}
+
+AntidromicStimulationDialog::AntidromicComparisonCondition AntidromicStimulationDialog::activeComparisonCondition()
+    const
+{
+    return comparisonConditionIsCollision() ? AntidromicComparisonCondition::Collision
+                                            : AntidromicComparisonCondition::Baseline;
+}
+
+AntidromicConditionBuffers& AntidromicStimulationDialog::activeConditionBuffers()
+{
+    return comparisonConditionIsCollision() ? _collisionBuffers : _baselineBuffers;
+}
+
+const AntidromicConditionBuffers& AntidromicStimulationDialog::activeConditionBuffers() const
+{
+    return comparisonConditionIsCollision() ? _collisionBuffers : _baselineBuffers;
+}
+
+void AntidromicStimulationDialog::trimConditionBuffers(AntidromicConditionBuffers& buffers)
+{
+    const int maxTraces = static_cast<int>(_state->antidromicHoldMaxTraces->getNumericValue());
+    while (static_cast<int>(buffers.traces.size()) > maxTraces) {
+        buffers.traces.pop_front();
+        if (!buffers.latenciesMs.empty()) {
+            buffers.latenciesMs.pop_front();
+        }
+    }
+}
+
+void AntidromicStimulationDialog::clearSessionBuffers()
+{
+    _baselineBuffers.traces.clear();
+    _baselineBuffers.latenciesMs.clear();
+    _collisionBuffers.traces.clear();
+    _collisionBuffers.latenciesMs.clear();
     _hasLatestTrace = false;
     if (_tracePlot) {
         _tracePlot->clearTraces();
     }
+    updateStatisticsLabels();
+}
+
+void AntidromicStimulationDialog::clearConditionBuffers(AntidromicComparisonCondition which)
+{
+    AntidromicConditionBuffers& buffers =
+        which == AntidromicComparisonCondition::Collision ? _collisionBuffers : _baselineBuffers;
+    buffers.traces.clear();
+    buffers.latenciesMs.clear();
+    refreshPlotFromBuffers();
     updateStatisticsLabels();
 }
 
@@ -251,10 +314,11 @@ void AntidromicStimulationDialog::refreshPlotFromBuffers()
     if (!_tracePlot) {
         return;
     }
-    if (_state->antidromicTraceHoldEnabled->getValue()) {
-        _tracePlot->setHeldTraces(_heldTraces);
+    const bool hasComparisonTraces = !_baselineBuffers.traces.empty() || !_collisionBuffers.traces.empty();
+    if (hasComparisonTraces) {
+        _tracePlot->setComparisonHeldTraces(_baselineBuffers.traces, _collisionBuffers.traces);
     } else if (_hasLatestTrace) {
-        _tracePlot->setLatestTrace(_latestTrace);
+        _tracePlot->setLatestTrace(_latestTrace, comparisonConditionIsCollision());
     } else {
         _tracePlot->clearTraces();
     }
@@ -266,17 +330,13 @@ void AntidromicStimulationDialog::applyCapturedSnippet(const antidromicTraceCapt
     _hasLatestTrace = true;
 
     if (_state->antidromicTraceHoldEnabled->getValue()) {
-        _heldTraces.push_back(snippet);
-        const int maxTraces = static_cast<int>(_state->antidromicHoldMaxTraces->getNumericValue());
-        while (static_cast<int>(_heldTraces.size()) > maxTraces) {
-            _heldTraces.pop_front();
-            if (!_heldLatenciesMs.empty()) {
-                _heldLatenciesMs.pop_front();
-            }
-        }
+        AntidromicConditionBuffers& buffers = activeConditionBuffers();
+        buffers.traces.push_back(snippet);
+        trimConditionBuffers(buffers);
         recomputeAllDetections();
     }
     refreshPlotFromBuffers();
+    updateStatusHint();
 }
 
 void AntidromicStimulationDialog::updateAntidromicStimulation(WaveformFifo* waveformFifo, int numSamples)
@@ -356,11 +416,9 @@ void AntidromicStimulationDialog::updateAntidromicStimulation(WaveformFifo* wave
 
     if (snippet.has_value()) {
         applyCapturedSnippet(*snippet);
-        _ui->statusLabel->setText(tr("Captured trace at stim onset (t = 0)."));
+        updateStatusHint();
     } else if (!_ui->statusLabel->text().contains(tr("disabled"))) {
-        _ui->statusLabel->setText(
-        tr("Waiting for stim pulse on stimulation channel. Detection uses the first threshold crossing in the "
-           "search window (enable Hold for hit-rate and latency statistics)."));
+        updateStatusHint();
     }
 
     setWindowTitle(tr("Antidromic Stimulation") + " (" + recordNative + ")");
@@ -407,6 +465,11 @@ void AntidromicStimulationDialog::updateFromState()
     }
     if (_ui->holdMaxTracesComboBox->currentIndex() != _state->antidromicHoldMaxTraces->getIndex()) {
         _ui->holdMaxTracesComboBox->setCurrentIndex(_state->antidromicHoldMaxTraces->getIndex());
+    }
+    if (_ui->comparisonConditionComboBox->currentIndex() != _state->antidromicComparisonCondition->getIndex()) {
+        _ui->comparisonConditionComboBox->blockSignals(true);
+        _ui->comparisonConditionComboBox->setCurrentIndex(_state->antidromicComparisonCondition->getIndex());
+        _ui->comparisonConditionComboBox->blockSignals(false);
     }
 
     syncWindowWidthSpinBoxLimits();
@@ -502,12 +565,9 @@ void AntidromicStimulationDialog::setHoldEnabled(bool enabled)
         return;
     }
     _state->antidromicTraceHoldEnabled->setValue(enabled);
-    if (!enabled) {
-        _heldTraces.clear();
-        _heldLatenciesMs.clear();
-    }
     refreshPlotFromBuffers();
     updateStatisticsLabels();
+    updateStatusHint();
 }
 
 void AntidromicStimulationDialog::setHoldMaxTraces(int index)
@@ -516,27 +576,34 @@ void AntidromicStimulationDialog::setHoldMaxTraces(int index)
         return;
     }
     _state->antidromicHoldMaxTraces->setIndex(index);
-    const int maxTraces = static_cast<int>(_state->antidromicHoldMaxTraces->getNumericValue());
-    while (static_cast<int>(_heldTraces.size()) > maxTraces) {
-        _heldTraces.pop_front();
-        if (!_heldLatenciesMs.empty()) {
-            _heldLatenciesMs.pop_front();
-        }
-    }
+    trimConditionBuffers(_baselineBuffers);
+    trimConditionBuffers(_collisionBuffers);
     recomputeAllDetections();
     refreshPlotFromBuffers();
 }
 
-void AntidromicStimulationDialog::clearHeldTraces()
+void AntidromicStimulationDialog::comparisonConditionIndexChanged(int index)
 {
-    _heldTraces.clear();
-    _heldLatenciesMs.clear();
-    _hasLatestTrace = false;
-    if (_tracePlot) {
-        _tracePlot->clearTraces();
+    if (_loading || index < 0) {
+        return;
     }
+    _state->antidromicComparisonCondition->setIndex(index);
+    refreshPlotFromBuffers();
     updateStatisticsLabels();
-    _ui->statusLabel->setText(tr("Traces cleared. Enable Hold to accumulate statistics."));
+    updateStatusHint();
+}
+
+void AntidromicStimulationDialog::clearActiveConditionTraces()
+{
+    clearConditionBuffers(activeComparisonCondition());
+    _hasLatestTrace = false;
+    updateStatusHint();
+}
+
+void AntidromicStimulationDialog::clearAllConditionTraces()
+{
+    clearSessionBuffers();
+    updateStatusHint();
 }
 
 antidromicSpikeDetection::AntidromicDetectionSettings AntidromicStimulationDialog::buildDetectionSettings() const
@@ -671,54 +738,87 @@ void AntidromicStimulationDialog::updateDetectionOverlay()
     _tracePlot->setDetectionOverlay(settings.threshold, settings.windowCenterMs, settings.windowWidthMs);
 }
 
+void AntidromicStimulationDialog::recomputeConditionDetections(AntidromicConditionBuffers& buffers)
+{
+    const antidromicSpikeDetection::AntidromicDetectionSettings settings = buildDetectionSettings();
+    buffers.latenciesMs.clear();
+    for (const antidromicTraceCapture::AntidromicTraceSnippet& snippet : buffers.traces) {
+        buffers.latenciesMs.push_back(antidromicSpikeDetection::detectLatencyMs(snippet.samples, settings));
+    }
+}
+
 void AntidromicStimulationDialog::recomputeAllDetections()
 {
-    if (!_state->antidromicTraceHoldEnabled->getValue()) {
-        return;
-    }
-
-    const antidromicSpikeDetection::AntidromicDetectionSettings settings = buildDetectionSettings();
-    _heldLatenciesMs.clear();
-    for (const antidromicTraceCapture::AntidromicTraceSnippet& snippet : _heldTraces) {
-        _heldLatenciesMs.push_back(antidromicSpikeDetection::detectLatencyMs(snippet.samples, settings));
-    }
+    recomputeConditionDetections(_baselineBuffers);
+    recomputeConditionDetections(_collisionBuffers);
     updateStatisticsLabels();
+}
+
+QString AntidromicStimulationDialog::formatConditionHitRateLabel(
+    const QString& prefix, const antidromicSpikeDetection::AntidromicHeldTraceStats& stats) const
+{
+    return tr("%1 hit rate: %2% (%3 / %4)")
+        .arg(prefix)
+        .arg(stats.hitRatePercent, 0, 'f', 1)
+        .arg(stats.numHits)
+        .arg(stats.numTraces);
+}
+
+QString AntidromicStimulationDialog::formatConditionLatencyLabel(
+    const QString& prefix, const antidromicSpikeDetection::AntidromicHeldTraceStats& stats) const
+{
+    if (!stats.meanMs.has_value()) {
+        return tr("%1 latency: N/A").arg(prefix);
+    }
+    if (stats.stdMs.has_value()) {
+        return tr("%1 latency: %2 ± %3 ms")
+            .arg(prefix)
+            .arg(*stats.meanMs, 0, 'f', 3)
+            .arg(*stats.stdMs, 0, 'f', 3);
+    }
+    return tr("%1 latency: %2 ms").arg(prefix).arg(*stats.meanMs, 0, 'f', 3);
 }
 
 void AntidromicStimulationDialog::updateStatisticsLabels()
 {
-    if (!_state->antidromicTraceHoldEnabled->getValue() || _heldTraces.empty()) {
-        _ui->hitRateLabel->setText(tr("Hit rate: N/A"));
-        _ui->latencyStatsLabel->setText(tr("Latency: N/A"));
+    const bool holdEnabled = _state->antidromicTraceHoldEnabled->getValue();
+
+    const auto updateSide = [&](const QString& prefix, const AntidromicConditionBuffers& buffers,
+                                QLabel* hitLabel, QLabel* latencyLabel) {
+        if (!holdEnabled || buffers.traces.empty()) {
+            hitLabel->setText(tr("%1 hit rate: N/A").arg(prefix));
+            latencyLabel->setText(tr("%1 latency: N/A").arg(prefix));
+            return;
+        }
+        std::vector<std::optional<double>> latencies;
+        latencies.reserve(buffers.latenciesMs.size());
+        for (const std::optional<double>& latency : buffers.latenciesMs) {
+            latencies.push_back(latency);
+        }
+        const antidromicSpikeDetection::AntidromicHeldTraceStats stats =
+            antidromicSpikeDetection::computeHeldTraceStats(latencies);
+        hitLabel->setText(formatConditionHitRateLabel(prefix, stats));
+        latencyLabel->setText(formatConditionLatencyLabel(prefix, stats));
+    };
+
+    updateSide(tr("Baseline"), _baselineBuffers, _ui->baselineHitRateLabel, _ui->baselineLatencyStatsLabel);
+    updateSide(tr("Collision"), _collisionBuffers, _ui->collisionHitRateLabel, _ui->collisionLatencyStatsLabel);
+}
+
+void AntidromicStimulationDialog::updateStatusHint()
+{
+    const QString conditionName =
+        comparisonConditionIsCollision() ? tr("Collision") : tr("Baseline");
+    if (_state->antidromicTraceHoldEnabled->getValue()) {
+        _ui->statusLabel->setText(
+            tr("Collecting: %1. Each stim-aligned trace is added to this condition; switch Condition to "
+               "build baseline vs collision comparison on the plot.")
+                .arg(conditionName));
         return;
     }
-
-    std::vector<std::optional<double>> latencies;
-    latencies.reserve(_heldLatenciesMs.size());
-    for (const std::optional<double>& latency : _heldLatenciesMs) {
-        latencies.push_back(latency);
-    }
-
-    const antidromicSpikeDetection::AntidromicHeldTraceStats stats =
-        antidromicSpikeDetection::computeHeldTraceStats(latencies);
-
-    _ui->hitRateLabel->setText(tr("Hit rate: %1% (%2 / %3)")
-                                   .arg(stats.hitRatePercent, 0, 'f', 1)
-                                   .arg(stats.numHits)
-                                   .arg(stats.numTraces));
-
-    if (!stats.meanMs.has_value()) {
-        _ui->latencyStatsLabel->setText(tr("Latency: N/A"));
-        return;
-    }
-
-    if (stats.stdMs.has_value()) {
-        _ui->latencyStatsLabel->setText(tr("Latency: %1 ± %2 ms")
-                                            .arg(*stats.meanMs, 0, 'f', 3)
-                                            .arg(*stats.stdMs, 0, 'f', 3));
-    } else {
-        _ui->latencyStatsLabel->setText(tr("Latency: %1 ms").arg(*stats.meanMs, 0, 'f', 3));
-    }
+    _ui->statusLabel->setText(
+        tr("Waiting for stim pulse on stimulation channel. Enable Hold to accumulate traces per condition "
+           "(Baseline / Collision)."));
 }
 
 void AntidromicStimulationDialog::thresholdSliderChanged(int value)

@@ -32,14 +32,16 @@ public:
     void setBoardAdcRecording(bool boardAdc);
 
     /**
-     * @brief Replace the single trace shown when hold mode is off.
+     * @brief Replace baseline and collision held traces for comparison overlay.
      */
-    void setLatestTrace(const antidromicTraceCapture::AntidromicTraceSnippet& snippet);
+    void setComparisonHeldTraces(const std::deque<antidromicTraceCapture::AntidromicTraceSnippet>& baselineTraces,
+                                 const std::deque<antidromicTraceCapture::AntidromicTraceSnippet>& collisionTraces);
 
     /**
-     * @brief Replace held traces shown when hold mode is on.
+     * @brief Replace the single trace shown when no held comparison data is displayed.
+     * @param isCollisionCondition When true, uses the collision trace color.
      */
-    void setHeldTraces(const std::deque<antidromicTraceCapture::AntidromicTraceSnippet>& traces);
+    void setLatestTrace(const antidromicTraceCapture::AntidromicTraceSnippet& snippet, bool isCollisionCondition);
 
     /**
      * @brief Clear all displayed traces.
@@ -76,6 +78,8 @@ protected:
 
 private:
     void updateCoordinateTranslator();
+    void paintHeldTraceStack(QPainter& painter, const std::deque<antidromicTraceCapture::AntidromicTraceSnippet>& traces,
+                             const QColor& baseColor);
     void paintTrace(QPainter& painter, const std::vector<float>& samples, const QColor& color);
     void paintAxes(QPainter& painter, PlotDecorator& plotDecorator, double yHalfRange, const QString& yUnitSuffix);
     void paintDetectionOverlay(QPainter& painter, PlotDecorator& plotDecorator);
@@ -87,7 +91,9 @@ private:
     double _overlayWindowCenterMs;
     double _overlayWindowWidthMs;
     std::optional<antidromicTraceCapture::AntidromicTraceSnippet> _latestTrace;
-    std::deque<antidromicTraceCapture::AntidromicTraceSnippet> _heldTraces;
+    bool _latestTraceIsCollision;
+    std::deque<antidromicTraceCapture::AntidromicTraceSnippet> _baselineHeldTraces;
+    std::deque<antidromicTraceCapture::AntidromicTraceSnippet> _collisionHeldTraces;
     double _tStepMsec;
     QRect _plotFrame;
     CoordinateTranslator _ct;
