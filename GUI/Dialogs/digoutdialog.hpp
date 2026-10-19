@@ -74,6 +74,8 @@ signals:
 private slots:
     void _readWidgetsIntoDraft();
     void _updateWidgetsForMode();
+    void _updateAnalogInTriggerThresholdVisibility();
+    void _commitAnalogInTriggerThresholdFromSpinBox();
 
 private:
     /**

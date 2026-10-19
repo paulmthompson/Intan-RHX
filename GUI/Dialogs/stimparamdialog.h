@@ -44,6 +44,8 @@ class QDoubleSpinBox;
 class QSpinBox;
 class QLabel;
 class QCheckBox;
+class QGroupBox;
+class QToolButton;
 class CurrentSpinBox;
 class StimFigure;
 
@@ -107,6 +109,11 @@ private:
     QLabel *triggerHighOrLowLabel;
     TimeSpinBox *postTriggerDelaySpinBox;
     QLabel *postTriggerDelayLabel;
+    QGroupBox *analogInComparatorGroupBox;
+    QLabel *analogInTriggerThresholdLabel;
+    QDoubleSpinBox *analogInTriggerThresholdSpinBox;
+    QLabel *analogInTriggerThresholdSummaryLabel;
+    QToolButton *analogInTriggerThresholdHelpButton;
 
     QComboBox *pulseOrTrainComboBox;
     QLabel *pulseOrTrainLabel;
@@ -135,6 +142,8 @@ private:
     double currentstep;
 
 private slots:
+    void updateAnalogInTriggerThresholdVisibility();
+    void commitAnalogInTriggerThresholdFromSpinBox();
     void enableWidgets();
     void calculateCharge();
     void calculatePulseTrainFrequency();

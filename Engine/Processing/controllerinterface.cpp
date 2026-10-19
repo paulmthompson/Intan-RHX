@@ -44,6 +44,7 @@
 
 #include "controllerinterface.h"
 
+#include "analogintriggerthreshold.hpp"
 #include "ampstimprograms.hpp"
 #include "controlpanel.h"
 #include "impedancereader.h"
@@ -693,6 +694,10 @@ void ControllerInterface::initializeController()
         rhxController->setCableDelay(PortF, 1);
         rhxController->setCableDelay(PortG, 1);
         rhxController->setCableDelay(PortH, 1);
+    }
+
+    if (state->getControllerTypeEnum() == ControllerStimRecord) {
+        syncFpgaAnalogInTriggerThresholdFromState();
     }
 }
 
@@ -1381,6 +1386,7 @@ void ControllerInterface::uploadStimParametersDuringMaintenance(Channel* channel
         return;
     }
 
+    syncFpgaAnalogInTriggerThresholdFromState();
     endAmpMaintenance();
     guard.release();
     logTeardownStage("uploadStimParametersDuringMaintenance end");
@@ -2101,6 +2107,22 @@ void ControllerInterface::setTtlOutMode(bool mode1, bool mode2, bool mode3, bool
     rhxController->setTtlOutMode(mode1, mode2, mode3, mode4, mode5, mode6, mode7, mode8);
 }
 
+void ControllerInterface::syncFpgaAnalogInTriggerThresholdFromState()
+{
+    if (state->getControllerTypeEnum() != ControllerStimRecord) {
+        return;
+    }
+    if (rhxController->isSynthetic() || rhxController->isPlayback()) {
+        return;
+    }
+    const double quantized = quantizeAnalogInTriggerThresholdVolts(
+        state->triggerAnalogVoltageThreshold->getValue());
+    if (quantized != state->triggerAnalogVoltageThreshold->getValue()) {
+        state->triggerAnalogVoltageThreshold->setValue(quantized);
+    }
+    rhxController->setAnalogInTriggerThreshold(quantized);
+}
+
 /**
  * @brief Validate common host-side eligibility for one RHS live output command.
  */
@@ -2322,6 +2344,7 @@ std::optional<QString> ControllerInterface::commitRhsDigOutConfiguration(
     if (hardware) {
         state->uploadInProgress->setValue(true);
         setDigitalOutSequenceParameters(digOutChannel);
+        syncFpgaAnalogInTriggerThresholdFromState();
         state->uploadInProgress->setValue(false);
     }
     if (state->running && hardware && restartContinuous) {
@@ -2459,6 +2482,7 @@ void ControllerInterface::uploadStimParameters(Channel* channel)
     } else if (channel->getSignalType() == BoardDigitalOutSignal) {
         setDigitalOutSequenceParameters(channel);
     }
+    syncFpgaAnalogInTriggerThresholdFromState();
     state->uploadInProgress->setValue(false);
 }
 

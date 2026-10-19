@@ -248,6 +248,13 @@ public:
     void setTtlOutMode(bool mode1, bool mode2, bool mode3, bool mode4, bool mode5, bool mode6, bool mode7, bool mode8);
 
     /**
+     * @brief Push TriggerAnalogThresholdVolts to the RHS FPGA analog comparator (WireIn 0x0f).
+     * @pre ControllerStimRecord hardware; value is quantized to a 16-bit ADC threshold.
+     * @post FPGA uses the quantized threshold for all board analog inputs.
+     */
+    void syncFpgaAnalogInTriggerThresholdFromState();
+
+    /**
      * @brief Latch one RHS board TTL output high or low, without affecting other pins.
      * @ingroup RhsDigitalOut
      * @param channel Zero-based digital output index [0, 15] (TTL 1–16).

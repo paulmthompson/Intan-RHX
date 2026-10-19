@@ -9,6 +9,7 @@
 
 #include "digoutdialog.hpp"
 
+#include "analogintriggerthreshold.hpp"
 #include "channel.h"
 #include "controllerinterface.h"
 #include "digfigure.h"
@@ -37,6 +38,18 @@ DigOutDialog::DigOutDialog(SystemState* state,
     , _loading(false)
 {
     _ui->setupUi(this);
+    configureAnalogInTriggerThresholdSpinBox(_ui->analogThresholdSpinBox);
+    _ui->analogThresholdSpinBox->setValue(quantizeAnalogInTriggerThresholdVolts(
+        _state->triggerAnalogVoltageThreshold->getValue()));
+    const QString comparatorDetailsToolTip = tr(
+        "This threshold applies to every board analog input and to all amplifier "
+        "stimulation and digital-output programs that use any ANALOG IN trigger. "
+        "It is not the DAC-threshold mode on TTL outputs 1–8 in the Analog tab. "
+        "The FPGA fires when voltage is above this level; use Trigger on Low to "
+        "respond to the inverted line. Host recording, episodic triggers, and PSTH "
+        "use the same TriggerAnalogThresholdVolts value when synced to hardware.");
+    _ui->analogComparatorGroupBox->setToolTip(comparatorDetailsToolTip);
+    _ui->analogThresholdHelpButton->setToolTip(comparatorDetailsToolTip);
     setWindowModality(Qt::NonModal);
     setAttribute(Qt::WA_DeleteOnClose, false);
 
@@ -80,6 +93,11 @@ DigOutDialog::DigOutDialog(SystemState* state,
     connect(_ui->enabledCheckBox, &QCheckBox::toggled, this, changed);
     connect(_ui->triggerSourceComboBox,
             qOverload<int>(&QComboBox::currentIndexChanged), this, changed);
+    connect(_ui->triggerSourceComboBox,
+            qOverload<int>(&QComboBox::currentIndexChanged), this,
+            [this]() { _updateAnalogInTriggerThresholdVisibility(); });
+    connect(_ui->analogThresholdSpinBox, &QDoubleSpinBox::editingFinished, this,
+            [this]() { _commitAnalogInTriggerThresholdFromSpinBox(); });
     connect(_ui->edgeComboBox,
             qOverload<int>(&QComboBox::currentIndexChanged), this, changed);
     connect(_ui->polarityComboBox,
@@ -120,6 +138,9 @@ bool DigOutDialog::hasUnappliedChanges() const
 bool DigOutDialog::applyDraft()
 {
     _readWidgetsIntoDraft();
+    if (isAnalogInStimTriggerSource(_ui->triggerSourceComboBox->currentIndex())) {
+        _commitAnalogInTriggerThresholdFromSpinBox();
+    }
     if (_thresholdOwned()) {
         QMessageBox::warning(
             this, tr("Digital Output Owned by DAC Threshold"),
@@ -206,6 +227,32 @@ void DigOutDialog::_updateWidgetsForMode()
     _ui->thresholdOwnershipLabel->setVisible(thresholdOwned);
     _ui->thresholdOwnershipLabel->setText(
         tr("DAC threshold mode currently owns this pin. Disable it in the Analog tab before applying digital control."));
+    _updateAnalogInTriggerThresholdVisibility();
+}
+
+void DigOutDialog::_updateAnalogInTriggerThresholdVisibility()
+{
+    const int triggerIndex = _ui->triggerSourceComboBox->currentIndex();
+    const bool analogTrigger = isAnalogInStimTriggerSource(triggerIndex);
+    const bool sequencerVisible = _ui->triggerGroupBox->isVisible();
+    const bool show = sequencerVisible && analogTrigger && !_draft.m_manualFire;
+    _ui->analogComparatorGroupBox->setVisible(show);
+    _ui->analogThresholdLabel->setEnabled(show);
+    _ui->analogThresholdSpinBox->setEnabled(show);
+    _ui->analogThresholdSummaryLabel->setEnabled(show);
+    _ui->analogThresholdHelpButton->setEnabled(show);
+    if (show) {
+        _ui->analogThresholdSpinBox->setValue(quantizeAnalogInTriggerThresholdVolts(
+            _state->triggerAnalogVoltageThreshold->getValue()));
+    }
+}
+
+void DigOutDialog::_commitAnalogInTriggerThresholdFromSpinBox()
+{
+    const double quantized = quantizeAnalogInTriggerThresholdVolts(
+        _ui->analogThresholdSpinBox->value());
+    _ui->analogThresholdSpinBox->setValue(quantized);
+    _state->triggerAnalogVoltageThreshold->setValue(quantized);
 }
 
 void DigOutDialog::_loadDraftIntoWidgets()

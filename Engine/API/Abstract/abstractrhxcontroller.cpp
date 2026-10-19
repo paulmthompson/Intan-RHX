@@ -229,7 +229,8 @@ void AbstractRHXController::initialize()
     }
 
     if (type == ControllerStimRecord) {
-        setAnalogInTriggerThreshold(1.65); // +1.65 V
+        // Board analog-in comparator threshold is set from SystemState via
+        // ControllerInterface::syncFpgaAnalogInTriggerThresholdFromState().
 
         //const int NEVER = 65535;
         const uint32_t NEVER = 0xFFFFFFFF;

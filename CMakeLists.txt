@@ -63,6 +63,7 @@ set(Sources
         Engine/Processing/filter.cpp 
         Engine/Processing/matfilewriter.cpp 
         Engine/Processing/rhxdatareader.cpp 
+        Engine/Processing/analogintriggerthreshold.cpp
         Engine/Processing/rhsdigoutconfiguration.cpp
         Engine/Processing/signalsources.cpp 
         Engine/Processing/softwarereferenceprocessor.cpp 
@@ -196,6 +197,7 @@ set(Headers
         Engine/Processing/minmax.h 
         Engine/Processing/probemapdatastructures.h 
         Engine/Processing/rhxdatareader.h 
+        Engine/Processing/analogintriggerthreshold.hpp
         Engine/Processing/rhsdigoutconfiguration.hpp
         Engine/Processing/semaphore.h 
         Engine/Processing/signalsources.h 

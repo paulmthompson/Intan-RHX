@@ -38,6 +38,8 @@
 
 #include "stimparamdialog.h"
 
+#include "analogintriggerthreshold.hpp"
+
 #include "ampstimprograms.hpp"
 #include "rhxregisters.h"
 #include "spinboxtooltips.hpp"
@@ -129,6 +131,28 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
     triggerHighOrLows << tr("Trigger on High") << tr("Trigger on Low");
     triggerHighOrLowComboBox->addItems(triggerHighOrLows);
 
+    analogInTriggerThresholdLabel = new QLabel(tr("Threshold:"), this);
+    analogInTriggerThresholdSpinBox = new QDoubleSpinBox(this);
+    configureAnalogInTriggerThresholdSpinBox(analogInTriggerThresholdSpinBox);
+    analogInTriggerThresholdSpinBox->setValue(quantizeAnalogInTriggerThresholdVolts(
+        state->triggerAnalogVoltageThreshold->getValue()));
+    analogInTriggerThresholdSummaryLabel = new QLabel(
+        tr("Shared by all analog inputs (0.3125 mV steps). Not DAC threshold on TTL 1–8."),
+        this);
+    analogInTriggerThresholdHelpButton = new QToolButton(this);
+    analogInTriggerThresholdHelpButton->setText(QStringLiteral("?"));
+    analogInTriggerThresholdHelpButton->setAutoRaise(true);
+    const QString comparatorDetailsToolTip = tr(
+        "This threshold applies to every board analog input and to all amplifier "
+        "stimulation and digital-output programs that use any ANALOG IN trigger. "
+        "It is not the DAC-threshold mode on TTL outputs 1–8 in the Analog tab. "
+        "The FPGA fires when voltage is above this level; use Trigger on Low to "
+        "respond to the inverted line. Host recording, episodic triggers, and PSTH "
+        "use the same TriggerAnalogThresholdVolts value when synced to hardware.");
+    analogInTriggerThresholdHelpButton->setToolTip(comparatorDetailsToolTip);
+    analogInComparatorGroupBox = new QGroupBox(tr("Analog Input Comparator (FPGA)"), this);
+    analogInComparatorGroupBox->setToolTip(comparatorDetailsToolTip);
+
     postTriggerDelayLabel = new QLabel(tr("Post Trigger Delay:"), this);
     postTriggerDelaySpinBox = new TimeSpinBox(timestep, this);
     configureMicrosecondSpinLimits(postTriggerDelaySpinBox, postTriggerDelayLabel, 0, kAmpMaxDurationUs, timestep);
@@ -203,6 +227,10 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
     connect(enableStimCheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableWidgets()));
     connect(pulseOrTrainComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(enableWidgets()));
     connect(stimShapeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(enableWidgets()));
+    connect(triggerSourceComboBox, SIGNAL(currentIndexChanged(int)),
+            this, SLOT(updateAnalogInTriggerThresholdVisibility()));
+    connect(analogInTriggerThresholdSpinBox, SIGNAL(editingFinished()),
+            this, SLOT(commitAnalogInTriggerThresholdFromSpinBox()));
 
     connect(stimShapeComboBox, SIGNAL(currentIndexChanged(int)), this, SIGNAL(chargeChanged()));
     connect(stimShapeComboBox, SIGNAL(currentIndexChanged(int)), this, SIGNAL(minimumPeriodChanged()));
@@ -369,16 +397,26 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
     postTriggerDelayRow->addWidget(postTriggerDelaySpinBox);
 
     QVBoxLayout *triggerLayout = new QVBoxLayout;
+    triggerLayout->setSpacing(8);
     triggerLayout->addLayout(enableStimRow);
-    triggerLayout->addStretch();
     triggerLayout->addLayout(triggerSourceRow);
-    triggerLayout->addStretch();
     triggerLayout->addLayout(triggerEdgeOrLevelRow);
-    triggerLayout->addStretch();
     triggerLayout->addLayout(triggerHighOrLowRow);
-    triggerLayout->addStretch();
     triggerLayout->addLayout(postTriggerDelayRow);
     triggerGroupBox->setLayout(triggerLayout);
+
+    QHBoxLayout *analogThresholdRow = new QHBoxLayout;
+    analogThresholdRow->addWidget(analogInTriggerThresholdLabel);
+    analogThresholdRow->addWidget(analogInTriggerThresholdSpinBox);
+    analogThresholdRow->addStretch(1);
+    QHBoxLayout *analogSummaryRow = new QHBoxLayout;
+    analogSummaryRow->addWidget(analogInTriggerThresholdSummaryLabel);
+    analogSummaryRow->addStretch(1);
+    analogSummaryRow->addWidget(analogInTriggerThresholdHelpButton);
+    QVBoxLayout *analogComparatorLayout = new QVBoxLayout;
+    analogComparatorLayout->addLayout(analogThresholdRow);
+    analogComparatorLayout->addLayout(analogSummaryRow);
+    analogInComparatorGroupBox->setLayout(analogComparatorLayout);
 
     // Pulse train information widgets' layout
     QHBoxLayout *pulseOrTrainRow = new QHBoxLayout;
@@ -459,16 +497,13 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
     QVBoxLayout *firstColumn = new QVBoxLayout;
     firstColumn->addWidget(triggerGroupBox);
     firstColumn->addWidget(pulseTrainGroupBox);
-    firstColumn->addStretch();
 
     QVBoxLayout *secondColumn = new QVBoxLayout;
     secondColumn->addWidget(stimWaveFormGroupBox);
-    secondColumn->addStretch();
 
     QVBoxLayout *thirdColumn = new QVBoxLayout;
     thirdColumn->addWidget(ampSettleGroupBox);
     thirdColumn->addWidget(chargeRecoveryGroupBox);
-    thirdColumn->addStretch();
 
     QHBoxLayout *finalRow = new QHBoxLayout;
     finalRow->addWidget(buttonBox);
@@ -488,7 +523,7 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
 
     mainLayout->addWidget(stimFigure);
     mainLayout->addLayout(columns);
-    mainLayout->addStretch();
+    mainLayout->addWidget(analogInComparatorGroupBox);
     mainLayout->addLayout(finalRow);
 
     QWidget *mainWidget = new QWidget(this);
@@ -496,7 +531,10 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
 
     QScrollArea *scrollArea = new QScrollArea(this);
     scrollArea->setWidget(mainWidget);
+    scrollArea->setWidgetResizable(true);
     scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
     QVBoxLayout *scrollLayout = new QVBoxLayout;
     scrollLayout->addWidget(scrollArea);
@@ -565,6 +603,7 @@ void StimParamDialog::updateParametersFromState(StimParameters *parameters)
     // Calculate frequency and charge so that the first labels that are displayed correspond to the loaded parameters.
     calculatePulseTrainFrequency();
     calculateCharge();
+    updateAnalogInTriggerThresholdVisibility();
 }
 
 void StimParamDialog::activate()
@@ -615,6 +654,29 @@ void StimParamDialog::saveWidgetsToParameters(StimParameters *target)
     target->postStimChargeRecovOn->setValue(postStimChargeRecovOnSpinBox->getTrueValue());
     target->postStimAmpSettle->setValue(postStimAmpSettleSpinBox->getTrueValue());
     target->postStimChargeRecovOff->setValue(postStimChargeRecovOffSpinBox->getTrueValue());
+    if (isAnalogInStimTriggerSource(triggerSourceComboBox->currentIndex())) {
+        commitAnalogInTriggerThresholdFromSpinBox();
+    }
+}
+
+void StimParamDialog::updateAnalogInTriggerThresholdVisibility()
+{
+    const bool analogTrigger =
+        isAnalogInStimTriggerSource(triggerSourceComboBox->currentIndex());
+    analogInComparatorGroupBox->setVisible(analogTrigger);
+    if (analogTrigger) {
+        analogInTriggerThresholdSpinBox->setValue(quantizeAnalogInTriggerThresholdVolts(
+            state->triggerAnalogVoltageThreshold->getValue()));
+    }
+    enableWidgets();
+}
+
+void StimParamDialog::commitAnalogInTriggerThresholdFromSpinBox()
+{
+    const double quantized = quantizeAnalogInTriggerThresholdVolts(
+        analogInTriggerThresholdSpinBox->value());
+    analogInTriggerThresholdSpinBox->setValue(quantized);
+    state->triggerAnalogVoltageThreshold->setValue(quantized);
 }
 
 void StimParamDialog::onStimProgramIndexChanged(int newIndex)
@@ -679,6 +741,16 @@ void StimParamDialog::enableWidgets()
     triggerHighOrLowComboBox->setEnabled(enableStimCheckBox->isChecked());
     postTriggerDelayLabel->setEnabled(enableStimCheckBox->isChecked());
     postTriggerDelaySpinBox->setEnabled(enableStimCheckBox->isChecked());
+
+    const bool analogTrigger =
+        isAnalogInStimTriggerSource(triggerSourceComboBox->currentIndex());
+    const bool stimEnabled = enableStimCheckBox->isChecked();
+    const bool thresholdEditable = stimEnabled && analogTrigger;
+    analogInComparatorGroupBox->setEnabled(stimEnabled && analogTrigger);
+    analogInTriggerThresholdLabel->setEnabled(thresholdEditable);
+    analogInTriggerThresholdSpinBox->setEnabled(thresholdEditable);
+    analogInTriggerThresholdSummaryLabel->setEnabled(stimEnabled && analogTrigger);
+    analogInTriggerThresholdHelpButton->setEnabled(stimEnabled && analogTrigger);
 
     // Pulse Train Group Box
     pulseOrTrainLabel->setEnabled(enableStimCheckBox->isChecked());

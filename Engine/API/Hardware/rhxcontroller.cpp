@@ -878,7 +878,11 @@ void RHXController::setAuxExecuteDuringMaintenance(bool enabled)
     dev->UpdateWireIns();
 }
 
-// Set the voltage threshold to be used for digital triggers on Analog In ports.
+/**
+ * @brief Set the shared board analog-input comparator threshold (WireIn 0x0f).
+ * @pre ControllerStimRecord; one threshold applies to all analog IN comparators.
+ * @post FPGA triggers when each analog stream exceeds this level (fixed polarity).
+ */
 void RHXController::setAnalogInTriggerThreshold(double voltageThreshold)
 {
     if (type != ControllerStimRecord) return;
