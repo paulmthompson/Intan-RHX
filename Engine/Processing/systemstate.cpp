@@ -1281,9 +1281,25 @@ bool SystemState::getReportSpikes()
     return reportSpikes;
 }
 
+bool SystemState::pulseResistanceSupportsRhsStimMode() const
+{
+    return getControllerTypeEnum() == ControllerStimRecord;
+}
+
 bool SystemState::pulseResistanceUsesExternalAdcTtl() const
 {
+    if (!pulseResistanceSupportsRhsStimMode()) {
+        return true;
+    }
     return pulseResistanceMode->getValue() == QStringLiteral("ExternalAdcTtl");
+}
+
+void SystemState::ensurePulseResistanceModeCompatible()
+{
+    if (!pulseResistanceSupportsRhsStimMode()
+        && pulseResistanceMode->getValue() == QStringLiteral("RhsStimChannel")) {
+        pulseResistanceMode->setValue(QStringLiteral("ExternalAdcTtl"));
+    }
 }
 
 void SystemState::setDecayTime(double time)

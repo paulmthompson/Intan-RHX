@@ -158,8 +158,10 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     traceControlsRow->addWidget(traceYScaleDcComboBox);
     traceControlsRow->addStretch(1);
 
+    modeLabel = new QLabel(tr("Mode:"), this);
+
     QVBoxLayout* mainLayout = new QVBoxLayout;
-    mainLayout->addWidget(new QLabel(tr("Mode:"), this));
+    mainLayout->addWidget(modeLabel);
     mainLayout->addWidget(modeComboBox);
     mainLayout->addWidget(modeStack);
     mainLayout->addLayout(buttonRow);
@@ -327,6 +329,10 @@ void PulseResistanceDialog::updateHelpText()
 
 void PulseResistanceDialog::updateModeUi()
 {
+    const bool rhsStimModeAvailable = state->pulseResistanceSupportsRhsStimMode();
+    modeLabel->setVisible(rhsStimModeAvailable);
+    modeComboBox->setVisible(rhsStimModeAvailable);
+
     const bool external = state->pulseResistanceUsesExternalAdcTtl();
     modeStack->setCurrentWidget(external ? externalPage : rhsPage);
     traceYScaleAcLabel->setVisible(!external);
@@ -336,6 +342,7 @@ void PulseResistanceDialog::updateModeUi()
 
 void PulseResistanceDialog::updateFromState()
 {
+    state->ensurePulseResistanceModeCompatible();
     syncConfigFingerprint();
 
     if (modeComboBox->currentIndex() != state->pulseResistanceMode->getIndex()) {
@@ -346,13 +353,13 @@ void PulseResistanceDialog::updateFromState()
     updateModeUi();
 
     const bool external = state->pulseResistanceUsesExternalAdcTtl();
-    const bool stimRecord = state->getControllerTypeEnum() == ControllerStimRecord;
+    const bool rhsStimModeAvailable = state->pulseResistanceSupportsRhsStimMode();
 
     if (!external) {
         QString channelNativeName = state->signalSources->singleSelectedAmplifierChannelName();
         if (channelNativeName != state->pulseResistanceChannel->getValue()) {
             if (!channelNativeName.isEmpty()) {
-                setToSelectedButton->setEnabled(stimRecord);
+                setToSelectedButton->setEnabled(rhsStimModeAvailable);
                 if (lockScopeCheckbox->isChecked()) {
                     changeCurrentChannel(channelNativeName);
                 }
@@ -374,10 +381,11 @@ void PulseResistanceDialog::updateFromState()
         if (channelName->text() != displayName) {
             channelName->setText(displayName);
         }
-        lockScopeCheckbox->setEnabled(stimRecord);
-        setToSelectedButton->setEnabled(stimRecord && !state->signalSources->singleSelectedAmplifierChannelName().isEmpty());
+        lockScopeCheckbox->setEnabled(rhsStimModeAvailable);
+        setToSelectedButton->setEnabled(rhsStimModeAvailable
+                                        && !state->signalSources->singleSelectedAmplifierChannelName().isEmpty());
 
-        if (!stimRecord) {
+        if (!rhsStimModeAvailable) {
             statusLabel->setText(tr("RHS stim channel mode requires an RHS stim/record controller."));
         }
     } else {

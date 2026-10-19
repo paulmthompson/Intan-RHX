@@ -405,3 +405,20 @@ target_compile_options(rhsdigoutconfiguration_golden_test PRIVATE
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_link_options(rhsdigoutconfiguration_golden_test PRIVATE -Wl,--gc-sections)
 endif()
+
+add_executable(pulseelectroderesistance_golden_test
+    tests/pulseelectroderesistance_golden_test.cpp
+    Engine/Processing/pulseelectroderesistance.cpp)
+set_target_properties(pulseelectroderesistance_golden_test PROPERTIES
+    AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+target_link_libraries(pulseelectroderesistance_golden_test PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+target_include_directories(pulseelectroderesistance_golden_test PRIVATE
+    Engine/Processing
+    Engine/API/Hardware
+    Engine/API/Abstract
+    includes)
+target_compile_options(pulseelectroderesistance_golden_test PRIVATE
+    -ffunction-sections -fdata-sections)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_link_options(pulseelectroderesistance_golden_test PRIVATE -Wl,--gc-sections)
+endif()

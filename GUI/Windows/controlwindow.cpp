@@ -42,7 +42,15 @@
 #include "controlwindow.h"
 #include "scrollablemessageboxdialog.h"
 
-;
+namespace {
+
+bool controllerSupportsPulseResistanceTool(ControllerType controllerType)
+{
+    return controllerType == ControllerStimRecord || controllerType == ControllerRecordUSB2
+           || controllerType == ControllerRecordUSB3;
+}
+
+} // namespace
 
 ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, ControllerInterface* controllerInterface_) :
     QMainWindow(nullptr), // Since the parent isn't a QMainWindow but a QDialog, just pass a nullptr
@@ -729,7 +737,7 @@ void ControlWindow::createMenus()
     // Tools menu
     toolsMenu = menuBar()->addMenu(tr("Tools"));
     toolsMenu->addAction(spikeSortingAction);
-    if (state->getControllerTypeEnum() == ControllerStimRecord) {
+    if (controllerSupportsPulseResistanceTool(state->getControllerTypeEnum())) {
         toolsMenu->addAction(pulseResistanceAction);
     }
     toolsMenu->addAction(isiAction);
@@ -1243,7 +1251,7 @@ void ControlWindow::spikeSorting()
 
 void ControlWindow::pulseResistance()
 {
-    if (state->getControllerTypeEnum() != ControllerStimRecord) {
+    if (!controllerSupportsPulseResistanceTool(state->getControllerTypeEnum())) {
         return;
     }
     if (!pulseResistanceDialog) {

@@ -108,6 +108,7 @@ private:
 
     SystemState* state;
 
+    QLabel* modeLabel;
     QComboBox* modeComboBox;
     QStackedWidget* modeStack;
 

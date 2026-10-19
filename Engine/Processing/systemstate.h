@@ -367,9 +367,20 @@ public:
     BooleanItem* pulseResistanceExternalTtlActiveHigh;
 
     /**
+     * @brief True when RHS stim-channel pulse resistance mode is available.
+     */
+    bool pulseResistanceSupportsRhsStimMode() const;
+
+    /**
      * @brief True when pulse resistance uses external ADC and TTL inputs.
      */
     bool pulseResistanceUsesExternalAdcTtl() const;
+
+    /**
+     * @brief Coerce pulse resistance mode when the controller cannot use RHS stim channels.
+     * @post Mode is ExternalAdcTtl on record-only controllers if it was RhsStimChannel.
+     */
+    void ensurePulseResistanceModeCompatible();
 
     // Spike detection threshold setting options
     BooleanItem *absoluteThresholdsEnabled;
