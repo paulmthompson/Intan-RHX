@@ -82,6 +82,9 @@ set(Sources
         Engine/Threads/usbdatathread.cpp 
         Engine/Threads/waveformprocessorthread.cpp 
         GUI/Dialogs/advancedstartupdialog.cpp 
+        GUI/Dialogs/antidromicchannelselection.cpp
+        GUI/Dialogs/antidromicstimulationdialog.cpp
+        GUI/Dialogs/antidromicstimulationdialog.ui
         GUI/Dialogs/ampsettledialog.cpp 
         GUI/Dialogs/analogoutconfigdialog.cpp 
         GUI/Dialogs/anoutdialog.cpp 
@@ -209,6 +212,8 @@ set(Headers
         Engine/Threads/usbdatathread.h 
         Engine/Threads/waveformprocessorthread.h 
         GUI/Dialogs/advancedstartupdialog.h 
+        GUI/Dialogs/antidromicchannelselection.hpp
+        GUI/Dialogs/antidromicstimulationdialog.hpp
         GUI/Dialogs/ampsettledialog.h 
         GUI/Dialogs/analogoutconfigdialog.h 
         GUI/Dialogs/anoutdialog.h 

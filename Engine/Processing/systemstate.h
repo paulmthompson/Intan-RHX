@@ -366,6 +366,11 @@ public:
     DiscreteItemList* pulseResistanceExternalTtlInput;
     BooleanItem* pulseResistanceExternalTtlActiveHigh;
 
+    // Antidromic stimulation (RHS)
+    ChannelNameItem* antidromicStimChannel;
+    DiscreteItemList* antidromicRecordingSource;
+    ChannelNameItem* antidromicRecordingChannel;
+
     /**
      * @brief True when RHS stim-channel pulse resistance mode is available.
      */

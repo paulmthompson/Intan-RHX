@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>AntidromicStimulationDialog</class>
+ <widget class="QDialog" name="AntidromicStimulationDialog">
+  <property name="windowTitle">
+   <string>Antidromic Stimulation</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QGroupBox" name="stimChannelGroupBox">
+     <property name="title">
+      <string>Stimulation Channel</string>
+     </property>
+     <layout class="QFormLayout" name="stimFormLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="stimChannelLabel">
+        <property name="text">
+         <string>RHS headstage channel:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="stimChannelComboBox"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="recordingChannelGroupBox">
+     <property name="title">
+      <string>Recording Channel</string>
+     </property>
+     <layout class="QFormLayout" name="recordingFormLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="recordingSourceLabel">
+        <property name="text">
+         <string>Source:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QComboBox" name="recordingSourceComboBox"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="recordingChannelLabel">
+        <property name="text">
+         <string>Channel:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="recordingChannelComboBox"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="futureToolsPlaceholderLabel">
+     <property name="text">
+      <string>Additional antidromic stimulation tools will appear here.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Close</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

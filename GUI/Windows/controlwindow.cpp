@@ -50,6 +50,11 @@ bool controllerSupportsPulseResistanceTool(ControllerType controllerType)
            || controllerType == ControllerRecordUSB3;
 }
 
+bool controllerSupportsAntidromicStimulation(ControllerType controllerType)
+{
+    return controllerType == ControllerStimRecord;
+}
+
 } // namespace
 
 ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, ControllerInterface* controllerInterface_) :
@@ -68,6 +73,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     spectrogramDialog(nullptr),
     spikeSortingDialog(nullptr),
     pulseResistanceDialog(nullptr),
+    antidromicStimulationDialog(nullptr),
     fileMenu(nullptr),
     displayMenu(nullptr),
     channelMenu(nullptr),
@@ -140,6 +146,7 @@ ControlWindow::ControlWindow(SystemState* state_, CommandParser* parser_, Contro
     performanceAction(nullptr),
     spikeSortingAction(nullptr),
     pulseResistanceAction(nullptr),
+    antidromicStimulationAction(nullptr),
     timeLabel(nullptr),
     topStatusLabel(nullptr),
     statusBarLabel(nullptr),
@@ -355,6 +362,10 @@ ControlWindow::~ControlWindow()
     if (pulseResistanceDialog) {
         pulseResistanceDialog->close();
         delete pulseResistanceDialog;
+    }
+    if (antidromicStimulationDialog) {
+        antidromicStimulationDialog->close();
+        delete antidromicStimulationDialog;
     }
     if (triggerRecordDialog) {
         triggerRecordDialog->close();
@@ -613,6 +624,9 @@ void ControlWindow::createActions()
     pulseResistanceAction = new QAction(tr("Pulse Resistance"), this);
     connect(pulseResistanceAction, SIGNAL(triggered()), this, SLOT(pulseResistance()));
 
+    antidromicStimulationAction = new QAction(tr("Antidromic Stimulation"), this);
+    connect(antidromicStimulationAction, SIGNAL(triggered()), this, SLOT(antidromicStimulation()));
+
     // Toolbar actions (within the toolbar, represented by an icon)
     rewindAction = new QAction(QIcon(":/images/rewindicon.png"), tr("Rewind"), this);
     rewindAction->setEnabled(false);
@@ -740,6 +754,9 @@ void ControlWindow::createMenus()
     if (controllerSupportsPulseResistanceTool(state->getControllerTypeEnum())) {
         toolsMenu->addAction(pulseResistanceAction);
     }
+    if (controllerSupportsAntidromicStimulation(state->getControllerTypeEnum())) {
+        toolsMenu->addAction(antidromicStimulationAction);
+    }
     toolsMenu->addAction(isiAction);
     toolsMenu->addAction(psthAction);
     toolsMenu->addAction(spectrogramAction);
@@ -837,6 +854,9 @@ void ControlWindow::updateForChangeHeadstages()
     }
     if (pulseResistanceDialog) {
         pulseResistanceDialog->updateForChangeHeadstages();
+    }
+    if (antidromicStimulationDialog) {
+        antidromicStimulationDialog->updateForChangeHeadstages();
     }
 }
 
@@ -1259,6 +1279,17 @@ void ControlWindow::pulseResistance()
         controllerInterface->setPulseResistanceDialog(pulseResistanceDialog);
     }
     pulseResistanceDialog->activate();
+}
+
+void ControlWindow::antidromicStimulation()
+{
+    if (!controllerSupportsAntidromicStimulation(state->getControllerTypeEnum())) {
+        return;
+    }
+    if (!antidromicStimulationDialog) {
+        antidromicStimulationDialog = new AntidromicStimulationDialog(state, this);
+    }
+    antidromicStimulationDialog->activate();
 }
 
 void ControlWindow::chooseFileFormatDialog()
@@ -1917,6 +1948,9 @@ void ControlWindow::updateMenus()
     if (pulseResistanceAction) {
         pulseResistanceAction->setEnabled(enableTools);
     }
+    if (antidromicStimulationAction) {
+        antidromicStimulationAction->setEnabled(enableTools);
+    }
 
     if (!enableTools) {
         if (probeMapWindow) {
@@ -1953,6 +1987,11 @@ void ControlWindow::updateMenus()
             delete pulseResistanceDialog;
             pulseResistanceDialog = nullptr;
             controllerInterface->setPulseResistanceDialog(pulseResistanceDialog);
+        }
+        if (antidromicStimulationDialog) {
+            antidromicStimulationDialog->close();
+            delete antidromicStimulationDialog;
+            antidromicStimulationDialog = nullptr;
         }
     }
 

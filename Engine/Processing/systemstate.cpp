@@ -769,6 +769,13 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     pulseResistanceExternalTtlActiveHigh =
         new BooleanItem("PulseResistanceExternalTtlActiveHigh", globalItems, this, true);
 
+    antidromicStimChannel = new ChannelNameItem("AntidromicStimChannel", globalItems, this, "N/A");
+    antidromicRecordingSource = new DiscreteItemList("AntidromicRecordingSource", globalItems, this);
+    antidromicRecordingSource->addItem("RhsAmplifier", tr("RHS amplifier"), 0);
+    antidromicRecordingSource->addItem("BoardAdc", tr("Board ADC"), 1);
+    antidromicRecordingSource->setValue("RhsAmplifier");
+    antidromicRecordingChannel = new ChannelNameItem("AntidromicRecordingChannel", globalItems, this, "N/A");
+
     yScaleSpikeScope = new DiscreteItemList("SpikeScopeScaleMicroVolts", globalItems, this);
     yScaleSpikeScope->addItem("50", "50 " + MicroVoltsSymbol, 50.0);
     yScaleSpikeScope->addItem("100", "100 " + MicroVoltsSymbol, 100.0);
