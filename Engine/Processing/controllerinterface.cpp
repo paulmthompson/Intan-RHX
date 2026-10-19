@@ -123,6 +123,7 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
     spectrogramDialog(nullptr),
     spikeSortingDialog(nullptr),
     pulseResistanceDialog(nullptr),
+    antidromicStimulationDialog(nullptr),
     audioThread(nullptr),
     saveToDiskThread(nullptr),
     is7310(is7310_),
@@ -936,6 +937,9 @@ void ControllerInterface::pumpAcquisitionAndDisplay()
     }
     if (pulseResistanceDialog) {
         pulseResistanceDialog->updatePulseResistance(waveformFifo, numSamples);
+    }
+    if (antidromicStimulationDialog) {
+        antidromicStimulationDialog->updateAntidromicStimulation(waveformFifo, numSamples);
     }
 
     waveformFifo->freeOldData(WaveformFifo::ReaderDisplay);

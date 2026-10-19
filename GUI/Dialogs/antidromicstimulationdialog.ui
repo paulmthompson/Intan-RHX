@@ -55,9 +55,83 @@
     </widget>
    </item>
    <item>
-    <widget class="QLabel" name="futureToolsPlaceholderLabel">
+    <widget class="QWidget" name="plotPlaceholder" native="true"/>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="traceControlsRow">
+     <item>
+      <widget class="QLabel" name="traceTimeLabel">
+       <property name="text">
+        <string>Window:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="traceTimeComboBox"/>
+     </item>
+     <item>
+      <widget class="QLabel" name="traceYScaleMicroVoltsLabel">
+       <property name="text">
+        <string>Y:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="traceYScaleMicroVoltsComboBox"/>
+     </item>
+     <item>
+      <widget class="QLabel" name="traceYScaleVoltsLabel">
+       <property name="text">
+        <string>Y:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="traceYScaleVoltsComboBox"/>
+     </item>
+     <item>
+      <widget class="QLabel" name="holdMaxLabel">
+       <property name="text">
+        <string>Max traces:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="holdMaxTracesComboBox"/>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="holdTracesCheckBox">
+       <property name="text">
+        <string>Hold</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="clearTracesButton">
+       <property name="text">
+        <string>Clear Traces</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="traceControlsSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="statusLabel">
      <property name="text">
-      <string>Additional antidromic stimulation tools will appear here.</string>
+      <string>Waiting for stim pulse on stimulation channel.</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>

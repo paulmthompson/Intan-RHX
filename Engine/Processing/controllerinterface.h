@@ -68,6 +68,7 @@
 #include "psthdialog.h"
 #include "spectrogramdialog.h"
 #include "spikesortingdialog.h"
+#include "antidromicstimulationdialog.hpp"
 #include "pulseresistancedialog.h"
 #include "rhsdigoutconfiguration.hpp"
 
@@ -177,6 +178,10 @@ public:
     void setPulseResistanceDialog(PulseResistanceDialog* pulseResistanceDialog_)
     {
         pulseResistanceDialog = pulseResistanceDialog_;
+    }
+    void setAntidromicStimulationDialog(AntidromicStimulationDialog* antidromicStimulationDialog_)
+    {
+        antidromicStimulationDialog = antidromicStimulationDialog_;
     }
 
     QString getCurrentAudioChannel() const { return currentAudioChannel; }
@@ -463,6 +468,7 @@ private:
     SpectrogramDialog* spectrogramDialog;
     SpikeSortingDialog* spikeSortingDialog;
     PulseResistanceDialog* pulseResistanceDialog;
+    AntidromicStimulationDialog* antidromicStimulationDialog;
 
     AudioThread* audioThread;
     SaveToDiskThread* saveToDiskThread;

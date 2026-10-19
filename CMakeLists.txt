@@ -75,6 +75,7 @@ set(Sources
         Engine/Processing/waveformfifo.cpp 
         Engine/Processing/impedancereader.cpp 
         Engine/Processing/pulseelectroderesistance.cpp
+        Engine/Processing/antidromictracecapture.cpp
         Engine/Processing/xmlinterface.cpp 
         Engine/Threads/audiothread.cpp 
         Engine/Threads/savetodiskthread.cpp 
@@ -116,6 +117,7 @@ set(Sources
         GUI/Dialogs/triggerrecorddialog.cpp 
         GUI/Dialogs/waveformselectdialog.cpp 
         GUI/Widgets/abstractfigure.cpp 
+        GUI/Widgets/antidromictraceplot.cpp
         GUI/Widgets/anoutfigure.cpp 
         GUI/Widgets/controlpanelaudioanalogtab.cpp 
         GUI/Widgets/controlpanelbandwidthtab.cpp 
@@ -205,6 +207,7 @@ set(Headers
         Engine/Processing/waveformfifo.h 
         Engine/Processing/impedancereader.h 
         Engine/Processing/pulseelectroderesistance.hpp
+        Engine/Processing/antidromictracecapture.hpp
         Engine/Processing/xmlinterface.h 
         Engine/Threads/audiothread.h 
         Engine/Threads/savetodiskthread.h 
@@ -244,6 +247,7 @@ set(Headers
         GUI/Dialogs/triggerrecorddialog.h 
         GUI/Dialogs/waveformselectdialog.h 
         GUI/Widgets/abstractfigure.h 
+        GUI/Widgets/antidromictraceplot.h
         GUI/Widgets/anoutfigure.h 
         GUI/Widgets/controlpanelaudioanalogtab.h 
         GUI/Widgets/controlpanelbandwidthtab.h 

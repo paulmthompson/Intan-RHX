@@ -370,6 +370,11 @@ public:
     ChannelNameItem* antidromicStimChannel;
     DiscreteItemList* antidromicRecordingSource;
     ChannelNameItem* antidromicRecordingChannel;
+    DiscreteItemList* antidromicTraceTimeMs;
+    DiscreteItemList* antidromicTraceYScaleMicroVolts;
+    DiscreteItemList* antidromicTraceYScaleVolts;
+    BooleanItem* antidromicTraceHoldEnabled;
+    DiscreteItemList* antidromicHoldMaxTraces;
 
     /**
      * @brief True when RHS stim-channel pulse resistance mode is available.

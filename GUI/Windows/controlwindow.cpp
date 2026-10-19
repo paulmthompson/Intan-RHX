@@ -366,6 +366,7 @@ ControlWindow::~ControlWindow()
     if (antidromicStimulationDialog) {
         antidromicStimulationDialog->close();
         delete antidromicStimulationDialog;
+        controllerInterface->setAntidromicStimulationDialog(nullptr);
     }
     if (triggerRecordDialog) {
         triggerRecordDialog->close();
@@ -924,6 +925,7 @@ void ControlWindow::updateForRun()
     if (spectrogramDialog) spectrogramDialog->updateForRun();
     if (spikeSortingDialog) spikeSortingDialog->updateForRun();
     if (pulseResistanceDialog) pulseResistanceDialog->updateForRun();
+    if (antidromicStimulationDialog) antidromicStimulationDialog->updateForRun();
     if (probeMapWindow) probeMapWindow->updateForRun();
 
     if (!state->recording && !state->triggerSet) {
@@ -1079,6 +1081,7 @@ void ControlWindow::updateForStop()
     if (spectrogramDialog) spectrogramDialog->updateForStop();
     if (spikeSortingDialog) spikeSortingDialog->updateForStop();
     if (pulseResistanceDialog) pulseResistanceDialog->updateForStop();
+    if (antidromicStimulationDialog) antidromicStimulationDialog->updateForStop();
     if (probeMapWindow) probeMapWindow->updateForStop();
 
     controlPanel->updateForStop();
@@ -1288,6 +1291,7 @@ void ControlWindow::antidromicStimulation()
     }
     if (!antidromicStimulationDialog) {
         antidromicStimulationDialog = new AntidromicStimulationDialog(state, this);
+        controllerInterface->setAntidromicStimulationDialog(antidromicStimulationDialog);
     }
     antidromicStimulationDialog->activate();
 }
@@ -1992,6 +1996,7 @@ void ControlWindow::updateMenus()
             antidromicStimulationDialog->close();
             delete antidromicStimulationDialog;
             antidromicStimulationDialog = nullptr;
+            controllerInterface->setAntidromicStimulationDialog(antidromicStimulationDialog);
         }
     }
 
