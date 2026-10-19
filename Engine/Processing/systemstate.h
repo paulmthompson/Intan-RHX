@@ -375,6 +375,11 @@ public:
     DiscreteItemList* antidromicTraceYScaleVolts;
     BooleanItem* antidromicTraceHoldEnabled;
     DiscreteItemList* antidromicHoldMaxTraces;
+    IntRangeItem* antidromicDetectionThresholdMicroVolts;
+    DoubleRangeItem* antidromicDetectionThresholdVolts;
+    DoubleRangeItem* antidromicDetectionWindowCenterMs;
+    DoubleRangeItem* antidromicDetectionWindowWidthMs;
+    DiscreteItemList* antidromicDetectionCrossing;
 
     /**
      * @brief True when RHS stim-channel pulse resistance mode is available.

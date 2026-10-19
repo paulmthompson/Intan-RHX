@@ -14,8 +14,11 @@
 #include "ui_antidromicstimulationdialog.h"
 #include "waveformfifo.h"
 
+#include <cmath>
+
 #include <QComboBox>
 #include <QDialogButtonBox>
+#include <QSpacerItem>
 #include <QVBoxLayout>
 
 namespace {
@@ -34,6 +37,9 @@ AntidromicStimulationDialog::AntidromicStimulationDialog(SystemState* state, QWi
 {
     _ui->setupUi(this);
     setWindowModality(Qt::NonModal);
+    _ui->plotRowLayout->setStretch(0, 1);
+    _ui->plotRowLayout->setStretch(1, 0);
+    _ui->windowCenterSliderRow->setStretch(1, 1);
 
     _tracePlot = new AntidromicTracePlot(_state, this);
     auto* plotLayout = new QVBoxLayout(_ui->plotPlaceholder);
@@ -61,9 +67,24 @@ AntidromicStimulationDialog::AntidromicStimulationDialog(SystemState* state, QWi
     connect(_ui->holdMaxTracesComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setHoldMaxTraces(int)));
     connect(_ui->clearTracesButton, SIGNAL(clicked()), this, SLOT(clearHeldTraces()));
 
+    _state->antidromicDetectionWindowWidthMs->setupSpinBox(_ui->windowWidthSpinBox);
+    _state->antidromicDetectionCrossing->setupComboBox(_ui->crossingComboBox);
+    connect(_tracePlot, SIGNAL(plotGeometryUpdated()), this, SLOT(syncWindowCenterSliderMargins()));
+    connect(_ui->thresholdSlider, SIGNAL(valueChanged(int)), this, SLOT(thresholdSliderChanged(int)));
+    connect(_ui->windowCenterSlider, SIGNAL(valueChanged(int)), this, SLOT(windowCenterSliderChanged(int)));
+    connect(_ui->windowWidthSpinBox, SIGNAL(valueChanged(double)), this, SLOT(windowWidthChanged(double)));
+    connect(_ui->crossingComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(crossingIndexChanged(int)));
+
     refreshChannelComboBoxes();
     updateYScaleUi();
+    syncWindowWidthSpinBoxLimits();
+    clampDetectionWindowToTrace();
+    syncWindowCenterSliderRange();
+    syncDetectionWidgetsFromState();
+    updateDetectionOverlay();
+    updateStatisticsLabels();
     updateFromState();
+    syncWindowCenterSliderMargins();
 }
 
 AntidromicStimulationDialog::~AntidromicStimulationDialog()
@@ -217,10 +238,12 @@ void AntidromicStimulationDialog::resetCaptureForConfigChange()
 {
     _captureState = antidromicTraceCapture::AntidromicTraceCaptureState();
     _heldTraces.clear();
+    _heldLatenciesMs.clear();
     _hasLatestTrace = false;
     if (_tracePlot) {
         _tracePlot->clearTraces();
     }
+    updateStatisticsLabels();
 }
 
 void AntidromicStimulationDialog::refreshPlotFromBuffers()
@@ -247,7 +270,11 @@ void AntidromicStimulationDialog::applyCapturedSnippet(const antidromicTraceCapt
         const int maxTraces = static_cast<int>(_state->antidromicHoldMaxTraces->getNumericValue());
         while (static_cast<int>(_heldTraces.size()) > maxTraces) {
             _heldTraces.pop_front();
+            if (!_heldLatenciesMs.empty()) {
+                _heldLatenciesMs.pop_front();
+            }
         }
+        recomputeAllDetections();
     }
     refreshPlotFromBuffers();
 }
@@ -331,7 +358,9 @@ void AntidromicStimulationDialog::updateAntidromicStimulation(WaveformFifo* wave
         applyCapturedSnippet(*snippet);
         _ui->statusLabel->setText(tr("Captured trace at stim onset (t = 0)."));
     } else if (!_ui->statusLabel->text().contains(tr("disabled"))) {
-        _ui->statusLabel->setText(tr("Waiting for stim pulse on stimulation channel."));
+        _ui->statusLabel->setText(
+        tr("Waiting for stim pulse on stimulation channel. Detection uses the first threshold crossing in the "
+           "search window (enable Hold for hit-rate and latency statistics)."));
     }
 
     setWindowTitle(tr("Antidromic Stimulation") + " (" + recordNative + ")");
@@ -380,7 +409,15 @@ void AntidromicStimulationDialog::updateFromState()
         _ui->holdMaxTracesComboBox->setCurrentIndex(_state->antidromicHoldMaxTraces->getIndex());
     }
 
+    syncWindowWidthSpinBoxLimits();
+    clampDetectionWindowToTrace();
+    syncWindowCenterSliderRange();
+    syncThresholdSliderRange();
+    syncDetectionWidgetsFromState();
+    syncWindowCenterSliderMargins();
+    updateDetectionOverlay();
     refreshPlotFromBuffers();
+    updateStatisticsLabels();
 
     _loading = false;
 }
@@ -405,6 +442,10 @@ void AntidromicStimulationDialog::recordingSourceIndexChanged(int index)
     _state->antidromicRecordingSource->setIndex(index);
     populateRecordingChannelComboBox();
     updateYScaleUi();
+    syncWindowCenterSliderRange();
+    syncDetectionWidgetsFromState();
+    updateDetectionOverlay();
+    recomputeAllDetections();
     syncConfigFingerprint();
 }
 
@@ -427,6 +468,12 @@ void AntidromicStimulationDialog::setTraceTimeSpan(int index)
     }
     _state->antidromicTraceTimeMs->setIndex(index);
     _captureState = antidromicTraceCapture::AntidromicTraceCaptureState();
+    clampDetectionWindowToTrace();
+    syncWindowWidthSpinBoxLimits();
+    syncWindowCenterSliderRange();
+    syncDetectionWidgetsFromState();
+    updateDetectionOverlay();
+    recomputeAllDetections();
 }
 
 void AntidromicStimulationDialog::setTraceYScaleMicroVolts(int index)
@@ -435,6 +482,8 @@ void AntidromicStimulationDialog::setTraceYScaleMicroVolts(int index)
         return;
     }
     _state->antidromicTraceYScaleMicroVolts->setIndex(index);
+    syncThresholdSliderRange();
+    updateDetectionOverlay();
 }
 
 void AntidromicStimulationDialog::setTraceYScaleVolts(int index)
@@ -443,6 +492,8 @@ void AntidromicStimulationDialog::setTraceYScaleVolts(int index)
         return;
     }
     _state->antidromicTraceYScaleVolts->setIndex(index);
+    syncThresholdSliderRange();
+    updateDetectionOverlay();
 }
 
 void AntidromicStimulationDialog::setHoldEnabled(bool enabled)
@@ -453,8 +504,10 @@ void AntidromicStimulationDialog::setHoldEnabled(bool enabled)
     _state->antidromicTraceHoldEnabled->setValue(enabled);
     if (!enabled) {
         _heldTraces.clear();
+        _heldLatenciesMs.clear();
     }
     refreshPlotFromBuffers();
+    updateStatisticsLabels();
 }
 
 void AntidromicStimulationDialog::setHoldMaxTraces(int index)
@@ -466,16 +519,252 @@ void AntidromicStimulationDialog::setHoldMaxTraces(int index)
     const int maxTraces = static_cast<int>(_state->antidromicHoldMaxTraces->getNumericValue());
     while (static_cast<int>(_heldTraces.size()) > maxTraces) {
         _heldTraces.pop_front();
+        if (!_heldLatenciesMs.empty()) {
+            _heldLatenciesMs.pop_front();
+        }
     }
+    recomputeAllDetections();
     refreshPlotFromBuffers();
 }
 
 void AntidromicStimulationDialog::clearHeldTraces()
 {
     _heldTraces.clear();
+    _heldLatenciesMs.clear();
     _hasLatestTrace = false;
     if (_tracePlot) {
         _tracePlot->clearTraces();
     }
-    _ui->statusLabel->setText(tr("Traces cleared."));
+    updateStatisticsLabels();
+    _ui->statusLabel->setText(tr("Traces cleared. Enable Hold to accumulate statistics."));
+}
+
+antidromicSpikeDetection::AntidromicDetectionSettings AntidromicStimulationDialog::buildDetectionSettings() const
+{
+    antidromicSpikeDetection::AntidromicDetectionSettings settings;
+    if (recordingSourceIsBoardAdc()) {
+        settings.threshold = _state->antidromicDetectionThresholdVolts->getValue();
+    } else {
+        settings.threshold = static_cast<double>(_state->antidromicDetectionThresholdMicroVolts->getValue());
+    }
+    settings.windowCenterMs = _state->antidromicDetectionWindowCenterMs->getValue();
+    settings.windowWidthMs = _state->antidromicDetectionWindowWidthMs->getValue();
+    settings.polarity = antidromicSpikeDetection::crossingPolarityFromValueName(
+        _state->antidromicDetectionCrossing->getValue().toStdString());
+    settings.sampleRateHz = _state->sampleRate->getNumericValue();
+    settings.totalTraceTimeMs = _state->antidromicTraceTimeMs->getNumericValue();
+    return settings;
+}
+
+void AntidromicStimulationDialog::clampDetectionWindowToTrace()
+{
+    const double halfTraceMs = _state->antidromicTraceTimeMs->getNumericValue() * 0.5;
+    double centerMs = _state->antidromicDetectionWindowCenterMs->getValue();
+    double widthMs = _state->antidromicDetectionWindowWidthMs->getValue();
+
+    widthMs = std::min(widthMs, _state->antidromicTraceTimeMs->getNumericValue());
+    widthMs = std::max(widthMs, _state->antidromicDetectionWindowWidthMs->getMinValue());
+
+    const double maxCenter = halfTraceMs - widthMs * 0.5;
+    const double minCenter = -halfTraceMs + widthMs * 0.5;
+    centerMs = std::max(minCenter, std::min(maxCenter, centerMs));
+
+    _state->antidromicDetectionWindowCenterMs->setValue(centerMs);
+    _state->antidromicDetectionWindowWidthMs->setValue(widthMs);
+}
+
+void AntidromicStimulationDialog::syncWindowCenterSliderRange()
+{
+    const double totalTraceMs = _state->antidromicTraceTimeMs->getNumericValue();
+    const double halfSpanMs = totalTraceMs * 0.5;
+    const int halfSpanTenths = static_cast<int>(std::lround(halfSpanMs * 10.0));
+    _ui->windowCenterSlider->blockSignals(true);
+    _ui->windowCenterSlider->setRange(-halfSpanTenths, halfSpanTenths);
+    const int centerTenths =
+        static_cast<int>(std::lround(_state->antidromicDetectionWindowCenterMs->getValue() * 10.0));
+    _ui->windowCenterSlider->setValue(std::max(-halfSpanTenths, std::min(halfSpanTenths, centerTenths)));
+    _ui->windowCenterSlider->blockSignals(false);
+}
+
+void AntidromicStimulationDialog::syncWindowWidthSpinBoxLimits()
+{
+    const double totalTraceMs = _state->antidromicTraceTimeMs->getNumericValue();
+    const double minWidth = _state->antidromicDetectionWindowWidthMs->getMinValue();
+
+    _ui->windowWidthSpinBox->blockSignals(true);
+    _ui->windowWidthSpinBox->setMinimum(minWidth);
+    _ui->windowWidthSpinBox->setMaximum(totalTraceMs);
+    _ui->windowWidthSpinBox->blockSignals(false);
+}
+
+void AntidromicStimulationDialog::syncThresholdSliderRange()
+{
+    if (!_tracePlot) {
+        return;
+    }
+    _ui->thresholdSlider->setMinimumHeight(_tracePlot->height());
+
+    _ui->thresholdSlider->blockSignals(true);
+    if (recordingSourceIsBoardAdc()) {
+        const int yHalfMillivolts =
+            static_cast<int>(std::lround(_state->antidromicTraceYScaleVolts->getNumericValue() * 1000.0));
+        _ui->thresholdSlider->setRange(-yHalfMillivolts, yHalfMillivolts);
+        const int scaledMillivolts =
+            static_cast<int>(std::lround(_state->antidromicDetectionThresholdVolts->getValue() * 1000.0));
+        _ui->thresholdSlider->setValue(std::max(-yHalfMillivolts, std::min(yHalfMillivolts, scaledMillivolts)));
+    } else {
+        const int yHalfMicroVolts =
+            static_cast<int>(std::lround(_state->antidromicTraceYScaleMicroVolts->getNumericValue()));
+        _ui->thresholdSlider->setRange(-yHalfMicroVolts, yHalfMicroVolts);
+        const int threshold = _state->antidromicDetectionThresholdMicroVolts->getValue();
+        _ui->thresholdSlider->setValue(std::max(-yHalfMicroVolts, std::min(yHalfMicroVolts, threshold)));
+    }
+    _ui->thresholdSlider->blockSignals(false);
+}
+
+void AntidromicStimulationDialog::syncWindowCenterSliderMargins()
+{
+    if (!_tracePlot) {
+        return;
+    }
+
+    QLayoutItem* leftItem = _ui->windowCenterSliderRow->itemAt(0);
+    QLayoutItem* rightItem = _ui->windowCenterSliderRow->itemAt(2);
+    if (!leftItem || !rightItem) {
+        return;
+    }
+
+    const int leftInset = _tracePlot->plotAreaLeftInset();
+    const int rightInset = _tracePlot->plotAreaRightInset();
+    if (QSpacerItem* leftSpacer = leftItem->spacerItem()) {
+        leftSpacer->changeSize(leftInset, 1, QSizePolicy::Fixed, QSizePolicy::Minimum);
+    }
+    if (QSpacerItem* rightSpacer = rightItem->spacerItem()) {
+        rightSpacer->changeSize(rightInset, 1, QSizePolicy::Fixed, QSizePolicy::Minimum);
+    }
+    _ui->windowCenterSliderRow->invalidate();
+}
+
+void AntidromicStimulationDialog::syncDetectionWidgetsFromState()
+{
+    syncThresholdSliderRange();
+
+    if (std::abs(_ui->windowWidthSpinBox->value() - _state->antidromicDetectionWindowWidthMs->getValue()) > 1.0e-9) {
+        _ui->windowWidthSpinBox->blockSignals(true);
+        _ui->windowWidthSpinBox->setValue(_state->antidromicDetectionWindowWidthMs->getValue());
+        _ui->windowWidthSpinBox->blockSignals(false);
+    }
+
+    if (_ui->crossingComboBox->currentIndex() != _state->antidromicDetectionCrossing->getIndex()) {
+        _ui->crossingComboBox->blockSignals(true);
+        _ui->crossingComboBox->setCurrentIndex(_state->antidromicDetectionCrossing->getIndex());
+        _ui->crossingComboBox->blockSignals(false);
+    }
+}
+
+void AntidromicStimulationDialog::updateDetectionOverlay()
+{
+    if (!_tracePlot) {
+        return;
+    }
+    const antidromicSpikeDetection::AntidromicDetectionSettings settings = buildDetectionSettings();
+    _tracePlot->setDetectionOverlay(settings.threshold, settings.windowCenterMs, settings.windowWidthMs);
+}
+
+void AntidromicStimulationDialog::recomputeAllDetections()
+{
+    if (!_state->antidromicTraceHoldEnabled->getValue()) {
+        return;
+    }
+
+    const antidromicSpikeDetection::AntidromicDetectionSettings settings = buildDetectionSettings();
+    _heldLatenciesMs.clear();
+    for (const antidromicTraceCapture::AntidromicTraceSnippet& snippet : _heldTraces) {
+        _heldLatenciesMs.push_back(antidromicSpikeDetection::detectLatencyMs(snippet.samples, settings));
+    }
+    updateStatisticsLabels();
+}
+
+void AntidromicStimulationDialog::updateStatisticsLabels()
+{
+    if (!_state->antidromicTraceHoldEnabled->getValue() || _heldTraces.empty()) {
+        _ui->hitRateLabel->setText(tr("Hit rate: N/A"));
+        _ui->latencyStatsLabel->setText(tr("Latency: N/A"));
+        return;
+    }
+
+    std::vector<std::optional<double>> latencies;
+    latencies.reserve(_heldLatenciesMs.size());
+    for (const std::optional<double>& latency : _heldLatenciesMs) {
+        latencies.push_back(latency);
+    }
+
+    const antidromicSpikeDetection::AntidromicHeldTraceStats stats =
+        antidromicSpikeDetection::computeHeldTraceStats(latencies);
+
+    _ui->hitRateLabel->setText(tr("Hit rate: %1% (%2 / %3)")
+                                   .arg(stats.hitRatePercent, 0, 'f', 1)
+                                   .arg(stats.numHits)
+                                   .arg(stats.numTraces));
+
+    if (!stats.meanMs.has_value()) {
+        _ui->latencyStatsLabel->setText(tr("Latency: N/A"));
+        return;
+    }
+
+    if (stats.stdMs.has_value()) {
+        _ui->latencyStatsLabel->setText(tr("Latency: %1 ± %2 ms")
+                                            .arg(*stats.meanMs, 0, 'f', 3)
+                                            .arg(*stats.stdMs, 0, 'f', 3));
+    } else {
+        _ui->latencyStatsLabel->setText(tr("Latency: %1 ms").arg(*stats.meanMs, 0, 'f', 3));
+    }
+}
+
+void AntidromicStimulationDialog::thresholdSliderChanged(int value)
+{
+    if (_loading) {
+        return;
+    }
+    if (recordingSourceIsBoardAdc()) {
+        _state->antidromicDetectionThresholdVolts->setValue(static_cast<double>(value) / 1000.0);
+    } else {
+        _state->antidromicDetectionThresholdMicroVolts->setValue(value);
+    }
+    updateDetectionOverlay();
+    recomputeAllDetections();
+}
+
+void AntidromicStimulationDialog::windowCenterSliderChanged(int value)
+{
+    if (_loading) {
+        return;
+    }
+    _state->antidromicDetectionWindowCenterMs->setValue(static_cast<double>(value) / 10.0);
+    clampDetectionWindowToTrace();
+    syncWindowCenterSliderRange();
+    updateDetectionOverlay();
+    recomputeAllDetections();
+}
+
+void AntidromicStimulationDialog::windowWidthChanged(double value)
+{
+    if (_loading) {
+        return;
+    }
+    _state->antidromicDetectionWindowWidthMs->setValue(value);
+    clampDetectionWindowToTrace();
+    syncWindowCenterSliderRange();
+    syncDetectionWidgetsFromState();
+    updateDetectionOverlay();
+    recomputeAllDetections();
+}
+
+void AntidromicStimulationDialog::crossingIndexChanged(int index)
+{
+    if (_loading || index < 0) {
+        return;
+    }
+    _state->antidromicDetectionCrossing->setIndex(index);
+    recomputeAllDetections();
 }

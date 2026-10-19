@@ -36,6 +36,10 @@ AntidromicTracePlot::AntidromicTracePlot(SystemState* state, QWidget* parent)
     : QWidget(parent)
     , _state(state)
     , _boardAdcRecording(false)
+    , _showDetectionOverlay(false)
+    , _overlayThreshold(0.0)
+    , _overlayWindowCenterMs(0.0)
+    , _overlayWindowWidthMs(1.0)
     , _tStepMsec(0.0)
 {
     connect(_state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
@@ -74,6 +78,15 @@ void AntidromicTracePlot::clearTraces()
     update();
 }
 
+void AntidromicTracePlot::setDetectionOverlay(double threshold, double windowCenterMs, double windowWidthMs)
+{
+    _overlayThreshold = threshold;
+    _overlayWindowCenterMs = windowCenterMs;
+    _overlayWindowWidthMs = windowWidthMs;
+    _showDetectionOverlay = true;
+    update();
+}
+
 QSize AntidromicTracePlot::minimumSizeHint() const
 {
     return QSize(ANTIDROMICTRACEPLOT_X_SIZE, ANTIDROMICTRACEPLOT_Y_SIZE);
@@ -98,6 +111,23 @@ void AntidromicTracePlot::resizeEvent(QResizeEvent*)
     _image = QImage(size(), QImage::Format_ARGB32_Premultiplied);
     _image.fill(Qt::black);
     update();
+    emit plotGeometryUpdated();
+}
+
+int AntidromicTracePlot::plotAreaLeftInset() const
+{
+    if (_plotFrame.isEmpty()) {
+        return 0;
+    }
+    return _plotFrame.left();
+}
+
+int AntidromicTracePlot::plotAreaRightInset() const
+{
+    if (_plotFrame.isEmpty()) {
+        return 0;
+    }
+    return std::max(0, width() - 1 - _plotFrame.right());
 }
 
 void AntidromicTracePlot::updateCoordinateTranslator()
@@ -156,6 +186,34 @@ void AntidromicTracePlot::paintAxes(QPainter& painter, PlotDecorator& plotDecora
     plotDecorator.drawLabeledTickMarkBottom(formatAxisValue(tMax) + QStringLiteral(" ms"), _ct, tMax, 0, true);
 }
 
+void AntidromicTracePlot::paintDetectionOverlay(QPainter& painter, PlotDecorator& plotDecorator)
+{
+    if (!_showDetectionOverlay) {
+        return;
+    }
+
+    const double windowHalfWidth = _overlayWindowWidthMs * 0.5;
+    const double windowStartMs = _overlayWindowCenterMs - windowHalfWidth;
+    const double windowEndMs = _overlayWindowCenterMs + windowHalfWidth;
+
+    painter.setClipRect(_ct.clippingRect());
+
+    QColor bandColor(255, 200, 0, 40);
+    painter.fillRect(QRectF(_ct.screenXFromRealX(windowStartMs), _ct.yTop(),
+                            _ct.screenXFromRealX(windowEndMs) - _ct.screenXFromRealX(windowStartMs),
+                            _ct.yBottom() - _ct.yTop()),
+                     bandColor);
+
+    painter.setPen(QColor(255, 200, 0));
+    plotDecorator.drawVerticalAxisLine(_ct, windowStartMs);
+    plotDecorator.drawVerticalAxisLine(_ct, windowEndMs);
+
+    painter.setPen(Qt::red);
+    plotDecorator.drawHorizontalAxisLine(_ct, _overlayThreshold);
+
+    painter.setClipping(false);
+}
+
 void AntidromicTracePlot::paintEvent(QPaintEvent*)
 {
     QPainter painter(&_image);
@@ -190,6 +248,8 @@ void AntidromicTracePlot::paintEvent(QPaintEvent*)
     } else if (_latestTrace.has_value()) {
         paintTrace(painter, _latestTrace->samples, QColor(0, 200, 255));
     }
+
+    paintDetectionOverlay(painter, plotDecorator);
 
     painter.setClipping(false);
 

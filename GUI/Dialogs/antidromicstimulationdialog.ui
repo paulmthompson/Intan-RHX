@@ -2,60 +2,231 @@
 <ui version="4.0">
  <class>AntidromicStimulationDialog</class>
  <widget class="QDialog" name="AntidromicStimulationDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>772</width>
+    <height>443</height>
+   </rect>
+  </property>
   <property name="windowTitle">
    <string>Antidromic Stimulation</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QGroupBox" name="stimChannelGroupBox">
-     <property name="title">
-      <string>Stimulation Channel</string>
-     </property>
-     <layout class="QFormLayout" name="stimFormLayout">
-      <item row="0" column="0">
-       <widget class="QLabel" name="stimChannelLabel">
-        <property name="text">
-         <string>RHS headstage channel:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QComboBox" name="stimChannelComboBox"/>
-      </item>
-     </layout>
-    </widget>
+    <layout class="QHBoxLayout" name="Channel_Select_Box">
+     <item>
+      <widget class="QGroupBox" name="recordingChannelGroupBox">
+       <property name="title">
+        <string>Recording Channel</string>
+       </property>
+       <layout class="QFormLayout" name="recordingFormLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="recordingSourceLabel">
+          <property name="text">
+           <string>Source:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="recordingSourceComboBox"/>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="recordingChannelLabel">
+          <property name="text">
+           <string>Channel:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="recordingChannelComboBox"/>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="stimChannelGroupBox">
+       <property name="title">
+        <string>Stimulation Channel</string>
+       </property>
+       <layout class="QFormLayout" name="stimFormLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="stimChannelLabel">
+          <property name="text">
+           <string>RHS headstage channel:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="stimChannelComboBox"/>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item>
-    <widget class="QGroupBox" name="recordingChannelGroupBox">
-     <property name="title">
-      <string>Recording Channel</string>
-     </property>
-     <layout class="QFormLayout" name="recordingFormLayout">
-      <item row="0" column="0">
-       <widget class="QLabel" name="recordingSourceLabel">
-        <property name="text">
-         <string>Source:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QComboBox" name="recordingSourceComboBox"/>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="recordingChannelLabel">
-        <property name="text">
-         <string>Channel:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QComboBox" name="recordingChannelComboBox"/>
-      </item>
-     </layout>
-    </widget>
+    <layout class="QVBoxLayout" name="plot_vertical_layout">
+     <item>
+      <layout class="QHBoxLayout" name="plot_horizontal_layout">
+       <item>
+        <widget class="QWidget" name="plotPlaceholder" native="true"/>
+       </item>
+       <item>
+        <widget class="QSlider" name="thresholdSlider">
+         <property name="toolTip">
+          <string>Detection threshold (vertical position matches the red line on the trace)</string>
+         </property>
+         <property name="minimum">
+          <number>-500</number>
+         </property>
+         <property name="maximum">
+          <number>500</number>
+         </property>
+         <property name="value">
+          <number>-200</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="plotRowLayout">
+       <item>
+        <layout class="QVBoxLayout" name="plotColumnLayout">
+         <item>
+          <widget class="QLabel" name="windowCenterLabel">
+           <property name="text">
+            <string>Search window center (ms from stim onset):</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="windowCenterSliderRow">
+           <item>
+            <spacer name="windowCenterLeftSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QSlider" name="windowCenterSlider">
+             <property name="toolTip">
+              <string>Center of spike search window relative to stim onset (t = 0). Thumb aligns with the yellow band on the trace.</string>
+             </property>
+             <property name="minimum">
+              <number>-100</number>
+             </property>
+             <property name="maximum">
+              <number>100</number>
+             </property>
+             <property name="value">
+              <number>20</number>
+             </property>
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="windowCenterRightSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>8</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+    </layout>
    </item>
    <item>
-    <widget class="QWidget" name="plotPlaceholder" native="true"/>
+    <layout class="QHBoxLayout" name="detectionControlsRow">
+     <item>
+      <widget class="QLabel" name="windowWidthLabel">
+       <property name="text">
+        <string>Search width (ms):</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDoubleSpinBox" name="windowWidthSpinBox"/>
+     </item>
+     <item>
+      <widget class="QLabel" name="crossingLabel">
+       <property name="text">
+        <string>Crossing:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="crossingComboBox"/>
+     </item>
+     <item>
+      <spacer name="detectionControlsSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="statisticsRow">
+     <item>
+      <widget class="QLabel" name="hitRateLabel">
+       <property name="text">
+        <string>Hit rate: N/A</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="latencyStatsLabel">
+       <property name="text">
+        <string>Latency: N/A</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="statisticsSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
    </item>
    <item>
     <layout class="QHBoxLayout" name="traceControlsRow">

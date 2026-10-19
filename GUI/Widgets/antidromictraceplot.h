@@ -46,11 +46,29 @@ public:
      */
     void clearTraces();
 
+    /**
+     * @brief Draw threshold and spike search window overlays on the plot.
+     */
+    void setDetectionOverlay(double threshold, double windowCenterMs, double windowWidthMs);
+
+    /**
+     * @brief Horizontal inset from widget edge to the plotted trace area (pixels).
+     */
+    int plotAreaLeftInset() const;
+
+    /**
+     * @brief Horizontal inset from the plotted trace area to the widget edge (pixels).
+     */
+    int plotAreaRightInset() const;
+
     QSize minimumSizeHint() const override;
     QSize sizeHint() const override;
 
 public slots:
     void updateFromState();
+
+signals:
+    void plotGeometryUpdated();
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -60,9 +78,14 @@ private:
     void updateCoordinateTranslator();
     void paintTrace(QPainter& painter, const std::vector<float>& samples, const QColor& color);
     void paintAxes(QPainter& painter, PlotDecorator& plotDecorator, double yHalfRange, const QString& yUnitSuffix);
+    void paintDetectionOverlay(QPainter& painter, PlotDecorator& plotDecorator);
 
     SystemState* _state;
     bool _boardAdcRecording;
+    bool _showDetectionOverlay;
+    double _overlayThreshold;
+    double _overlayWindowCenterMs;
+    double _overlayWindowWidthMs;
     std::optional<antidromicTraceCapture::AntidromicTraceSnippet> _latestTrace;
     std::deque<antidromicTraceCapture::AntidromicTraceSnippet> _heldTraces;
     double _tStepMsec;

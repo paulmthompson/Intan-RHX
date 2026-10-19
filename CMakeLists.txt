@@ -76,6 +76,7 @@ set(Sources
         Engine/Processing/impedancereader.cpp 
         Engine/Processing/pulseelectroderesistance.cpp
         Engine/Processing/antidromictracecapture.cpp
+        Engine/Processing/antidromicspikedetection.cpp
         Engine/Processing/xmlinterface.cpp 
         Engine/Threads/audiothread.cpp 
         Engine/Threads/savetodiskthread.cpp 
@@ -208,6 +209,7 @@ set(Headers
         Engine/Processing/impedancereader.h 
         Engine/Processing/pulseelectroderesistance.hpp
         Engine/Processing/antidromictracecapture.hpp
+        Engine/Processing/antidromicspikedetection.hpp
         Engine/Processing/xmlinterface.h 
         Engine/Threads/audiothread.h 
         Engine/Threads/savetodiskthread.h 
@@ -430,4 +432,19 @@ target_compile_options(pulseelectroderesistance_golden_test PRIVATE
     -ffunction-sections -fdata-sections)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_link_options(pulseelectroderesistance_golden_test PRIVATE -Wl,--gc-sections)
+endif()
+
+add_executable(antidromicspikedetection_golden_test
+    tests/antidromicspikedetection_golden_test.cpp
+    Engine/Processing/antidromicspikedetection.cpp)
+set_target_properties(antidromicspikedetection_golden_test PROPERTIES
+    AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+target_link_libraries(antidromicspikedetection_golden_test PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+target_include_directories(antidromicspikedetection_golden_test PRIVATE
+    Engine/Processing
+    includes)
+target_compile_options(antidromicspikedetection_golden_test PRIVATE
+    -ffunction-sections -fdata-sections)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_link_options(antidromicspikedetection_golden_test PRIVATE -Wl,--gc-sections)
 endif()

@@ -780,10 +780,10 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     antidromicTraceTimeMs->addItem("20", "20 ms", 20.0);
     antidromicTraceTimeMs->addItem("50", "50 ms", 50.0);
     antidromicTraceTimeMs->addItem("100", "100 ms", 100.0);
-    antidromicTraceTimeMs->addItem("200", "200 ms", 200.0);
-    antidromicTraceTimeMs->addItem("500", "500 ms", 500.0);
-    antidromicTraceTimeMs->addItem("1000", "1 s", 1000.0);
-    antidromicTraceTimeMs->addItem("2000", "2 s", 2000.0);
+    antidromicTraceTimeMs->addAlternateValueName("100", "200");
+    antidromicTraceTimeMs->addAlternateValueName("100", "500");
+    antidromicTraceTimeMs->addAlternateValueName("100", "1000");
+    antidromicTraceTimeMs->addAlternateValueName("100", "2000");
     antidromicTraceTimeMs->setValue("20");
     antidromicTraceYScaleMicroVolts = new DiscreteItemList("AntidromicTraceScaleMicroVolts", globalItems, this);
     antidromicTraceYScaleMicroVolts->addItem("50", "50 " + MicroVoltsSymbol, 50.0);
@@ -811,6 +811,18 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     antidromicHoldMaxTraces->addItem("50", "50", 50);
     antidromicHoldMaxTraces->addItem("100", "100", 100);
     antidromicHoldMaxTraces->setValue("50");
+    antidromicDetectionThresholdMicroVolts =
+        new IntRangeItem("AntidromicDetectionThresholdMicroVolts", globalItems, this, -5000, 5000, -200);
+    antidromicDetectionThresholdVolts =
+        new DoubleRangeItem("AntidromicDetectionThresholdVolts", globalItems, this, -10.0, 10.0, 0.05);
+    antidromicDetectionWindowCenterMs =
+        new DoubleRangeItem("AntidromicDetectionWindowCenterMs", globalItems, this, -50.0, 50.0, 2.0);
+    antidromicDetectionWindowWidthMs =
+        new DoubleRangeItem("AntidromicDetectionWindowWidthMs", globalItems, this, 0.05, 100.0, 1.0);
+    antidromicDetectionCrossing = new DiscreteItemList("AntidromicDetectionCrossing", globalItems, this);
+    antidromicDetectionCrossing->addItem("NegativeToPositive", tr("Negative to positive"), 0);
+    antidromicDetectionCrossing->addItem("PositiveToNegative", tr("Positive to negative"), 1);
+    antidromicDetectionCrossing->setValue("NegativeToPositive");
 
     yScaleSpikeScope = new DiscreteItemList("SpikeScopeScaleMicroVolts", globalItems, this);
     yScaleSpikeScope->addItem("50", "50 " + MicroVoltsSymbol, 50.0);

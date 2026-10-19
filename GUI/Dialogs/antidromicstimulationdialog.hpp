@@ -8,9 +8,12 @@
 #define ANTIDROMICSTIMULATIONDIALOG_HPP
 
 #include <deque>
+#include <optional>
+#include <vector>
 
 #include <QDialog>
 
+#include "antidromicspikedetection.hpp"
 #include "antidromictracecapture.hpp"
 
 class AntidromicTracePlot;
@@ -63,6 +66,11 @@ private slots:
     void setHoldEnabled(bool enabled);
     void setHoldMaxTraces(int index);
     void clearHeldTraces();
+    void thresholdSliderChanged(int value);
+    void windowCenterSliderChanged(int value);
+    void windowWidthChanged(double value);
+    void crossingIndexChanged(int index);
+    void syncWindowCenterSliderMargins();
 
 private:
     void refreshChannelComboBoxes();
@@ -77,6 +85,15 @@ private:
     void resetCaptureForConfigChange();
     void refreshPlotFromBuffers();
     void applyCapturedSnippet(const antidromicTraceCapture::AntidromicTraceSnippet& snippet);
+    antidromicSpikeDetection::AntidromicDetectionSettings buildDetectionSettings() const;
+    void clampDetectionWindowToTrace();
+    void syncWindowCenterSliderRange();
+    void syncWindowWidthSpinBoxLimits();
+    void syncThresholdSliderRange();
+    void syncDetectionWidgetsFromState();
+    void updateDetectionOverlay();
+    void recomputeAllDetections();
+    void updateStatisticsLabels();
 
     SystemState* _state;
     Ui::AntidromicStimulationDialog* _ui;
@@ -84,6 +101,7 @@ private:
     bool _loading;
     antidromicTraceCapture::AntidromicTraceCaptureState _captureState;
     std::deque<antidromicTraceCapture::AntidromicTraceSnippet> _heldTraces;
+    std::deque<std::optional<double>> _heldLatenciesMs;
     antidromicTraceCapture::AntidromicTraceSnippet _latestTrace;
     bool _hasLatestTrace;
     QString _configFingerprint;
