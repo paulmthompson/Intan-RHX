@@ -84,7 +84,7 @@ private slots:
     void setExternalDcVoltageScale(double value);
     void setExternalTraceVoltageScale(double value);
     void setExternalCurrentMicroAmps(double value);
-    void setExternalTtlInput(int index);
+    void setExternalTtlMarker(int index);
     void setExternalTtlActiveHigh(bool activeHigh);
     void setTraceTimeSpan(int index) { state->pulseResistanceTraceTimeMs->setIndex(index); }
     void setTraceYScaleAc(int index) { state->pulseResistanceTraceYScaleAc->setIndex(index); }
@@ -123,7 +123,7 @@ private:
     QDoubleSpinBox* externalDcVoltageScaleSpinBox;
     QDoubleSpinBox* externalTraceVoltageScaleSpinBox;
     QDoubleSpinBox* externalCurrentSpinBox;
-    QComboBox* externalTtlInputComboBox;
+    QComboBox* externalTtlMarkerComboBox;
     QCheckBox* externalTtlActiveHighCheckbox;
 
     QPushButton* clearHistoryButton;

@@ -762,12 +762,19 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
         new DoubleRangeItem("PulseResistanceExternalTraceVoltageScale", globalItems, this, 1.0e-6, 1000.0, 1.0);
     pulseResistanceExternalCurrentMicroAmps =
         new DoubleRangeItem("PulseResistanceExternalCurrentMicroAmps", globalItems, this, 0.0, 10000.0, 100.0);
-    pulseResistanceExternalTtlInput = new DiscreteItemList("PulseResistanceExternalTtlInput", globalItems, this);
+    pulseResistanceExternalTtlMarker =
+        new DiscreteItemList("PulseResistanceExternalTtlInput", globalItems, this);
     for (int i = 0; i < numDigitalInputs; ++i) {
-        QString name = QString::fromStdString(AbstractRHXController::getDigitalInputChannelName(getControllerTypeEnum(), i));
-        pulseResistanceExternalTtlInput->addItem(name, name, i);
+        QString name =
+            QString::fromStdString(AbstractRHXController::getDigitalInputChannelName(getControllerTypeEnum(), i));
+        pulseResistanceExternalTtlMarker->addItem(name, name, i);
     }
-    pulseResistanceExternalTtlInput->setIndex(0);
+    for (int i = 0; i < numDigitalInputs; ++i) {
+        QString name =
+            QString::fromStdString(AbstractRHXController::getDigitalOutputChannelName(getControllerTypeEnum(), i));
+        pulseResistanceExternalTtlMarker->addItem(name, name, i);
+    }
+    pulseResistanceExternalTtlMarker->setIndex(0);
     pulseResistanceExternalTtlActiveHigh =
         new BooleanItem("PulseResistanceExternalTtlActiveHigh", globalItems, this, true);
 

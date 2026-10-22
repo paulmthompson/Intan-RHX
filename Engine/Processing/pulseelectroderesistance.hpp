@@ -73,7 +73,7 @@ inline double resistanceQuantizationUncertaintyPercent(double deltaVolts)
 double boardAdcLsbVolts(ControllerType controllerType);
 
 /**
- * @brief Map a TTL digital input word to synthetic stim flags for pulse edge detection.
+ * @brief Map a digital I/O word (DIGITAL-IN-WORD or DIGITAL-OUT-WORD) to synthetic stim flags.
  * @pre ttlBitIndex is a valid TTL line index (0-15).
  * @post Returns StimOnFlag when the selected TTL line indicates stim active, else 0.
  */

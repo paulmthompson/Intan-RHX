@@ -84,9 +84,9 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     externalCurrentSpinBox = new QDoubleSpinBox(externalPage);
     state->pulseResistanceExternalCurrentMicroAmps->setupSpinBox(externalCurrentSpinBox);
     connect(externalCurrentSpinBox, SIGNAL(valueChanged(double)), this, SLOT(setExternalCurrentMicroAmps(double)));
-    externalTtlInputComboBox = new QComboBox(externalPage);
-    state->pulseResistanceExternalTtlInput->setupComboBox(externalTtlInputComboBox);
-    connect(externalTtlInputComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setExternalTtlInput(int)));
+    externalTtlMarkerComboBox = new QComboBox(externalPage);
+    state->pulseResistanceExternalTtlMarker->setupComboBox(externalTtlMarkerComboBox);
+    connect(externalTtlMarkerComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setExternalTtlMarker(int)));
     externalTtlActiveHighCheckbox = new QCheckBox(tr("Stim active when TTL high"), externalPage);
     externalTtlActiveHighCheckbox->setChecked(state->pulseResistanceExternalTtlActiveHigh->getValue());
     connect(externalTtlActiveHighCheckbox, SIGNAL(toggled(bool)), this, SLOT(setExternalTtlActiveHigh(bool)));
@@ -97,7 +97,7 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     externalForm->addRow(tr("Trace ADC (optional):"), externalTraceAdcComboBox);
     externalForm->addRow(tr("Trace voltage scale:"), externalTraceVoltageScaleSpinBox);
     externalForm->addRow(tr("Stimulus current (µA):"), externalCurrentSpinBox);
-    externalForm->addRow(tr("Stim TTL input:"), externalTtlInputComboBox);
+    externalForm->addRow(tr("Stim TTL marker:"), externalTtlMarkerComboBox);
     externalForm->addRow(QString(), externalTtlActiveHighCheckbox);
     QVBoxLayout* externalLayout = new QVBoxLayout(externalPage);
     externalLayout->addLayout(externalForm);
@@ -278,9 +278,9 @@ void PulseResistanceDialog::setExternalCurrentMicroAmps(double value)
     state->pulseResistanceExternalCurrentMicroAmps->setValue(value);
 }
 
-void PulseResistanceDialog::setExternalTtlInput(int index)
+void PulseResistanceDialog::setExternalTtlMarker(int index)
 {
-    state->pulseResistanceExternalTtlInput->setIndex(index);
+    state->pulseResistanceExternalTtlMarker->setIndex(index);
 }
 
 void PulseResistanceDialog::setExternalTtlActiveHigh(bool activeHigh)
@@ -296,7 +296,7 @@ QString PulseResistanceDialog::buildConfigFingerprint() const
                + QString::number(state->pulseResistanceExternalDcVoltageScale->getValue()) + QLatin1Char('|')
                + QString::number(state->pulseResistanceExternalTraceVoltageScale->getValue()) + QLatin1Char('|')
                + QString::number(state->pulseResistanceExternalCurrentMicroAmps->getValue()) + QLatin1Char('|')
-               + state->pulseResistanceExternalTtlInput->getValueString() + QLatin1Char('|')
+               + state->pulseResistanceExternalTtlMarker->getValueString() + QLatin1Char('|')
                + QString::number(state->pulseResistanceExternalTtlActiveHigh->getValue());
     }
     return QStringLiteral("rhs|") + state->pulseResistanceChannel->getValue();
@@ -315,9 +315,10 @@ void PulseResistanceDialog::updateHelpText()
 {
     if (state->pulseResistanceUsesExternalAdcTtl()) {
         helpLabel->setText(
-            tr("Estimates pulse resistance (ΔV/I) from a board analog input during TTL-marked stimulation. "
+            tr("Estimates pulse resistance (ΔV/I) from a board analog input during marked stimulation. "
                "Physical voltage = (ADC volts) × voltage scale (e.g. 50× amplifier gain → scale 0.02). "
                "Enter the stimulus current you apply externally. Enable analog inputs in the acquisition stream. "
+               "Pick a digital input (external sync) or digital output (when Intan drives the stimulator via Dig Out). "
                "This is not AC impedance from the Impedance tab."));
     } else {
         helpLabel->setText(
@@ -396,10 +397,10 @@ void PulseResistanceDialog::updateFromState()
             externalTraceAdcComboBox->setCurrentIndex(state->pulseResistanceExternalTraceAdc->getIndex());
             externalTraceAdcComboBox->blockSignals(false);
         }
-        if (externalTtlInputComboBox->currentIndex() != state->pulseResistanceExternalTtlInput->getIndex()) {
-            externalTtlInputComboBox->blockSignals(true);
-            externalTtlInputComboBox->setCurrentIndex(state->pulseResistanceExternalTtlInput->getIndex());
-            externalTtlInputComboBox->blockSignals(false);
+        if (externalTtlMarkerComboBox->currentIndex() != state->pulseResistanceExternalTtlMarker->getIndex()) {
+            externalTtlMarkerComboBox->blockSignals(true);
+            externalTtlMarkerComboBox->setCurrentIndex(state->pulseResistanceExternalTtlMarker->getIndex());
+            externalTtlMarkerComboBox->blockSignals(false);
         }
         if (std::abs(externalDcVoltageScaleSpinBox->value() - state->pulseResistanceExternalDcVoltageScale->getValue())
             > 1.0e-9) {
@@ -666,9 +667,23 @@ void PulseResistanceDialog::updatePulseResistanceExternal(WaveformFifo* waveform
     }
 
     const float* dcWaveform = waveformFifo->getAnalogWaveformPointer(dcAdcName.toStdString());
-    const uint16_t* digitalInWord = waveformFifo->getDigitalWaveformPointer("DIGITAL-IN-WORD");
-    if (!dcWaveform || !digitalInWord) {
-        statusLabel->setText(tr("ADC or digital input waveforms unavailable."));
+    const QString ttlMarkerName = state->pulseResistanceExternalTtlMarker->getValueString();
+    Channel* ttlMarkerChannel = state->signalSources->channelByName(ttlMarkerName);
+    if (!ttlMarkerChannel) {
+        statusLabel->setText(tr("Select a stim TTL marker channel."));
+        return;
+    }
+    const SignalType markerType = ttlMarkerChannel->getSignalType();
+    if (markerType != BoardDigitalInSignal && markerType != BoardDigitalOutSignal) {
+        statusLabel->setText(tr("Stim TTL marker must be a digital input or output."));
+        return;
+    }
+    const bool ttlOutputMarker = markerType == BoardDigitalOutSignal;
+    const char* digitalWordName = ttlOutputMarker ? "DIGITAL-OUT-WORD" : "DIGITAL-IN-WORD";
+    const uint16_t* digitalWord = waveformFifo->getDigitalWaveformPointer(digitalWordName);
+    if (!dcWaveform || !digitalWord) {
+        statusLabel->setText(ttlOutputMarker ? tr("ADC or digital output waveforms unavailable.")
+                                             : tr("ADC or digital input waveforms unavailable."));
         return;
     }
 
@@ -678,7 +693,7 @@ void PulseResistanceDialog::updatePulseResistanceExternal(WaveformFifo* waveform
         return;
     }
 
-    const int ttlBitIndex = static_cast<int>(state->pulseResistanceExternalTtlInput->getNumericValue());
+    const int ttlBitIndex = ttlMarkerChannel->getNativeChannelNumber();
     const bool ttlActiveHigh = state->pulseResistanceExternalTtlActiveHigh->getValue();
     const double dcScale = state->pulseResistanceExternalDcVoltageScale->getValue();
     const double traceScale = state->pulseResistanceExternalTraceVoltageScale->getValue();
@@ -701,7 +716,7 @@ void PulseResistanceDialog::updatePulseResistanceExternal(WaveformFifo* waveform
         return static_cast<float>(waveformFifo->getAnalogData(reader, dcWaveform, timeIndex) * dcScale);
     };
     auto getStimFlags = [&](int timeIndex) {
-        const uint16_t word = waveformFifo->getDigitalData(reader, digitalInWord, timeIndex);
+        const uint16_t word = waveformFifo->getDigitalData(reader, digitalWord, timeIndex);
         return pulseElectrodeResistance::stimFlagsFromTtlWord(word, ttlBitIndex, ttlActiveHigh);
     };
     auto getTimeStamp = [&](int timeIndex) {

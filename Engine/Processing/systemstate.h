@@ -363,7 +363,7 @@ public:
     DoubleRangeItem* pulseResistanceExternalDcVoltageScale;
     DoubleRangeItem* pulseResistanceExternalTraceVoltageScale;
     DoubleRangeItem* pulseResistanceExternalCurrentMicroAmps;
-    DiscreteItemList* pulseResistanceExternalTtlInput;
+    DiscreteItemList* pulseResistanceExternalTtlMarker;
     BooleanItem* pulseResistanceExternalTtlActiveHigh;
 
     // Antidromic stimulation (RHS)
