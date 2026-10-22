@@ -81,8 +81,6 @@ private slots:
     void setMode(int index);
     void setExternalDcAdc(int index);
     void setExternalTraceAdc(int index);
-    void setExternalDcVoltageScale(double value);
-    void setExternalTraceVoltageScale(double value);
     void setExternalCurrentMicroAmps(double value);
     void setExternalTtlMarker(int index);
     void setExternalTtlActiveHigh(bool activeHigh);
@@ -120,8 +118,6 @@ private:
     QWidget* externalPage;
     QComboBox* externalDcAdcComboBox;
     QComboBox* externalTraceAdcComboBox;
-    QDoubleSpinBox* externalDcVoltageScaleSpinBox;
-    QDoubleSpinBox* externalTraceVoltageScaleSpinBox;
     QDoubleSpinBox* externalCurrentSpinBox;
     QComboBox* externalTtlMarkerComboBox;
     QCheckBox* externalTtlActiveHighCheckbox;

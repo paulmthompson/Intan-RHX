@@ -112,6 +112,7 @@ private slots:
     void onRhsDigOutContinuousRequested(bool start);
     void onRhsDigOutFireRequested();
     void enableChannelsSlot();
+    void setExternalAmplifierGainFromUi(double gain);
 
 private:
     SystemState* state;
@@ -150,6 +151,9 @@ private:
     QPushButton *setRefButton;
     QPushButton *setStimButton;
 
+    QLabel *externalAmplifierGainLabel;
+    QDoubleSpinBox *externalAmplifierGainSpinBox;
+
     QSlider *wideSlider;
     QSlider *lowSlider;
     QSlider *highSlider;
@@ -175,6 +179,7 @@ private:
     void updateStimTrigger();
     void updateColor();
     void updateEnableCheckBox();
+    void updateExternalAmplifierGain();
     void updateYScales();
     void updateStimParamDialogButton();
 };

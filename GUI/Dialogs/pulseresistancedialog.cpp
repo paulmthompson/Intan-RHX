@@ -29,9 +29,11 @@
 //------------------------------------------------------------------------------
 
 #include <cmath>
+#include <optional>
 
 #include <QtWidgets>
 
+#include "boardadcscaling.hpp"
 #include "channel.h"
 #include "pulseresistancedialog.h"
 #include "pulseresponseplot.h"
@@ -74,13 +76,6 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     externalTraceAdcComboBox = new QComboBox(externalPage);
     state->pulseResistanceExternalTraceAdc->setupComboBox(externalTraceAdcComboBox);
     connect(externalTraceAdcComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setExternalTraceAdc(int)));
-    externalDcVoltageScaleSpinBox = new QDoubleSpinBox(externalPage);
-    state->pulseResistanceExternalDcVoltageScale->setupSpinBox(externalDcVoltageScaleSpinBox);
-    connect(externalDcVoltageScaleSpinBox, SIGNAL(valueChanged(double)), this, SLOT(setExternalDcVoltageScale(double)));
-    externalTraceVoltageScaleSpinBox = new QDoubleSpinBox(externalPage);
-    state->pulseResistanceExternalTraceVoltageScale->setupSpinBox(externalTraceVoltageScaleSpinBox);
-    connect(externalTraceVoltageScaleSpinBox, SIGNAL(valueChanged(double)), this,
-            SLOT(setExternalTraceVoltageScale(double)));
     externalCurrentSpinBox = new QDoubleSpinBox(externalPage);
     state->pulseResistanceExternalCurrentMicroAmps->setupSpinBox(externalCurrentSpinBox);
     connect(externalCurrentSpinBox, SIGNAL(valueChanged(double)), this, SLOT(setExternalCurrentMicroAmps(double)));
@@ -93,9 +88,7 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
 
     QFormLayout* externalForm = new QFormLayout;
     externalForm->addRow(tr("Resistance ADC:"), externalDcAdcComboBox);
-    externalForm->addRow(tr("Resistance voltage scale:"), externalDcVoltageScaleSpinBox);
     externalForm->addRow(tr("Trace ADC (optional):"), externalTraceAdcComboBox);
-    externalForm->addRow(tr("Trace voltage scale:"), externalTraceVoltageScaleSpinBox);
     externalForm->addRow(tr("Stimulus current (µA):"), externalCurrentSpinBox);
     externalForm->addRow(tr("Stim TTL marker:"), externalTtlMarkerComboBox);
     externalForm->addRow(QString(), externalTtlActiveHighCheckbox);
@@ -263,16 +256,6 @@ void PulseResistanceDialog::setExternalTraceAdc(int index)
     state->pulseResistanceExternalTraceAdc->setIndex(index);
 }
 
-void PulseResistanceDialog::setExternalDcVoltageScale(double value)
-{
-    state->pulseResistanceExternalDcVoltageScale->setValue(value);
-}
-
-void PulseResistanceDialog::setExternalTraceVoltageScale(double value)
-{
-    state->pulseResistanceExternalTraceVoltageScale->setValue(value);
-}
-
 void PulseResistanceDialog::setExternalCurrentMicroAmps(double value)
 {
     state->pulseResistanceExternalCurrentMicroAmps->setValue(value);
@@ -291,10 +274,20 @@ void PulseResistanceDialog::setExternalTtlActiveHigh(bool activeHigh)
 QString PulseResistanceDialog::buildConfigFingerprint() const
 {
     if (state->pulseResistanceUsesExternalAdcTtl()) {
+        QString dcGainString = QStringLiteral("1");
+        if (Channel* dcChannel =
+                state->signalSources->channelByName(state->pulseResistanceExternalDcAdc->getValueString())) {
+            dcGainString = QString::number(dcChannel->getExternalAmplifierGain());
+        }
+        QString traceGainString = QStringLiteral("1");
+        const QString traceName = state->pulseResistanceExternalTraceAdc->getValueString();
+        if (traceName != QStringLiteral("None")) {
+            if (Channel* traceChannel = state->signalSources->channelByName(traceName)) {
+                traceGainString = QString::number(traceChannel->getExternalAmplifierGain());
+            }
+        }
         return QStringLiteral("ext|") + state->pulseResistanceExternalDcAdc->getValueString() + QLatin1Char('|')
-               + state->pulseResistanceExternalTraceAdc->getValueString() + QLatin1Char('|')
-               + QString::number(state->pulseResistanceExternalDcVoltageScale->getValue()) + QLatin1Char('|')
-               + QString::number(state->pulseResistanceExternalTraceVoltageScale->getValue()) + QLatin1Char('|')
+               + traceName + QLatin1Char('|') + dcGainString + QLatin1Char('|') + traceGainString + QLatin1Char('|')
                + QString::number(state->pulseResistanceExternalCurrentMicroAmps->getValue()) + QLatin1Char('|')
                + state->pulseResistanceExternalTtlMarker->getValueString() + QLatin1Char('|')
                + QString::number(state->pulseResistanceExternalTtlActiveHigh->getValue());
@@ -316,7 +309,7 @@ void PulseResistanceDialog::updateHelpText()
     if (state->pulseResistanceUsesExternalAdcTtl()) {
         helpLabel->setText(
             tr("Estimates pulse resistance (ΔV/I) from a board analog input during marked stimulation. "
-               "Physical voltage = (ADC volts) × voltage scale (e.g. 50× amplifier gain → scale 0.02). "
+               "Set external amplifier gain on each analog input in the control panel (Amp gain). "
                "Enter the stimulus current you apply externally. Enable analog inputs in the acquisition stream. "
                "Pick a digital input (external sync) or digital output (when Intan drives the stimulator via Dig Out). "
                "This is not AC impedance from the Impedance tab."));
@@ -401,19 +394,6 @@ void PulseResistanceDialog::updateFromState()
             externalTtlMarkerComboBox->blockSignals(true);
             externalTtlMarkerComboBox->setCurrentIndex(state->pulseResistanceExternalTtlMarker->getIndex());
             externalTtlMarkerComboBox->blockSignals(false);
-        }
-        if (std::abs(externalDcVoltageScaleSpinBox->value() - state->pulseResistanceExternalDcVoltageScale->getValue())
-            > 1.0e-9) {
-            externalDcVoltageScaleSpinBox->blockSignals(true);
-            externalDcVoltageScaleSpinBox->setValue(state->pulseResistanceExternalDcVoltageScale->getValue());
-            externalDcVoltageScaleSpinBox->blockSignals(false);
-        }
-        if (std::abs(externalTraceVoltageScaleSpinBox->value()
-                     - state->pulseResistanceExternalTraceVoltageScale->getValue())
-            > 1.0e-9) {
-            externalTraceVoltageScaleSpinBox->blockSignals(true);
-            externalTraceVoltageScaleSpinBox->setValue(state->pulseResistanceExternalTraceVoltageScale->getValue());
-            externalTraceVoltageScaleSpinBox->blockSignals(false);
         }
         if (std::abs(externalCurrentSpinBox->value() - state->pulseResistanceExternalCurrentMicroAmps->getValue())
             > 1.0e-9) {
@@ -656,15 +636,20 @@ void PulseResistanceDialog::updatePulseResistanceRhs(WaveformFifo* waveformFifo,
 
 void PulseResistanceDialog::updatePulseResistanceExternal(WaveformFifo* waveformFifo, int numSamples)
 {
-    _voltageQuantizationLsbVolts =
-        pulseElectrodeResistance::boardAdcLsbVolts(state->getControllerTypeEnum())
-        * state->pulseResistanceExternalDcVoltageScale->getValue();
-
     const QString dcAdcName = state->pulseResistanceExternalDcAdc->getValueString();
     if (dcAdcName.isEmpty()) {
         statusLabel->setText(tr("Select a resistance ADC input."));
         return;
     }
+
+    Channel* dcAdcChannel = state->signalSources->channelByName(dcAdcName);
+    if (!dcAdcChannel || dcAdcChannel->getSignalType() != BoardAdcSignal) {
+        statusLabel->setText(tr("Select a valid board analog input for resistance."));
+        return;
+    }
+    const double dcGain = dcAdcChannel->getExternalAmplifierGain();
+    _voltageQuantizationLsbVolts =
+        pulseElectrodeResistance::boardAdcLsbVolts(state->getControllerTypeEnum()) / dcGain;
 
     const float* dcWaveform = waveformFifo->getAnalogWaveformPointer(dcAdcName.toStdString());
     const QString ttlMarkerName = state->pulseResistanceExternalTtlMarker->getValueString();
@@ -695,13 +680,18 @@ void PulseResistanceDialog::updatePulseResistanceExternal(WaveformFifo* waveform
 
     const int ttlBitIndex = ttlMarkerChannel->getNativeChannelNumber();
     const bool ttlActiveHigh = state->pulseResistanceExternalTtlActiveHigh->getValue();
-    const double dcScale = state->pulseResistanceExternalDcVoltageScale->getValue();
-    const double traceScale = state->pulseResistanceExternalTraceVoltageScale->getValue();
 
     const QString traceAdcValue = state->pulseResistanceExternalTraceAdc->getValueString();
     const bool traceEnabled = traceAdcValue != QStringLiteral("None");
     const float* traceWaveform = nullptr;
+    double traceGain = 1.0;
     if (traceEnabled) {
+        Channel* traceAdcChannel = state->signalSources->channelByName(traceAdcValue);
+        if (!traceAdcChannel || traceAdcChannel->getSignalType() != BoardAdcSignal) {
+            statusLabel->setText(tr("Trace ADC must be a board analog input."));
+            return;
+        }
+        traceGain = traceAdcChannel->getExternalAmplifierGain();
         traceWaveform = waveformFifo->getAnalogWaveformPointer(traceAdcValue.toStdString());
         if (!traceWaveform) {
             statusLabel->setText(tr("Trace ADC waveform unavailable."));
@@ -713,7 +703,10 @@ void PulseResistanceDialog::updatePulseResistanceExternal(WaveformFifo* waveform
     const WaveformFifo::Reader reader = WaveformFifo::ReaderDisplay;
 
     auto getDcVolts = [&](int timeIndex) {
-        return static_cast<float>(waveformFifo->getAnalogData(reader, dcWaveform, timeIndex) * dcScale);
+        const float adcVolts = waveformFifo->getAnalogData(reader, dcWaveform, timeIndex);
+        const std::optional<double> physical =
+            boardAdcScaling::physicalVoltsFromBoardAdcVolts(adcVolts, dcGain);
+        return physical.has_value() ? static_cast<float>(*physical) : 0.0f;
     };
     auto getStimFlags = [&](int timeIndex) {
         const uint16_t word = waveformFifo->getDigitalData(reader, digitalWord, timeIndex);
@@ -733,7 +726,10 @@ void PulseResistanceDialog::updatePulseResistanceExternal(WaveformFifo* waveform
     std::function<float(int)> getTraceVolts;
     if (traceEnabled && traceWaveform) {
         getTraceVolts = [&](int timeIndex) {
-            return static_cast<float>(waveformFifo->getAnalogData(reader, traceWaveform, timeIndex) * traceScale);
+            const float adcVolts = waveformFifo->getAnalogData(reader, traceWaveform, timeIndex);
+            const std::optional<double> physical =
+                boardAdcScaling::physicalVoltsFromBoardAdcVolts(adcVolts, traceGain);
+            return physical.has_value() ? static_cast<float>(*physical) : 0.0f;
         };
     }
 

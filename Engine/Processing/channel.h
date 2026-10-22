@@ -41,6 +41,7 @@
 #include "systemstate.h"
 
 class AmpStimPrograms;
+class QDoubleSpinBox;
 class SignalGroup;
 
 class Channel
@@ -102,6 +103,17 @@ public:
     void setSpikeThreshold(int threshold) { spikeThreshold->setValue(threshold); }
     void setupSpikeThresholdSpinBox(QSpinBox *spinBox) { spikeThreshold->setupSpinBox(spinBox); }
 
+    /**
+     * @brief External amplifier gain for board ADC channels (dimensionless); 1.0 when not applicable.
+     */
+    double getExternalAmplifierGain() const;
+    /**
+     * @brief Set external amplifier gain on board ADC channels.
+     * @pre gain > 0 and within configured limits when channel is BoardAdcSignal.
+     */
+    void setExternalAmplifierGain(double gain);
+    void setupExternalAmplifierGainSpinBox(QDoubleSpinBox* spinBox);
+
     void clearTCPDataOutput();
 
     bool getOutputToTcp() const { return outputToTcp->getValue(); }
@@ -160,6 +172,7 @@ private:
     BooleanItem *outputToTcpStim;  // Only applies to Stim amplifier channels
 
     IntRangeItem *spikeThreshold;
+    DoubleRangeItem *externalAmplifierGain;
 
     struct {
         bool valid;

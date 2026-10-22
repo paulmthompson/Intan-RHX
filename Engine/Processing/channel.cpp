@@ -61,6 +61,7 @@ Channel::Channel(SignalType signalType_, const QString &customChannelName_, cons
     outputToTcpDc(nullptr),
     outputToTcpStim(nullptr),
     spikeThreshold(nullptr),
+    externalAmplifierGain(nullptr),
     electrodeImpedance({ false, 0.0, 0.0 })
 {
     if (signalType == AmplifierSignal) {
@@ -95,6 +96,31 @@ Channel::Channel(SignalType signalType_, const QString &customChannelName_, cons
         outputToTcpDc = new BooleanItem("TCPDataOutputEnabledDC", channelItems, state, false, XMLGroupNone, TypeDependencyStim);
         outputToTcpStim = new BooleanItem("TCPDataOutputEnabledStim", channelItems, state, false, XMLGroupNone, TypeDependencyStim);
         reference = new StringItem("Reference", channelItems, state, "Hardware");
+    } else if (signalType == BoardAdcSignal) {
+        externalAmplifierGain =
+            new DoubleRangeItem("ExternalAmplifierGain", channelItems, state, 1.0, 1.0e6, 1.0, XMLGroupGeneral);
+    }
+}
+
+double Channel::getExternalAmplifierGain() const
+{
+    if (!externalAmplifierGain) {
+        return 1.0;
+    }
+    return externalAmplifierGain->getValue();
+}
+
+void Channel::setExternalAmplifierGain(double gain)
+{
+    if (externalAmplifierGain) {
+        externalAmplifierGain->setValue(gain);
+    }
+}
+
+void Channel::setupExternalAmplifierGainSpinBox(QDoubleSpinBox* spinBox)
+{
+    if (externalAmplifierGain) {
+        externalAmplifierGain->setupSpinBox(spinBox);
     }
 }
 

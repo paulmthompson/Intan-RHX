@@ -155,6 +155,8 @@ ControlPanel::ControlPanel(ControllerInterface* controllerInterface_, SystemStat
     renameButton(nullptr),
     setRefButton(nullptr),
     setStimButton(nullptr),
+    externalAmplifierGainLabel(nullptr),
+    externalAmplifierGainSpinBox(nullptr),
     wideSlider(nullptr),
     lowSlider(nullptr),
     highSlider(nullptr),
@@ -388,6 +390,20 @@ QHBoxLayout* ControlPanel::createSelectionToolsLayout()
     selectionToolsLayout->addWidget(colorAttribute);
     selectionToolsLayout->addWidget(renameButton);
     selectionToolsLayout->addWidget(setRefButton);
+
+    externalAmplifierGainLabel = new QLabel(tr("Amp gain"), this);
+    externalAmplifierGainSpinBox = new QDoubleSpinBox(this);
+    externalAmplifierGainSpinBox->setDecimals(0);
+    externalAmplifierGainSpinBox->setSingleStep(100.0);
+    externalAmplifierGainSpinBox->setToolTip(
+        tr("External amplifier gain from electrode voltage to voltage at this analog input (dimensionless)."));
+    connect(externalAmplifierGainSpinBox, SIGNAL(valueChanged(double)), this,
+            SLOT(setExternalAmplifierGainFromUi(double)));
+    externalAmplifierGainLabel->setVisible(false);
+    externalAmplifierGainSpinBox->setVisible(false);
+    selectionToolsLayout->addWidget(externalAmplifierGainLabel);
+    selectionToolsLayout->addWidget(externalAmplifierGainSpinBox);
+
     if (controlPanelShowsBoardDigOutTools(state)) {
         rhsDigOutLiveControlsWidget = new RhsDigOutLiveControlsWidget(this);
         connect(rhsDigOutLiveControlsWidget,
@@ -794,6 +810,8 @@ void ControlPanel::updateFromState()
     state->writeToLog("Completed updateColor()");
     updateEnableCheckBox();
     state->writeToLog("Completed updateEnableCheckBox()");
+    updateExternalAmplifierGain();
+    state->writeToLog("Completed updateExternalAmplifierGain()");
     updateYScales();
     state->writeToLog("Completed updateYScales()");
 
@@ -1000,6 +1018,39 @@ void ControlPanel::updateColor()
         colorAttribute->setCheckerboard();
         colorAttribute->setEnabled(!(state->running || state->sweeping));
     }
+}
+
+void ControlPanel::updateExternalAmplifierGain()
+{
+    const bool singleBoardAdcSelected =
+        state->signalSources->numChannelsSelected() == 1 &&
+        !selectedSignals.isEmpty() &&
+        selectedSignals.at(0)->getSignalType() == BoardAdcSignal;
+
+    externalAmplifierGainLabel->setVisible(singleBoardAdcSelected);
+    externalAmplifierGainSpinBox->setVisible(singleBoardAdcSelected);
+
+    if (!singleBoardAdcSelected) {
+        return;
+    }
+
+    Channel* channel = selectedSignals.at(0);
+    externalAmplifierGainSpinBox->blockSignals(true);
+    channel->setupExternalAmplifierGainSpinBox(externalAmplifierGainSpinBox);
+    externalAmplifierGainSpinBox->blockSignals(false);
+    externalAmplifierGainSpinBox->setEnabled(!(state->running || state->sweeping));
+}
+
+void ControlPanel::setExternalAmplifierGainFromUi(double gain)
+{
+    if (state->signalSources->numChannelsSelected() != 1) {
+        return;
+    }
+    Channel* channel = state->signalSources->selectedChannel();
+    if (!channel || channel->getSignalType() != BoardAdcSignal) {
+        return;
+    }
+    channel->setExternalAmplifierGain(gain);
 }
 
 void ControlPanel::updateEnableCheckBox()

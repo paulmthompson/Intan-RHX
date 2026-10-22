@@ -360,8 +360,6 @@ public:
     DiscreteItemList* pulseResistanceTraceYScaleDc;
     StringItem* pulseResistanceExternalDcAdc;
     DiscreteItemList* pulseResistanceExternalTraceAdc;
-    DoubleRangeItem* pulseResistanceExternalDcVoltageScale;
-    DoubleRangeItem* pulseResistanceExternalTraceVoltageScale;
     DoubleRangeItem* pulseResistanceExternalCurrentMicroAmps;
     DiscreteItemList* pulseResistanceExternalTtlMarker;
     BooleanItem* pulseResistanceExternalTtlActiveHigh;
