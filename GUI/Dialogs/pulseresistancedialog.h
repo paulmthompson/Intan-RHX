@@ -81,7 +81,7 @@ private slots:
     void setMode(int index);
     void setExternalDcAdc(int index);
     void setExternalTraceAdc(int index);
-    void setExternalCurrentMicroAmps(double value);
+    void setExternalCurrentNanoAmps(double value);
     void setExternalTtlMarker(int index);
     void setExternalTtlActiveHigh(bool activeHigh);
     void setTraceTimeSpan(int index) { state->pulseResistanceTraceTimeMs->setIndex(index); }

@@ -756,8 +756,8 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
         pulseResistanceExternalTraceAdc->addItem(name, name, i);
     }
     pulseResistanceExternalTraceAdc->setValue("None");
-    pulseResistanceExternalCurrentMicroAmps =
-        new DoubleRangeItem("PulseResistanceExternalCurrentMicroAmps", globalItems, this, 0.0, 10000.0, 100.0);
+    pulseResistanceExternalCurrentNanoAmps =
+        new DoubleRangeItem("PulseResistanceExternalCurrentNanoAmps", globalItems, this, 0.1, 10.0, 1.0);
     pulseResistanceExternalTtlMarker =
         new DiscreteItemList("PulseResistanceExternalTtlInput", globalItems, this);
     for (int i = 0; i < numDigitalInputs; ++i) {

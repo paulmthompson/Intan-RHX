@@ -77,8 +77,10 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     state->pulseResistanceExternalTraceAdc->setupComboBox(externalTraceAdcComboBox);
     connect(externalTraceAdcComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setExternalTraceAdc(int)));
     externalCurrentSpinBox = new QDoubleSpinBox(externalPage);
-    state->pulseResistanceExternalCurrentMicroAmps->setupSpinBox(externalCurrentSpinBox);
-    connect(externalCurrentSpinBox, SIGNAL(valueChanged(double)), this, SLOT(setExternalCurrentMicroAmps(double)));
+    state->pulseResistanceExternalCurrentNanoAmps->setupSpinBox(externalCurrentSpinBox);
+    externalCurrentSpinBox->setDecimals(1);
+    externalCurrentSpinBox->setSingleStep(0.1);
+    connect(externalCurrentSpinBox, SIGNAL(valueChanged(double)), this, SLOT(setExternalCurrentNanoAmps(double)));
     externalTtlMarkerComboBox = new QComboBox(externalPage);
     state->pulseResistanceExternalTtlMarker->setupComboBox(externalTtlMarkerComboBox);
     connect(externalTtlMarkerComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setExternalTtlMarker(int)));
@@ -89,7 +91,7 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     QFormLayout* externalForm = new QFormLayout;
     externalForm->addRow(tr("Resistance ADC:"), externalDcAdcComboBox);
     externalForm->addRow(tr("Trace ADC (optional):"), externalTraceAdcComboBox);
-    externalForm->addRow(tr("Stimulus current (µA):"), externalCurrentSpinBox);
+    externalForm->addRow(tr("Stimulus current (nA):"), externalCurrentSpinBox);
     externalForm->addRow(tr("Stim TTL marker:"), externalTtlMarkerComboBox);
     externalForm->addRow(QString(), externalTtlActiveHighCheckbox);
     QVBoxLayout* externalLayout = new QVBoxLayout(externalPage);
@@ -256,9 +258,9 @@ void PulseResistanceDialog::setExternalTraceAdc(int index)
     state->pulseResistanceExternalTraceAdc->setIndex(index);
 }
 
-void PulseResistanceDialog::setExternalCurrentMicroAmps(double value)
+void PulseResistanceDialog::setExternalCurrentNanoAmps(double value)
 {
-    state->pulseResistanceExternalCurrentMicroAmps->setValue(value);
+    state->pulseResistanceExternalCurrentNanoAmps->setValue(value);
 }
 
 void PulseResistanceDialog::setExternalTtlMarker(int index)
@@ -288,7 +290,7 @@ QString PulseResistanceDialog::buildConfigFingerprint() const
         }
         return QStringLiteral("ext|") + state->pulseResistanceExternalDcAdc->getValueString() + QLatin1Char('|')
                + traceName + QLatin1Char('|') + dcGainString + QLatin1Char('|') + traceGainString + QLatin1Char('|')
-               + QString::number(state->pulseResistanceExternalCurrentMicroAmps->getValue()) + QLatin1Char('|')
+               + QString::number(state->pulseResistanceExternalCurrentNanoAmps->getValue()) + QLatin1Char('|')
                + state->pulseResistanceExternalTtlMarker->getValueString() + QLatin1Char('|')
                + QString::number(state->pulseResistanceExternalTtlActiveHigh->getValue());
     }
@@ -395,10 +397,10 @@ void PulseResistanceDialog::updateFromState()
             externalTtlMarkerComboBox->setCurrentIndex(state->pulseResistanceExternalTtlMarker->getIndex());
             externalTtlMarkerComboBox->blockSignals(false);
         }
-        if (std::abs(externalCurrentSpinBox->value() - state->pulseResistanceExternalCurrentMicroAmps->getValue())
+        if (std::abs(externalCurrentSpinBox->value() - state->pulseResistanceExternalCurrentNanoAmps->getValue())
             > 1.0e-9) {
             externalCurrentSpinBox->blockSignals(true);
-            externalCurrentSpinBox->setValue(state->pulseResistanceExternalCurrentMicroAmps->getValue());
+            externalCurrentSpinBox->setValue(state->pulseResistanceExternalCurrentNanoAmps->getValue());
             externalCurrentSpinBox->blockSignals(false);
         }
         if (externalTtlActiveHighCheckbox->isChecked() != state->pulseResistanceExternalTtlActiveHigh->getValue()) {
@@ -672,9 +674,9 @@ void PulseResistanceDialog::updatePulseResistanceExternal(WaveformFifo* waveform
         return;
     }
 
-    const double currentMicroAmps = state->pulseResistanceExternalCurrentMicroAmps->getValue();
-    if (currentMicroAmps <= 0.0) {
-        statusLabel->setText(tr("Enter a positive stimulus current (µA)."));
+    const double currentNanoAmps = state->pulseResistanceExternalCurrentNanoAmps->getValue();
+    if (currentNanoAmps <= 0.0) {
+        statusLabel->setText(tr("Enter a positive stimulus current (nA)."));
         return;
     }
 
@@ -716,6 +718,7 @@ void PulseResistanceDialog::updatePulseResistanceExternal(WaveformFifo* waveform
         return waveformFifo->getTimeStamp(reader, timeIndex);
     };
 
+    const double currentMicroAmps = currentNanoAmps * 1.0e-3;
     const std::optional<pulseElectrodeResistance::PulseResistanceResult> result =
         pulseElectrodeResistance::processStimPulseSamples(numSamples, sampleRateHz, currentMicroAmps, _trackerState,
                                                           getDcVolts, getStimFlags, getTimeStamp);
