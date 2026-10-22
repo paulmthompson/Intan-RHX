@@ -143,6 +143,10 @@ public:
 
     SignalList getSaveSignalList() const;
     QString singleSelectedAmplifierChannelName() const;
+    /**
+     * @brief Native name when exactly one amplifier or board ADC channel is selected; else empty.
+     */
+    QString singleSelectedSpikeScopeChannelName() const;
     QString firstChannelName() const;
     Channel* selectedChannel() const;
     void getSelectedSignals(QList<Channel*>& selectedSignals) const;

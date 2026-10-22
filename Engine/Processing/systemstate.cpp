@@ -1270,13 +1270,17 @@ void SystemState::updateForChangeHeadstages()
     // If a single channel is selected, then initialize the isi/psth/spectrogram/spikesorting to that channel.
     QString channelNativeName = signalSources->singleSelectedAmplifierChannelName();
     if (channelNativeName.isEmpty()) {
-        // If no single channel is selected, initialize to first channel in signalSources.
         channelNativeName = signalSources->firstChannelName();
     }
     isiChannel->setValue(channelNativeName);
     psthChannel->setValue(channelNativeName);
     spectrogramChannel->setValue(channelNativeName);
-    spikeScopeChannel->setValue(channelNativeName);
+
+    QString spikeScopeNativeName = signalSources->singleSelectedSpikeScopeChannelName();
+    if (spikeScopeNativeName.isEmpty()) {
+        spikeScopeNativeName = channelNativeName;
+    }
+    spikeScopeChannel->setValue(spikeScopeNativeName);
     pulseResistanceChannel->setValue(channelNativeName);
 
     emit headstagesChanged();

@@ -39,6 +39,7 @@
 
 class QLabel;
 class QComboBox;
+class QGroupBox;
 class QSpinBox;
 class QPushButton;
 class QCheckBox;
@@ -66,8 +67,7 @@ public:
 
 private slots:
     void updateFromState();
-    void setVoltageThreshold(int threshold)
-        { state->signalSources->channelByName(state->spikeScopeChannel->getValue())->setSpikeThreshold(threshold); }
+    void setVoltageThreshold(int threshold);
     void setVoltageScale(int index)
         { state->yScaleSpikeScope->setIndex(index); }
     void setTimeScale(int index)
@@ -115,6 +115,7 @@ private:
     QPushButton *takeSnapshotButton;
     QPushButton *clearSnapshotButton;
 
+    QGroupBox* artifactSuppressionBox;
     QCheckBox *suppressionCheckBox;
     QCheckBox *artifactsShownCheckBox;
     QLabel *suppressionThresholdLabel1;
@@ -131,6 +132,7 @@ private:
     SpikePlot *spikePlot;
 
     void updateTitle();
+    void updateArtifactSuppressionUi();
 };
 
 #endif // SPIKESORTINGDIALOG_H

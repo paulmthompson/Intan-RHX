@@ -76,6 +76,7 @@ set(Sources
         Engine/Processing/waveformfifo.cpp 
         Engine/Processing/impedancereader.cpp 
         Engine/Processing/boardadcscaling.cpp
+        Engine/Processing/boardadcspikedetection.cpp
         Engine/Processing/pulseelectroderesistance.cpp
         Engine/Processing/antidromictracecapture.cpp
         Engine/Processing/antidromicspikedetection.cpp
@@ -211,6 +212,7 @@ set(Headers
         Engine/Processing/waveformfifo.h 
         Engine/Processing/impedancereader.h 
         Engine/Processing/boardadcscaling.hpp
+        Engine/Processing/boardadcspikedetection.hpp
         Engine/Processing/pulseelectroderesistance.hpp
         Engine/Processing/antidromictracecapture.hpp
         Engine/Processing/antidromicspikedetection.hpp
@@ -419,6 +421,22 @@ target_compile_options(rhsdigoutconfiguration_golden_test PRIVATE
     -ffunction-sections -fdata-sections)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_link_options(rhsdigoutconfiguration_golden_test PRIVATE -Wl,--gc-sections)
+endif()
+
+add_executable(boardadcspikedetection_golden_test
+    tests/boardadcspikedetection_golden_test.cpp
+    Engine/Processing/boardadcspikedetection.cpp
+    Engine/Processing/boardadcscaling.cpp)
+set_target_properties(boardadcspikedetection_golden_test PROPERTIES
+    AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+target_link_libraries(boardadcspikedetection_golden_test PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+target_include_directories(boardadcspikedetection_golden_test PRIVATE
+    Engine/Processing
+    includes)
+target_compile_options(boardadcspikedetection_golden_test PRIVATE
+    -ffunction-sections -fdata-sections)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_link_options(boardadcspikedetection_golden_test PRIVATE -Wl,--gc-sections)
 endif()
 
 add_executable(boardadcscaling_golden_test

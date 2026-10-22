@@ -73,7 +73,7 @@ SpikeSortingDialog:: SpikeSortingDialog(SystemState* state_, ControllerInterface
     clearSnapshotButton = new QPushButton(tr("Clear Snapshot"), this);
     connect(clearSnapshotButton, SIGNAL(clicked(bool)), this, SLOT(clearSnapshot()));
 
-    QGroupBox *artifactSuppressionBox = new QGroupBox(tr("Artifact Suppression"), this);
+    artifactSuppressionBox = new QGroupBox(tr("Artifact Suppression"), this);
 
     suppressionCheckBox = new QCheckBox(tr("Enable Suppression"), this);
     connect(suppressionCheckBox, SIGNAL(clicked(bool)), this, SLOT(toggleSuppressionEnabled(bool)));
@@ -243,7 +243,10 @@ SpikeSortingDialog:: SpikeSortingDialog(SystemState* state_, ControllerInterface
 
     state->updateForChangeHeadstages();
 
-    state->signalSources->channelByName(state->spikeScopeChannel->getValue())->setupSpikeThresholdSpinBox(thresholdSpinBox);
+    Channel* initialScopeChannel = state->signalSources->channelByName(state->spikeScopeChannel->getValue());
+    if (initialScopeChannel && initialScopeChannel->hasSpikeThreshold()) {
+        initialScopeChannel->setupSpikeThresholdSpinBox(thresholdSpinBox);
+    }
     connect(thresholdSpinBox, SIGNAL(valueChanged(int)), this, SLOT(setVoltageThreshold(int)));
 
     if (state->running) updateForRun();
@@ -286,10 +289,27 @@ void SpikeSortingDialog::dropEvent(QDropEvent *event)
     }
 }
 
+void SpikeSortingDialog::setVoltageThreshold(int threshold)
+{
+    Channel* scopeChannel = state->signalSources->channelByName(state->spikeScopeChannel->getValue());
+    if (scopeChannel && scopeChannel->hasSpikeThreshold()) {
+        scopeChannel->setSpikeThreshold(threshold);
+    }
+}
+
+void SpikeSortingDialog::updateArtifactSuppressionUi()
+{
+    const QString scopeChannelName = state->spikeScopeChannel->getValue();
+    Channel* scopeChannel = state->signalSources->channelByName(scopeChannelName);
+    const bool boardAdcScope =
+        scopeChannel && scopeChannel->getSignalType() == BoardAdcSignal && scopeChannelName != QStringLiteral("N/A");
+    artifactSuppressionBox->setVisible(!boardAdcScope);
+}
+
 void SpikeSortingDialog::updateFromState()
 {
     // Check if single channel selection has changed at all.
-    QString channelNativeName = state->signalSources->singleSelectedAmplifierChannelName();
+    QString channelNativeName = state->signalSources->singleSelectedSpikeScopeChannelName();
     if (channelNativeName != state->spikeScopeChannel->getValue()) {
         if (!channelNativeName.isEmpty()) {
             setToSelectedButton->setEnabled(true);
@@ -297,8 +317,10 @@ void SpikeSortingDialog::updateFromState()
                 changeCurrentChannel(channelNativeName);
             }
         } else {
-            setToSelectedButton->setEnabled(false); // (a) Disable setToSelectedButton.
+            setToSelectedButton->setEnabled(false);
         }
+    } else if (!channelNativeName.isEmpty()) {
+        setToSelectedButton->setEnabled(true);
     }
 
     // Update channel name label.
@@ -317,11 +339,16 @@ void SpikeSortingDialog::updateFromState()
     // Update spike threshold if spikeScopeChannel exists.
     QString channelName = state->spikeScopeChannel->getValue();
 
-    if (channelName != "N/A") {
-        if (thresholdSpinBox->value() != state->signalSources->channelByName(channelName)->getSpikeThreshold()) {
-            thresholdSpinBox->setValue(state->signalSources->channelByName(channelName)->getSpikeThreshold());
+    Channel* scopeChannel = state->signalSources->channelByName(channelName);
+    if (scopeChannel && scopeChannel->hasSpikeThreshold()) {
+        if (thresholdSpinBox->value() != scopeChannel->getSpikeThreshold()) {
+            thresholdSpinBox->blockSignals(true);
+            thresholdSpinBox->setValue(scopeChannel->getSpikeThreshold());
+            thresholdSpinBox->blockSignals(false);
         }
     }
+
+    updateArtifactSuppressionUi();
 
     if (voltageScaleComboBox->currentIndex() != state->yScaleSpikeScope->getIndex())
         voltageScaleComboBox->setCurrentIndex(state->yScaleSpikeScope->getIndex());
@@ -420,9 +447,9 @@ void SpikeSortingDialog::saveSpikeSortingParameters()
 
 void SpikeSortingDialog::setToSelected()
 {
-    QString channelNativeName = state->signalSources->singleSelectedAmplifierChannelName();
+    QString channelNativeName = state->signalSources->singleSelectedSpikeScopeChannelName();
     if (channelNativeName.isEmpty()) {
-        qDebug() << "Error: Somehow this was triggered without a single channel being selected";
+        qDebug() << "Error: Somehow this was triggered without a single spike-scope channel being selected";
         return;
     }
     changeCurrentChannel(channelNativeName);

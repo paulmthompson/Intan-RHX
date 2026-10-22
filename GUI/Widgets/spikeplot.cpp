@@ -29,7 +29,10 @@
 //------------------------------------------------------------------------------
 
 #include <cmath>
+#include <optional>
+
 #include "abstractrhxcontroller.h"
+#include "boardadcspikedetection.hpp"
 #include "rhxglobals.h"
 #include "spikeplot.h"
 
@@ -353,15 +356,107 @@ void SpikePlot::resizeEvent(QResizeEvent*) {
 
 bool SpikePlot::updateWaveforms(WaveformFifo* waveformFifo, int numSamples)
 {
-    if (!channel || !history)
+    if (!channel || !history) {
         return false;
+    }
 
-    if (!waveformFifo->gpuWaveformPresent(channel->getNativeNameString() + "|HIGH")) return false;
+    if (channel->getSignalType() == BoardAdcSignal) {
+        const float* analogWaveform =
+            waveformFifo->getAnalogWaveformPointer(channel->getNativeNameString());
+        if (!analogWaveform) {
+            return false;
+        }
+
+        const double gain = channel->getExternalAmplifierGain();
+        if (gain <= 0.0) {
+            return false;
+        }
+
+        const int thresholdMicroVolts = channel->getSpikeThreshold();
+        const WaveformFifo::Reader reader = WaveformFifo::ReaderDisplay;
+
+        const auto microvoltsAt = [&](int timeIndex) -> std::optional<float> {
+            const float adcVolts = waveformFifo->getAnalogData(reader, analogWaveform, timeIndex);
+            return boardAdcSpikeDetection::boardAdcFifoSampleToElectrodeMicrovolts(adcVolts, gain);
+        };
+
+        int offset = samplesPostDetect - 1;
+        int tStart = -offset;
+        int numWordsInMemory = waveformFifo->numWordsInMemory(reader);
+        if (offset > numWordsInMemory) {
+            tStart = 0;
+        }
+        const int numSpikesDisplayed = static_cast<int>(state->numSpikesDisplayed->getNumericValue());
+
+        for (int t = tStart; t < numSamples - offset; ++t) {
+            if (t - samplesPreDetect < -numWordsInMemory) {
+                continue;
+            }
+            const std::optional<float> previous = microvoltsAt(t - 1);
+            const std::optional<float> current = microvoltsAt(t);
+            if (!previous.has_value() || !current.has_value()) {
+                continue;
+            }
+            if (!boardAdcSpikeDetection::crossedSpikeThresholdNegative(*previous, *current, thresholdMicroVolts)) {
+                continue;
+            }
+
+            std::vector<float> newSnippet(samplesPreDetect + samplesPostDetect);
+            int index = 0;
+            for (int i = t - samplesPreDetect; i < t + samplesPostDetect; ++i) {
+                const std::optional<float> sample = microvoltsAt(i);
+                newSnippet[index++] = sample.has_value() ? *sample : 0.0f;
+            }
+            history->snippets.push_back(newSnippet);
+            history->spikeIds.push_back(static_cast<int>(SpikeIdUnclassifiedSpike));
+            while (static_cast<int>(history->snippets.size()) > numSpikesDisplayed) {
+                history->snippets.pop_front();
+                history->spikeIds.pop_front();
+            }
+        }
+
+        latestRmsCalculation = 0.0;
+        latestSpikeRateCalculation = 0;
+        if (numWordsInMemory > 0) {
+            const int numWordsForRms =
+                std::min(numWordsInMemory, static_cast<int>(ceil(state->sampleRate->getNumericValue())));
+            int rmsSamples = 0;
+            int numSpikes = 0;
+            double sumOfSquares = 0.0;
+            for (int t = -numWordsForRms + 1; t < 0; ++t) {
+                const std::optional<float> previous = microvoltsAt(t - 1);
+                const std::optional<float> current = microvoltsAt(t);
+                if (!current.has_value()) {
+                    continue;
+                }
+                sumOfSquares += static_cast<double>(*current) * static_cast<double>(*current);
+                ++rmsSamples;
+                if (previous.has_value()
+                    && boardAdcSpikeDetection::crossedSpikeThresholdNegative(*previous, *current,
+                                                                             thresholdMicroVolts)) {
+                    ++numSpikes;
+                }
+            }
+            if (rmsSamples > 0) {
+                latestRmsCalculation = sqrt(sumOfSquares / static_cast<double>(rmsSamples));
+            }
+            latestSpikeRateCalculation = numSpikes;
+        }
+
+        update();
+        return true;
+    }
+
+    if (!waveformFifo->gpuWaveformPresent(channel->getNativeNameString() + "|HIGH")) {
+        return false;
+    }
 
     uint16_t* spikeRaster = waveformFifo->getDigitalWaveformPointer(channel->getNativeNameString() + "|SPK");
     GpuWaveformAddress waveformAddress = waveformFifo->getGpuWaveformAddress(channel->getNativeNameString() + "|HIGH");
 
-    if (!spikeRaster || waveformAddress.waveformIndex < 0) return false;
+    if (!spikeRaster || waveformAddress.waveformIndex < 0) {
+        return false;
+    }
 
     int offset = samplesPostDetect - 1;
     int tStart = -offset;
@@ -391,24 +486,23 @@ bool SpikePlot::updateWaveforms(WaveformFifo* waveformFifo, int numSamples)
         }
     }
 
-    // Calculate RMS level from recent waveform data.
     latestRmsCalculation = 0.0;
     latestSpikeRateCalculation = 0;
     if (numWordsInMemory > 0) {
-        int numWordsForRms = std::min(numWordsInMemory, (int)ceil(state->sampleRate->getNumericValue()));  // Last one second of data.
-        int numSamples = 0;
+        int numWordsForRms = std::min(numWordsInMemory, (int)ceil(state->sampleRate->getNumericValue()));
+        int rmsSampleCount = 0;
         int numSpikes = 0;
         double sumOfSquares = 0.0;
         for (int t = -numWordsForRms; t < 0; ++t) {
             float sample = waveformFifo->getGpuAmplifierData(WaveformFifo::ReaderDisplay, waveformAddress, t);
             sumOfSquares += sample * sample;
-            int spikeId = waveformFifo->getDigitalData(WaveformFifo::ReaderDisplay, spikeRaster, t);
-            if (spikeId != SpikeIdNoSpike && spikeId != SpikeIdLikelyArtifact) {
+            int rasterSpikeId = waveformFifo->getDigitalData(WaveformFifo::ReaderDisplay, spikeRaster, t);
+            if (rasterSpikeId != SpikeIdNoSpike && rasterSpikeId != SpikeIdLikelyArtifact) {
                 ++numSpikes;
             }
-            ++numSamples;
+            ++rmsSampleCount;
         }
-        latestRmsCalculation = sqrt(sumOfSquares / (double)numSamples);
+        latestRmsCalculation = sqrt(sumOfSquares / (double)rmsSampleCount);
         latestSpikeRateCalculation = numSpikes;
     }
 

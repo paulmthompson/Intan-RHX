@@ -630,6 +630,21 @@ QString SignalSources::singleSelectedAmplifierChannelName() const
     else return singleName;
 }
 
+QString SignalSources::singleSelectedSpikeScopeChannelName() const
+{
+    QList<Channel*> selectedSignals;
+    getSelectedSignals(selectedSignals);
+    if (selectedSignals.size() != 1) {
+        return QString();
+    }
+    Channel* channel = selectedSignals.at(0);
+    const SignalType type = channel->getSignalType();
+    if (type != AmplifierSignal && type != BoardAdcSignal) {
+        return QString();
+    }
+    return channel->getNativeName();
+}
+
 Channel* SignalSources::selectedChannel() const
 {
     for (int i = 0; i < numGroups(); i++) {

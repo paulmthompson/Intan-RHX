@@ -97,8 +97,32 @@ Channel::Channel(SignalType signalType_, const QString &customChannelName_, cons
         outputToTcpStim = new BooleanItem("TCPDataOutputEnabledStim", channelItems, state, false, XMLGroupNone, TypeDependencyStim);
         reference = new StringItem("Reference", channelItems, state, "Hardware");
     } else if (signalType == BoardAdcSignal) {
+        spikeThreshold =
+            new IntRangeItem("SpikeThresholdMicroVolts", channelItems, state, -5000, 5000, -70, XMLGroupSpikeSettings);
         externalAmplifierGain =
             new DoubleRangeItem("ExternalAmplifierGain", channelItems, state, 1.0, 1.0e6, 1.0, XMLGroupGeneral);
+    }
+}
+
+int Channel::getSpikeThreshold() const
+{
+    if (!spikeThreshold) {
+        return 0;
+    }
+    return spikeThreshold->getValue();
+}
+
+void Channel::setSpikeThreshold(int threshold)
+{
+    if (spikeThreshold) {
+        spikeThreshold->setValue(threshold);
+    }
+}
+
+void Channel::setupSpikeThresholdSpinBox(QSpinBox* spinBox)
+{
+    if (spikeThreshold) {
+        spikeThreshold->setupSpinBox(spinBox);
     }
 }
 

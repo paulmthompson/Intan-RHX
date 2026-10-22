@@ -99,9 +99,10 @@ public:
     bool isStimEnabled() const { return stimParameters ? stimParameters->enabled->getValue() : false; }
     QString getStimTrigger() const { return stimParameters ? stimParameters->triggerSource->getValue() : QString(""); }
 
-    int getSpikeThreshold() const { return spikeThreshold->getValue(); }
-    void setSpikeThreshold(int threshold) { spikeThreshold->setValue(threshold); }
-    void setupSpikeThresholdSpinBox(QSpinBox *spinBox) { spikeThreshold->setupSpinBox(spinBox); }
+    bool hasSpikeThreshold() const { return spikeThreshold != nullptr; }
+    int getSpikeThreshold() const;
+    void setSpikeThreshold(int threshold);
+    void setupSpikeThresholdSpinBox(QSpinBox* spinBox);
 
     /**
      * @brief External amplifier gain for board ADC channels (dimensionless); 1.0 when not applicable.
