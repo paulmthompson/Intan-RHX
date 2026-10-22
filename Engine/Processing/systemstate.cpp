@@ -279,7 +279,9 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     analogOut6Threshold = new IntRangeItem("AnalogOut6ThresholdMicroVolts", globalItems, this, -6000, 6000, 0);
     analogOut7Threshold = new IntRangeItem("AnalogOut7ThresholdMicroVolts", globalItems, this, -6000, 6000, 0);
     analogOut8Threshold = new IntRangeItem("AnalogOut8ThresholdMicroVolts", globalItems, this, -6000, 6000, 0);
-    bool defaultThresholdEnable = getControllerTypeEnum() != ControllerStimRecord;
+    // RHS stim defaults off so TTL 1–8 use the digout sequencer unless enabled in the Analog tab.
+    // RHD record used to default on with no GUI to turn it off; that blocked extended digout.
+    const bool defaultThresholdEnable = false;
     analogOut1ThresholdEnabled = new BooleanItem("AnalogOut1ThresholdEnabled", globalItems, this, defaultThresholdEnable);
     analogOut2ThresholdEnabled = new BooleanItem("AnalogOut2ThresholdEnabled", globalItems, this, defaultThresholdEnable);
     analogOut3ThresholdEnabled = new BooleanItem("AnalogOut3ThresholdEnabled", globalItems, this, defaultThresholdEnable);

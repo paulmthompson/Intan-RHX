@@ -329,7 +329,8 @@ public:
     void clearRhsDigOutRuntimeState();
 
     /**
-     * @brief Whether the loaded controller/bitfile supports the Step 3 protocol.
+     * @brief Whether the loaded controller/bitfile supports extended board digital-output live commands.
+     * @post True for RHS (board 800) or RHD XEM6310 (board 700) with WireOut 0x27 == 0x4453.
      */
     bool supportsRhsDigOutCommands() const;
 

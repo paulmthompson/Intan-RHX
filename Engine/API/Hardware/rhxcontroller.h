@@ -149,11 +149,11 @@ public:
     void resetSequencers() override;
 
     /**
-     * @brief Write a 0-based RHS TTL channel/opcode to WireIn 0x0e and execute via 0x41[2].
+     * @brief Send one board TTL live command and execute via TriggerIn 0x41[2].
      * @ingroup RhsDigitalOut
-     * Holds okMutex across SetWireInValue, UpdateWireIns and ActivateTriggerIn;
-     * non-RHS and older bitfiles ignore the request. Requires XEM6010 RHS
-     * board ID 800 with WireOut 0x27 == 0x4453 ('DS').
+     * Holds okMutex across SetWireInValue, UpdateWireIns and ActivateTriggerIn.
+     * RHS (board ID 800) uses WireIn 0x0e; RHD XEM6310 (board ID 700) uses WireIn 0x15.
+     * Requires WireOut 0x27 == 0x4453 ('DS') on a matching custom bitfile.
      * @pre @p channel is in [0, 15].
      * @post The transaction has been sent without FPGA acknowledgement.
      * @see AbstractRHXController::commandRhsDigOut
@@ -206,6 +206,7 @@ private:
         WireOutTtlIn = 0x23,
         WireOutDataClkLocked = 0x24,
         WireOutBoardMode = 0x25,
+        WireOutDigOutProtocol = 0x27, // 0x4453 ('DS') when extended board digout is enabled
         WireOutBoardId = 0x3e,
         WireOutBoardVersion = 0x3f,
 
@@ -220,7 +221,8 @@ private:
         WireInAuxCmdBank1_R = 0x08,
         WireInAuxCmdBank2_R = 0x09,
         WireInAuxCmdBank3_R = 0x0a,
-        WireInTtlOut_R = 0x15
+        WireInDigOutCommand_R = 0x15, // RHD live digout channel [3:0], opcode [6:4]
+        WireInTtlOut_R = WireInDigOutCommand_R // legacy host mask; unused on extended RHD bitfiles
     };
 
     // Opal Kelly module USB interface endpoint addresses common to USB2 controller types
@@ -257,6 +259,7 @@ private:
         WireInLedDisplay_R_USB2 = 0x11,
         WireInDataStreamSel1234_R_USB2 = 0x12,
         WireInDataStreamSel5678_R_USB2 = 0x13,
+        WireInTtlOutMode_R_USB2 = 0x13, // low 8 bits: TTL 1–8 DAC-threshold vs sequencer (extended digout bitfile)
 
         TrigInRamWrite_R_USB2 = 0x42,
         TrigInExtFastSettle_R_USB2 = 0x45,
@@ -297,7 +300,7 @@ private:
 
         TrigInDigOutCommand_S_USB2 = 0x41,  // ActivateTriggerIn bit 2
 
-        WireOutDigOutProtocol_S_USB2 = 0x27, // 0x4453 for Step 3 XEM6010 RHS
+        WireOutDigOutProtocol_S_USB2 = WireOutDigOutProtocol,
 
         TrigInRamAddrReset_S_USB2 = 0x42,
         TrigInAuxCmdLength_S_USB2 = 0x45,

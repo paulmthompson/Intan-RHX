@@ -46,6 +46,14 @@
 
 namespace {
 
+bool controlPanelShowsBoardDigOutTools(SystemState* state)
+{
+    const ControllerType controllerType = state->getControllerTypeEnum();
+    return controllerType == ControllerStimRecord ||
+           controllerType == ControllerRecordUSB2 ||
+           controllerType == ControllerRecordUSB3;
+}
+
 bool rhsDigOutThresholdOwned(SystemState* state, Channel* channel)
 {
     const int channelIndex = channel->getNativeChannelNumber();
@@ -347,7 +355,7 @@ QHBoxLayout* ControlPanel::createSelectionLayout()
     setRefButton->setFixedWidth(setRefButton->fontMetrics().horizontalAdvance(setRefButton->text()) + 14);
     connect(setRefButton, SIGNAL(clicked()), controlWindow, SLOT(setReference()));
 
-    if (state->getControllerTypeEnum() == ControllerStimRecord) {
+    if (controlPanelShowsBoardDigOutTools(state)) {
         setStimButton = new QPushButton(tr("Set Stim"), this);
         setStimButton->setFixedWidth(setStimButton->fontMetrics().horizontalAdvance(setStimButton->text()) + 14);
         connect(setStimButton, SIGNAL(clicked()), this, SLOT(openStimParametersDialog()));
@@ -380,7 +388,7 @@ QHBoxLayout* ControlPanel::createSelectionToolsLayout()
     selectionToolsLayout->addWidget(colorAttribute);
     selectionToolsLayout->addWidget(renameButton);
     selectionToolsLayout->addWidget(setRefButton);
-    if (state->getControllerTypeEnum() == ControllerStimRecord) {
+    if (controlPanelShowsBoardDigOutTools(state)) {
         rhsDigOutLiveControlsWidget = new RhsDigOutLiveControlsWidget(this);
         connect(rhsDigOutLiveControlsWidget,
                 &RhsDigOutLiveControlsWidget::manualLevelRequested, this,
@@ -687,7 +695,11 @@ void ControlPanel::onStimParamDialogRejected()
 void ControlPanel::onDigOutConfigurationApplied(Channel* channel)
 {
     state->stimParamsHaveChanged = true;
-    updateStimTrigger();
+    if (selectionStimTriggerLabel) {
+        updateStimTrigger();
+    } else if (setStimButton) {
+        updateStimParamDialogButton();
+    }
     updateRhsDigOutLiveControls();
     if (channel == state->signalSources->selectedChannel()) {
         state->forceUpdate();
@@ -804,6 +816,9 @@ void ControlPanel::updateFromState()
         updateStimTrigger();
         updateStimParamDialogButton();
         updateRhsDigOutLiveControls();
+    } else if (controllerInterface->supportsRhsDigOutCommands()) {
+        updateStimParamDialogButton();
+        updateRhsDigOutLiveControls();
     }
     state->writeToLog("End of ControlPanel::updateFromState()");
 }
@@ -825,6 +840,9 @@ void ControlPanel::updateYScales()
 
 void ControlPanel::updateStimParamDialogButton()
 {
+    if (!setStimButton) {
+        return;
+    }
     bool enableSetStim = false;
     if (state->signalSources->numChannelsSelected() == 1 && !state->sweeping) {
         Channel* channel = state->signalSources->selectedChannel();
@@ -923,6 +941,9 @@ void ControlPanel::updateReferenceChannel()
 
 void ControlPanel::updateStimTrigger()
 {
+    if (!selectionStimTriggerLabel || !setStimButton) {
+        return;
+    }
     if (selectedSignals.isEmpty()) {
         selectionStimTriggerLabel->setText(tr("no selection"));
         setStimButton->setEnabled(false);

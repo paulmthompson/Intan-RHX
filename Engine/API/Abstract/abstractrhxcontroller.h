@@ -261,7 +261,7 @@ public:
      * @ingroup RhsDigitalOut
      * @param command One of RhsDigOutCommand.
      * @param channel Zero-based board TTL index [0, 15].
-     * @pre Use with an RHS controller and matching custom FPGA bitfile only.
+     * @pre Use with an RHS or RHD XEM6310 controller and matching custom FPGA bitfile only.
      * @post The command transaction has been sent; FPGA acceptance is not acknowledged.
      * @note The FPGA ignores all commands while stopped. Start and Fire are
      *       also ignored for an ineligible mode, busy channel, threshold-owned
@@ -275,7 +275,7 @@ public:
     virtual void commandRhsDigOut(RhsDigOutCommand command, int channel = 0) = 0;
 
     /**
-     * @brief Report whether the loaded RHS bitfile implements the matching digital-output protocol.
+     * @brief Report whether the loaded bitfile implements the extended board digital-output protocol.
      * @ingroup RhsDigitalOut
      * @post Returns true only after a matching hardware bitfile has been identified.
      */

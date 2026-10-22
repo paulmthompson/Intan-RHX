@@ -699,6 +699,17 @@ void ControllerInterface::initializeController()
     if (state->getControllerTypeEnum() == ControllerStimRecord) {
         syncFpgaAnalogInTriggerThresholdFromState();
     }
+
+    if (supportsRhsDigOutCommands()) {
+        setTtlOutMode(state->analogOut1ThresholdEnabled->getValue(),
+                      state->analogOut2ThresholdEnabled->getValue(),
+                      state->analogOut3ThresholdEnabled->getValue(),
+                      state->analogOut4ThresholdEnabled->getValue(),
+                      state->analogOut5ThresholdEnabled->getValue(),
+                      state->analogOut6ThresholdEnabled->getValue(),
+                      state->analogOut7ThresholdEnabled->getValue(),
+                      state->analogOut8ThresholdEnabled->getValue());
+    }
 }
 
 // Create SPI command lists and upload to auxiliary command slots.
@@ -2128,8 +2139,7 @@ void ControllerInterface::syncFpgaAnalogInTriggerThresholdFromState()
  */
 bool ControllerInterface::_rhsDigOutLiveCommandAllowed(int channel, bool allowThresholdOwned)
 {
-    if (state->getControllerTypeEnum() != ControllerStimRecord || is7310 ||
-        rhxController->isSynthetic() || rhxController->isPlayback() ||
+    if (is7310 || rhxController->isSynthetic() || rhxController->isPlayback() ||
         !rhxController->supportsRhsDigOutCommands() ||
         channel < 0 || channel > 15) {
         return false;
@@ -2382,8 +2392,7 @@ void ControllerInterface::clearRhsDigOutRuntimeState()
 
 bool ControllerInterface::supportsRhsDigOutCommands() const
 {
-    return state->getControllerTypeEnum() == ControllerStimRecord &&
-           !is7310 && rhxController->supportsRhsDigOutCommands();
+    return !is7310 && rhxController->supportsRhsDigOutCommands();
 }
 
 void ControllerInterface::enableFastSettle(bool enabled)

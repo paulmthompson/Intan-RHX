@@ -177,7 +177,10 @@ AnalogOutConfigDialog::AnalogOutConfigDialog(SystemState* state_, ControllerInte
         connect(dac8ThresholdEnableCheckBox, SIGNAL(clicked(bool)), this, SLOT(enableDac8Threshold(bool)));
     }
 
-    if (state->getControllerTypeEnum() != ControllerStimRecord) {
+    const bool legacyRecordThresholdLock =
+        state->getControllerTypeEnum() != ControllerStimRecord &&
+        !controllerInterface->supportsRhsDigOutCommands();
+    if (legacyRecordThresholdLock) {
         dac1ThresholdEnableCheckBox->setChecked(true);
         dac2ThresholdEnableCheckBox->setChecked(true);
         if (eightAnalogOuts) {
@@ -530,6 +533,20 @@ void AnalogOutConfigDialog::updateFromState(bool oneAmpSelected)
         dac6ThresholdSpinBox->setValue(state->analogOut6Threshold->getValue());
         dac7ThresholdSpinBox->setValue(state->analogOut7Threshold->getValue());
         dac8ThresholdSpinBox->setValue(state->analogOut8Threshold->getValue());
+    }
+
+    const bool thresholdEnableEditable =
+        state->getControllerTypeEnum() == ControllerStimRecord ||
+        controllerInterface->supportsRhsDigOutCommands();
+    dac1ThresholdEnableCheckBox->setEnabled(thresholdEnableEditable);
+    dac2ThresholdEnableCheckBox->setEnabled(thresholdEnableEditable);
+    if (eightAnalogOuts) {
+        dac3ThresholdEnableCheckBox->setEnabled(thresholdEnableEditable);
+        dac4ThresholdEnableCheckBox->setEnabled(thresholdEnableEditable);
+        dac5ThresholdEnableCheckBox->setEnabled(thresholdEnableEditable);
+        dac6ThresholdEnableCheckBox->setEnabled(thresholdEnableEditable);
+        dac7ThresholdEnableCheckBox->setEnabled(thresholdEnableEditable);
+        dac8ThresholdEnableCheckBox->setEnabled(thresholdEnableEditable);
     }
 
     dac1ThresholdEnableCheckBox->setChecked(state->analogOut1ThresholdEnabled->getValue());

@@ -175,9 +175,12 @@ bool RHXController::uploadFPGABitfile(const std::string& filename)
     boardId = dev->GetWireOutValue(WireOutBoardId);
     boardVersion = dev->GetWireOutValue(WireOutBoardVersion);
 
-    rhsDigOutCommandsAvailable = (type == ControllerStimRecord && !is7310 &&
-                                  boardId == 800 &&
-                                  dev->GetWireOutValue(WireOutDigOutProtocol_S_USB2) == 0x4453);
+    const bool digOutProtocolMatch =
+        dev->GetWireOutValue(WireOutDigOutProtocol) == 0x4453;
+    const bool rhsBoard = type == ControllerStimRecord && boardId == 800;
+    const bool rhdBoard = (type == ControllerRecordUSB2 || type == ControllerRecordUSB3) &&
+                          boardId == 700;
+    rhsDigOutCommandsAvailable = !is7310 && digOutProtocolMatch && (rhsBoard || rhdBoard);
 
     std::cout << "Rhythm configuration file successfully loaded.  Rhythm version number: " <<
             boardVersion << "\n\n";
@@ -548,6 +551,7 @@ void RHXController::setDataSource(int stream, BoardDataSource dataSource)
 void RHXController::setTtlOut(const int* ttlOutArray)
 {
     if (type == ControllerStimRecord) return;
+    if (rhsDigOutCommandsAvailable) return;
     std::lock_guard<std::mutex> lockOk(okMutex);
 
     int ttlOut = 0;
@@ -939,7 +943,11 @@ void RHXController::setGlobalSettlePolicy(bool settleWholeHeadstageA, bool settl
 // sequencer.  Note: Digital Out ports 9-16 are always controlled by a digital sequencer.
 void RHXController::setTtlOutMode(bool mode1, bool mode2, bool mode3, bool mode4, bool mode5, bool mode6, bool mode7, bool mode8)
 {
-    if (type != ControllerStimRecord) return;
+    const bool recordDigOut = rhsDigOutCommandsAvailable &&
+                              (type == ControllerRecordUSB2 || type == ControllerRecordUSB3);
+    if (type != ControllerStimRecord && !recordDigOut) {
+        return;
+    }
     std::lock_guard<std::mutex> lockOk(okMutex);
 
     int value = 0;
@@ -952,7 +960,10 @@ void RHXController::setTtlOutMode(bool mode1, bool mode2, bool mode3, bool mode4
     value += mode7 ? 64 : 0;
     value += mode8 ? 128 : 0;
 
-    dev->SetWireInValue(WireInTtlOutMode_S_USB2, value, 0x000000ff);
+    const int wireInTtlOutMode = type == ControllerStimRecord ?
+                                     WireInTtlOutMode_S_USB2 :
+                                     WireInTtlOutMode_R_USB2;
+    dev->SetWireInValue(wireInTtlOutMode, value, 0x000000ff);
     dev->UpdateWireIns();
 }
 
@@ -1607,6 +1618,7 @@ int RHXController::getNumSPIPorts(bool& expanderBoardDetected)
 void RHXController::clearTtlOut()
 {
     if (type == ControllerStimRecord) return;
+    if (rhsDigOutCommandsAvailable) return;
     std::lock_guard<std::mutex> lockOk(okMutex);
     dev->SetWireInValue(WireInTtlOut_R, 0x0000);
     dev->UpdateWireIns();
@@ -1625,8 +1637,11 @@ void RHXController::resetSequencers()
 
 void RHXController::commandRhsDigOut(RhsDigOutCommand command, int channel)
 {
-    if (type != ControllerStimRecord || is7310 || !dev ||
-        !rhsDigOutCommandsAvailable) return; // versioned XEM6010 RHS bitfile only
+    const bool recordController = type == ControllerRecordUSB2 || type == ControllerRecordUSB3;
+    if ((type != ControllerStimRecord && !recordController) || is7310 || !dev ||
+        !rhsDigOutCommandsAvailable) {
+        return;
+    }
     const bool validCommand = command == RhsDigOutManualHigh ||
                               command == RhsDigOutManualLow ||
                               command == RhsDigOutContinuousStart ||
@@ -1640,7 +1655,10 @@ void RHXController::commandRhsDigOut(RhsDigOutCommand command, int channel)
     std::lock_guard<std::mutex> lockOk(okMutex);
     const unsigned int word = (static_cast<unsigned int>(command) << 4) |
                               static_cast<unsigned int>(channel);
-    dev->SetWireInValue(WireInDigOutCommand_S_USB2, word, 0x007f);
+    const int wireInDigOutCommand = type == ControllerStimRecord ?
+                                        WireInDigOutCommand_S_USB2 :
+                                        WireInDigOutCommand_R;
+    dev->SetWireInValue(wireInDigOutCommand, word, 0x007f);
     dev->UpdateWireIns();
     dev->ActivateTriggerIn(TrigInDigOutCommand_S_USB2, 2);
 }
