@@ -291,9 +291,13 @@ public:
      * @param value Event time in sample-clock ticks, or sentinel to disable an event.
      *
      * @note Stock Intan bitfile: 16-bit value on WireIn 0x07 only.
-     * @note Custom RHS bitfile: 32-bit value; LSB on WireIn 0x07, MSB on WireInStimRegWord_S2_USB2 (0x0b).
+     * @note Custom RHS bitfile: 32-bit value; LSB on WireIn 0x07, MSB on WireInStimRegWord_S2_USB2 (0x0b);
+     *       prog_trig on TriggerIn 0x42 bit 1.
+     * @note Extended RHD XEM6310 (board digout protocol): stream 16 only; WireIn 0x10/0x11 and
+     *       TriggerIn 0x43 bit 1; 32-bit word on 0x11.
      *
-     * @pre Controller type is ControllerStimRecord for hardware implementations.
+     * @pre RHS stim hardware uses ControllerStimRecord; RHD record uses stream 16 with
+     *      supportsRhsDigOutCommands() true.
      * @post FPGA has latched the register write (implementation triggers prog_trig).
      *
      * @see StimRegister

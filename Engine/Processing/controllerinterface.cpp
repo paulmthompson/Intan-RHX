@@ -696,7 +696,8 @@ void ControllerInterface::initializeController()
         rhxController->setCableDelay(PortH, 1);
     }
 
-    if (state->getControllerTypeEnum() == ControllerStimRecord) {
+    if (state->getControllerTypeEnum() == ControllerStimRecord ||
+        supportsRhsDigOutCommands()) {
         syncFpgaAnalogInTriggerThresholdFromState();
     }
 
@@ -2120,7 +2121,8 @@ void ControllerInterface::setTtlOutMode(bool mode1, bool mode2, bool mode3, bool
 
 void ControllerInterface::syncFpgaAnalogInTriggerThresholdFromState()
 {
-    if (state->getControllerTypeEnum() != ControllerStimRecord) {
+    if (state->getControllerTypeEnum() != ControllerStimRecord &&
+        !supportsRhsDigOutCommands()) {
         return;
     }
     if (rhxController->isSynthetic() || rhxController->isPlayback()) {

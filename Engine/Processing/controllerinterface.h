@@ -248,9 +248,10 @@ public:
     void setTtlOutMode(bool mode1, bool mode2, bool mode3, bool mode4, bool mode5, bool mode6, bool mode7, bool mode8);
 
     /**
-     * @brief Push TriggerAnalogThresholdVolts to the RHS FPGA analog comparator (WireIn 0x0f).
-     * @pre ControllerStimRecord hardware; value is quantized to a 16-bit ADC threshold.
-     * @post FPGA uses the quantized threshold for all board analog inputs.
+     * @brief Push TriggerAnalogThresholdVolts to the board FPGA analog comparator.
+     * @pre RHS stim or extended RHD digout hardware; value is quantized to a 16-bit ADC threshold.
+     * @post FPGA uses the quantized threshold for all board analog inputs (RHS WireIn 0x0f;
+     *       extended RHD WireIn 0x15[31:16]).
      */
     void syncFpgaAnalogInTriggerThresholdFromState();
 

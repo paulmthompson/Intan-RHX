@@ -51,6 +51,19 @@
 #include "rhxcontroller.h"
 #include "rhxregisters.h"
 
+namespace {
+
+/**
+ * @brief True when the FPGA reports extended RHD digout (WireOut 0x4453) on a record controller.
+ */
+bool extendedRhdDigOutActive(ControllerType type, bool rhsDigOutCommandsAvailable)
+{
+    return rhsDigOutCommandsAvailable &&
+           (type == ControllerRecordUSB2 || type == ControllerRecordUSB3);
+}
+
+} // namespace
+
 // This class provides access to and control of one of the following:
 //   (1) an Opal Kelly XEM6010 USB2/FPGA interface board running the Intan Rhythm interface Verilog code
 //       (e.g., a 256-channel Intan RHD2000 USB Interface Board with 256-channel capacity)
@@ -783,6 +796,17 @@ void RHXController::setDacThreshold(int dacChannel, int threshold, bool trigPola
         return;
     }
 
+    if (extendedRhdDigOutActive(type, rhsDigOutCommandsAvailable)) {
+        // neuro-fpga XEM6310: threshold/polarity via ep1f + TriggerIn 0x42 (not 0x43 bit 1 = prog_trig).
+        dev->SetWireInValue(WireInMultiUse, threshold, 0xFFFF);
+        dev->UpdateWireIns();
+        dev->ActivateTriggerIn(TrigInRamWrite_R_USB2, dacChannel);
+        dev->SetWireInValue(WireInMultiUse, (trigPolarity ? 1 : 0), 0x0001);
+        dev->UpdateWireIns();
+        dev->ActivateTriggerIn(TrigInRamWrite_R_USB2, dacChannel + 8);
+        return;
+    }
+
     // Set threshold level.
     dev->SetWireInValue(WireInMultiUse, threshold);
     dev->UpdateWireIns();
@@ -883,21 +907,31 @@ void RHXController::setAuxExecuteDuringMaintenance(bool enabled)
 }
 
 /**
- * @brief Set the shared board analog-input comparator threshold (WireIn 0x0f).
- * @pre ControllerStimRecord; one threshold applies to all analog IN comparators.
+ * @brief Set the shared board analog-input comparator threshold.
+ * @pre RHS: WireIn 0x0f. Extended RHD XEM6310: WireIn 0x15 bits [31:16] (digout command uses [6:0]).
  * @post FPGA triggers when each analog stream exceeds this level (fixed polarity).
  */
 void RHXController::setAnalogInTriggerThreshold(double voltageThreshold)
 {
-    if (type != ControllerStimRecord) return;
-    std::lock_guard<std::mutex> lockOk(okMutex);
-
     int value = (int) (32768 * (voltageThreshold / 10.24) + 32768);
     if (value < 0) {
         value = 0;
     } else if (value > 65535) {
         value = 65535;
     }
+
+    if (extendedRhdDigOutActive(type, rhsDigOutCommandsAvailable)) {
+        std::lock_guard<std::mutex> lockOk(okMutex);
+        dev->SetWireInValue(WireInAdcTriggerThreshold_R,
+                            static_cast<unsigned int>(value) << 16U, 0xFFFF0000U);
+        dev->UpdateWireIns();
+        return;
+    }
+
+    if (type != ControllerStimRecord) {
+        return;
+    }
+    std::lock_guard<std::mutex> lockOk(okMutex);
 
     dev->SetWireInValue(WireInAdcThreshold_S_USB2, value);
     dev->UpdateWireIns();
@@ -906,15 +940,27 @@ void RHXController::setAnalogInTriggerThreshold(double voltageThreshold)
 // Set state of manual stimulation trigger 0-7 (e.g., from keypresses).
 void RHXController::setManualStimTrigger(int trigger, bool triggerOn)
 {
-    if (type != ControllerStimRecord) return;
-    std::lock_guard<std::mutex> lockOk(okMutex);
-
     if ((trigger < 0) || (trigger > 7)) {
         std::cerr << "Error in RHXController::setManualStimTrigger: trigger out of range.\n";
         return;
     }
 
-    dev->SetWireInValue(WireInManualTriggers_S_USB2, (triggerOn ? 1 : 0) << trigger, 1 << trigger);
+    const unsigned int mask = 1U << static_cast<unsigned int>(trigger);
+    const unsigned int bitValue = (triggerOn ? 1U : 0U) << static_cast<unsigned int>(trigger);
+
+    if (extendedRhdDigOutActive(type, rhsDigOutCommandsAvailable)) {
+        std::lock_guard<std::mutex> lockOk(okMutex);
+        dev->SetWireInValue(WireInManualTriggers_R_USB2, bitValue, mask);
+        dev->UpdateWireIns();
+        return;
+    }
+
+    if (type != ControllerStimRecord) {
+        return;
+    }
+    std::lock_guard<std::mutex> lockOk(okMutex);
+
+    dev->SetWireInValue(WireInManualTriggers_S_USB2, bitValue, mask);
     dev->UpdateWireIns();
 }
 
@@ -961,8 +1007,8 @@ void RHXController::setTtlOutMode(bool mode1, bool mode2, bool mode3, bool mode4
     value += mode8 ? 128 : 0;
 
     const int wireInTtlOutMode = type == ControllerStimRecord ?
-                                     WireInTtlOutMode_S_USB2 :
-                                     WireInTtlOutMode_R_USB2;
+                                     static_cast<int>(WireInTtlOutMode_S_USB2) :
+                                     static_cast<int>(WireInTtlOutMode_R_USB2);
     dev->SetWireInValue(wireInTtlOutMode, value, 0x000000ff);
     dev->UpdateWireIns();
 }
@@ -1478,6 +1524,29 @@ void RHXController::selectAuxCommandLength(AuxCmdSlot auxCommandSlot, int loopIn
 
     switch (type) {
     case (ControllerRecordUSB2):
+        if (rhsDigOutCommandsAvailable) {
+            // neuro-fpga XEM6310: max indices on 0x0b, loop indices on 0x0c (do not use 0x0e–0x10).
+            const unsigned int endValue = static_cast<unsigned int>(endIndex);
+            const unsigned int loopValue = static_cast<unsigned int>(loopIndex);
+            switch (auxCommandSlot) {
+            case AuxCmd1:
+                dev->SetWireInValue(WireInAuxCmdPackedMaxIndex_R_USB2, endValue, 0x000003ffU);
+                dev->SetWireInValue(WireInAuxCmdPackedLoopIndex_R_USB2, loopValue, 0x000003ffU);
+                break;
+            case AuxCmd2:
+                dev->SetWireInValue(WireInAuxCmdPackedMaxIndex_R_USB2, endValue << 10U, 0x000ffc00U);
+                dev->SetWireInValue(WireInAuxCmdPackedLoopIndex_R_USB2, loopValue << 10U, 0x000ffc00U);
+                break;
+            case AuxCmd3:
+                dev->SetWireInValue(WireInAuxCmdPackedMaxIndex_R_USB2, endValue << 20U, 0x3ff00000U);
+                dev->SetWireInValue(WireInAuxCmdPackedLoopIndex_R_USB2, loopValue << 20U, 0x3ff00000U);
+                break;
+            case AuxCmd4:
+                break;
+            }
+            dev->UpdateWireIns();
+            break;
+        }
         switch (auxCommandSlot) {
         case AuxCmd1:
             dev->SetWireInValue(WireInAuxCmdLoop1_R_USB2, loopIndex);
@@ -1656,8 +1725,8 @@ void RHXController::commandRhsDigOut(RhsDigOutCommand command, int channel)
     const unsigned int word = (static_cast<unsigned int>(command) << 4) |
                               static_cast<unsigned int>(channel);
     const int wireInDigOutCommand = type == ControllerStimRecord ?
-                                        WireInDigOutCommand_S_USB2 :
-                                        WireInDigOutCommand_R;
+                                        static_cast<int>(WireInDigOutCommand_S_USB2) :
+                                        static_cast<int>(WireInDigOutCommand_R);
     dev->SetWireInValue(wireInDigOutCommand, word, 0x007f);
     dev->UpdateWireIns();
     dev->ActivateTriggerIn(TrigInDigOutCommand_S_USB2, 2);
@@ -1669,7 +1738,26 @@ void RHXController::commandRhsDigOut(RhsDigOutCommand command, int channel)
  */
 void RHXController::programStimReg(int stream, int channel, StimRegister reg, uint32_t value, int stimProgramBank)
 {
-    if (type != ControllerStimRecord) return;
+    if (extendedRhdDigOutActive(type, rhsDigOutCommandsAvailable) && stream == 16) {
+        if ((channel < 0) || (channel > 15)) {
+            std::cerr << "Error in RHXController::programStimReg: channel out of range.\n";
+            return;
+        }
+        std::lock_guard<std::mutex> lockOk(okMutex);
+
+        const unsigned int progControl =
+            static_cast<unsigned int>((stream << 8) + (channel << 4) +
+                                    (static_cast<unsigned int>(reg) & 0xFU));
+        dev->SetWireInValue(WireInDigOutStimProgAddr_R_USB2, progControl);
+        dev->SetWireInValue(WireInDigOutStimProgWord_R_USB2, value);
+        dev->UpdateWireIns();
+        dev->ActivateTriggerIn(TrigInDacThresh_USB2, 1);
+        return;
+    }
+
+    if (type != ControllerStimRecord) {
+        return;
+    }
     std::lock_guard<std::mutex> lockOk(okMutex);
 
     const unsigned int address = static_cast<unsigned int>((stream << 8) + (channel << 4) + reg +

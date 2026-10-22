@@ -221,7 +221,8 @@ private:
         WireInAuxCmdBank1_R = 0x08,
         WireInAuxCmdBank2_R = 0x09,
         WireInAuxCmdBank3_R = 0x0a,
-        WireInDigOutCommand_R = 0x15, // RHD live digout channel [3:0], opcode [6:4]
+        WireInDigOutCommand_R = 0x15, // [6:0] live digout; [31:16] analog trigger threshold (extended bitfile)
+        WireInAdcTriggerThreshold_R = WireInDigOutCommand_R,
         WireInTtlOut_R = WireInDigOutCommand_R // legacy host mask; unused on extended RHD bitfiles
     };
 
@@ -231,6 +232,7 @@ private:
         WireInMaxTimeStepMsb_USB2 = 0x02,
 
         TrigInDcmProg_USB2 = 0x40,
+        /** Bit 1: extended XEM6310 digout sequencer prog_trig (see WireInDigOutStimProg*). */
         TrigInDacThresh_USB2 = 0x43,
         TrigInDacHpf_USB2 = 0x44,
 
@@ -251,13 +253,23 @@ private:
     // Opal Kelly module USB interface endpoint addresses unique to ControllerRecordUSB2 type
     enum EndPointRecordUSB2 {
         WireInAuxCmdLength1_R_USB2 = 0x0b,
+        /** Extended XEM6310: packed max aux indices [9:0],[19:10],[29:20] on 0x0b (stock used split endpoints). */
+        WireInAuxCmdPackedMaxIndex_R_USB2 = 0x0b,
         WireInAuxCmdLength2_R_USB2 = 0x0c,
+        /** Extended XEM6310: packed aux loop indices on 0x0c. */
+        WireInAuxCmdPackedLoopIndex_R_USB2 = 0x0c,
         WireInAuxCmdLength3_R_USB2 = 0x0d,
         WireInAuxCmdLoop1_R_USB2 = 0x0e,
         WireInAuxCmdLoop2_R_USB2 = 0x0f,
         WireInAuxCmdLoop3_R_USB2 = 0x10,
+        /** Extended XEM6310 digout: prog_module/channel/address (stock Intan used aux loop). */
+        WireInDigOutStimProgAddr_R_USB2 = 0x10,
         WireInLedDisplay_R_USB2 = 0x11,
+        /** Extended XEM6310 digout: 32-bit prog_word (stock Intan used LED display). */
+        WireInDigOutStimProgWord_R_USB2 = 0x11,
         WireInDataStreamSel1234_R_USB2 = 0x12,
+        /** Extended XEM6310: F1–F8 manual triggers on [7:0] (neuro-fpga uses ep12 for triggers, not stream sel). */
+        WireInManualTriggers_R_USB2 = 0x12,
         WireInDataStreamSel5678_R_USB2 = 0x13,
         WireInTtlOutMode_R_USB2 = 0x13, // low 8 bits: TTL 1–8 DAC-threshold vs sequencer (extended digout bitfile)
 
