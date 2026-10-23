@@ -29,8 +29,13 @@
 //------------------------------------------------------------------------------
 
 #include "stateitem.h"
-#include "systemstate.h"
+
+#include <optional>
+
+#include "channel.h"
 #include "signalsources.h"
+#include "spikescopechannelname.hpp"
+#include "systemstate.h"
 
 StateItem::StateItem(const QString &parameterName_, SystemState *state_, XMLGroup xmlGroup_, TypeDependency typeDependency_) :
     parameterName(parameterName_),
@@ -85,17 +90,52 @@ int ChannelNameItem::getSerialIndex() const
     return state->getSerialIndex(getValue());
 }
 
+void ChannelNameItem::setCurrentValueAndUpdate(const QString& canonicalValue)
+{
+    currentValue = canonicalValue;
+    state->forceUpdate();
+}
+
 bool ChannelNameItem::setValue(const QString& value)
 {
-    // Check if 'value' has a match in signal sources.
-    for (auto& channelName : state->signalSources->amplifierChannelsNameList()) {
-        if (QString::fromStdString(channelName).toLower() == value.toLower()) {
-            currentValue = QString::fromStdString(channelName);
-            state->forceUpdate();
-            return true;
-        }
+    Channel* channel = state->signalSources->channelByName(value);
+    const std::optional<SignalType> resolvedType = channel ? std::optional<SignalType>(channel->getSignalType())
+                                                           : std::nullopt;
+    const QString resolvedNativeName = channel ? channel->getNativeName() : QString();
+    const std::optional<QString> canonical =
+        canonicalAmplifierChannelNameValue(value, resolvedType, resolvedNativeName);
+    if (!canonical.has_value()) {
+        return false;
     }
-    return false;
+    setCurrentValueAndUpdate(*canonical);
+    return true;
+}
+
+SpikeScopeChannelItem::SpikeScopeChannelItem(const QString& parameterName_, SingleItemList& hList_,
+                                             SystemState* state_, const QString& defaultValue,
+                                             XMLGroup xmlGroup_, TypeDependency typeDependency_) :
+    ChannelNameItem(parameterName_, hList_, state_, defaultValue, xmlGroup_, typeDependency_)
+{
+}
+
+bool SpikeScopeChannelItem::setValue(const QString& value)
+{
+    Channel* channel = state->signalSources->channelByName(value);
+    const std::optional<SignalType> resolvedType = channel ? std::optional<SignalType>(channel->getSignalType())
+                                                           : std::nullopt;
+    const QString resolvedNativeName = channel ? channel->getNativeName() : QString();
+    const std::optional<QString> canonical =
+        canonicalSpikeScopeChannelValue(value, resolvedType, resolvedNativeName);
+    if (!canonical.has_value()) {
+        return false;
+    }
+    setCurrentValueAndUpdate(*canonical);
+    return true;
+}
+
+QString SpikeScopeChannelItem::getValidValues() const
+{
+    return QStringLiteral("[PortNumber]-[ChannelNumber] (e.g. A-023) or ANALOG-IN-[Number]");
 }
 
 

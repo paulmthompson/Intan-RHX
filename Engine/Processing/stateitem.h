@@ -119,8 +119,22 @@ public:
 
     QString getValidValues() const override { return "[PortNumber]-[ChannelNumber], for example A-023"; }
 
-private:
+protected:
+    void setCurrentValueAndUpdate(const QString& canonicalValue);
+
     QString currentValue;
+};
+
+class SpikeScopeChannelItem : public ChannelNameItem
+{
+public:
+    SpikeScopeChannelItem(const QString& parameterName_, SingleItemList& hList_, SystemState* state_,
+                          const QString& defaultValue, XMLGroup xmlGroup_ = XMLGroupGeneral,
+                          TypeDependency typeDependency_ = TypeDependencyNone);
+
+    bool setValue(const QString& value) override;
+
+    QString getValidValues() const override;
 };
 
 class StateFilenameItem : public StateItem

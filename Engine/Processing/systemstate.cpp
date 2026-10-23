@@ -706,7 +706,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     writeToLog("Created spectrogram variables");
 
     // Spike scope
-    spikeScopeChannel = new ChannelNameItem("SpikeScopeChannel", globalItems, this, "N/A");
+    spikeScopeChannel = new SpikeScopeChannelItem("SpikeScopeChannel", globalItems, this, "N/A");
     pulseResistanceMode = new DiscreteItemList("PulseResistanceMode", globalItems, this);
     pulseResistanceMode->addItem("RhsStimChannel", tr("RHS stim channel"), 0);
     pulseResistanceMode->addItem("ExternalAdcTtl", tr("External ADC + TTL"), 1);

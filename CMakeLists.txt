@@ -77,6 +77,7 @@ set(Sources
         Engine/Processing/impedancereader.cpp 
         Engine/Processing/boardadcscaling.cpp
         Engine/Processing/boardadcspikedetection.cpp
+        Engine/Processing/spikescopechannelname.cpp
         Engine/Processing/pulseelectroderesistance.cpp
         Engine/Processing/antidromictracecapture.cpp
         Engine/Processing/antidromicspikedetection.cpp
@@ -213,6 +214,7 @@ set(Headers
         Engine/Processing/impedancereader.h 
         Engine/Processing/boardadcscaling.hpp
         Engine/Processing/boardadcspikedetection.hpp
+        Engine/Processing/spikescopechannelname.hpp
         Engine/Processing/pulseelectroderesistance.hpp
         Engine/Processing/antidromictracecapture.hpp
         Engine/Processing/antidromicspikedetection.hpp
@@ -469,6 +471,22 @@ target_compile_options(pulseelectroderesistance_golden_test PRIVATE
     -ffunction-sections -fdata-sections)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_link_options(pulseelectroderesistance_golden_test PRIVATE -Wl,--gc-sections)
+endif()
+
+add_executable(spikescopechannelname_golden_test
+    tests/spikescopechannelname_golden_test.cpp
+    Engine/Processing/spikescopechannelname.cpp)
+set_target_properties(spikescopechannelname_golden_test PROPERTIES
+    AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+target_link_libraries(spikescopechannelname_golden_test PRIVATE Qt${QT_VERSION_MAJOR}::Core)
+target_include_directories(spikescopechannelname_golden_test PRIVATE
+    Engine/Processing
+    Engine/API/Hardware
+    includes)
+target_compile_options(spikescopechannelname_golden_test PRIVATE
+    -ffunction-sections -fdata-sections)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_link_options(spikescopechannelname_golden_test PRIVATE -Wl,--gc-sections)
 endif()
 
 add_executable(antidromicspikedetection_golden_test
