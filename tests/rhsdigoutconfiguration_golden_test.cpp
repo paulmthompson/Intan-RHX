@@ -137,6 +137,25 @@ void testDefaultContinuousAt30kHz()
            "continuous repeat must exceed end_stim (or output sticks high)");
 }
 
+void testTenSecondContinuousPeriodAt30kHz()
+{
+    RhsDigOutConfiguration configuration;
+    configuration.m_source = RhsDigOutSource::Sequencer;
+    configuration.m_sequenceMode = RhsDigOutSequenceMode::Continuous;
+    configuration.m_enabled = true;
+    configuration.m_postTriggerDelayUs = 0.0;
+    configuration.m_highDurationUs = 100.0;
+    configuration.m_periodUs = 1.0e7;
+    configuration.m_refractoryPeriodUs = 1000.0;
+
+    RhsDigOutQuantizedTiming timing;
+    const auto error = validateAndQuantizeRhsDigOutConfiguration(
+        configuration, 30000.0, timing);
+    expect(!error.has_value(), "10 s continuous period must validate at 30 kHz");
+    expect(timing.m_repeatTick == 300000U,
+           "10 s at 30 kHz: repeat = delay+period ticks");
+}
+
 void testDisabledContinuousClearsStimWord()
 {
     RhsDigOutConfiguration configuration;
@@ -233,6 +252,7 @@ int main()
 {
     testDefaultSingleManualFireAt30kHz();
     testDefaultContinuousAt30kHz();
+    testTenSecondContinuousPeriodAt30kHz();
     testIntegrationContinuousStream16ImageAt30kHz();
     testStream16ImageSameForOutputIndicesTwoThreeFive();
     testContinuousProgrammingMasksStaleDigitalIn4Trigger();

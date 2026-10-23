@@ -252,10 +252,12 @@ StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, Sign
 
         enabled = new BooleanItem(stimXmlParameterName("StimEnabled", programIndex_), hList_, state_, false, XMLGroupStimParameters, TypeDependencyStim);
 
+        double const MAXIMUM_DIGOUT_TIMING_US = 1.0e7; // 10 s is 1e7 us
+
         firstPhaseDuration = new DoubleRangeItem(stimXmlParameterName("FirstPhaseDurationMicroseconds", programIndex_), hList_, state_, 0.0, 1000000, 100.0, XMLGroupStimParameters, TypeDependencyStim);
         postTriggerDelay = new DoubleRangeItem(stimXmlParameterName("PostTriggerDelayMicroseconds", programIndex_), hList_, state_, 0.0, 500000.0, 0.0, XMLGroupStimParameters, TypeDependencyStim);
-        pulseTrainPeriod = new DoubleRangeItem(stimXmlParameterName("PulseTrainPeriodMicroseconds", programIndex_), hList_, state_, 0.0, 1000000.0, 10000.0, XMLGroupStimParameters, TypeDependencyStim);
-        refractoryPeriod = new DoubleRangeItem(stimXmlParameterName("RefractoryPeriodMicroseconds", programIndex_), hList_, state_, 0.0, 1000000.0, 1000.0, XMLGroupStimParameters, TypeDependencyStim);
+        pulseTrainPeriod = new DoubleRangeItem(stimXmlParameterName("PulseTrainPeriodMicroseconds", programIndex_), hList_, state_, 0.0, MAXIMUM_DIGOUT_TIMING_US, 10000.0, XMLGroupStimParameters, TypeDependencyStim);
+        refractoryPeriod = new DoubleRangeItem(stimXmlParameterName("RefractoryPeriodMicroseconds", programIndex_), hList_, state_, 0.0, MAXIMUM_DIGOUT_TIMING_US, 1000.0, XMLGroupStimParameters, TypeDependencyStim);
 
         numberOfStimPulses = new IntRangeItem(stimXmlParameterName("NumberOfStimPulses", programIndex_), hList_, state_, 0, 256, 2, XMLGroupStimParameters, TypeDependencyStim);
     }
