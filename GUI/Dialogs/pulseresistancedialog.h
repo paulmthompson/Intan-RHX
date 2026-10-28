@@ -85,7 +85,7 @@ private slots:
     void setExternalTtlMarker(int index);
     void setExternalTtlActiveHigh(bool activeHigh);
     void setTraceTimeSpan(int index) { state->pulseResistanceTraceTimeMs->setIndex(index); }
-    void setTraceYScaleAc(int index) { state->pulseResistanceTraceYScaleAc->setIndex(index); }
+    void setTraceYScaleUpper(int index);
     void setTraceYScaleDc(int index) { state->pulseResistanceTraceYScaleDc->setIndex(index); }
 
 private:
@@ -135,6 +135,7 @@ private:
     QComboBox* traceTimeSpanComboBox;
     QComboBox* traceYScaleAcComboBox;
     QLabel* traceYScaleAcLabel;
+    QLabel* traceYScaleDcLabel;
     QComboBox* traceYScaleDcComboBox;
     PulseResponsePlot* responsePlot;
 

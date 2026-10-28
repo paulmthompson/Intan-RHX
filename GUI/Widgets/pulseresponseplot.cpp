@@ -117,8 +117,9 @@ void PulseResponsePlot::updateCoordinateTranslators()
     const double tMax = totalTimeMs * 0.5;
     const bool externalMode = state->pulseResistanceUsesExternalAdcTtl();
     const double acY = state->pulseResistanceTraceYScaleAc->getNumericValue();
+    const double externalTraceY = state->pulseResistanceExternalTraceYScaleVolts->getNumericValue();
     const double dcY = state->pulseResistanceTraceYScaleDc->getNumericValue();
-    const double upperY = externalMode ? dcY : acY;
+    const double upperY = externalMode ? externalTraceY : acY;
     const QString upperUnit = externalMode ? QStringLiteral("V") : MicroVoltsSymbol;
 
     const QFontMetrics fm = fontMetrics();
@@ -196,8 +197,9 @@ void PulseResponsePlot::paintEvent(QPaintEvent*)
 
     const bool externalMode = state->pulseResistanceUsesExternalAdcTtl();
     const double acY = state->pulseResistanceTraceYScaleAc->getNumericValue();
+    const double externalTraceY = state->pulseResistanceExternalTraceYScaleVolts->getNumericValue();
     const double dcY = state->pulseResistanceTraceYScaleDc->getNumericValue();
-    const double upperY = externalMode ? dcY : acY;
+    const double upperY = externalMode ? externalTraceY : acY;
 
     if (_snippet.has_value()) {
         const auto& snippet = *_snippet;

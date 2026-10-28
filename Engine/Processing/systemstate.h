@@ -358,6 +358,7 @@ public:
     DiscreteItemList* pulseResistanceTraceTimeMs;
     DiscreteItemList* pulseResistanceTraceYScaleAc;
     DiscreteItemList* pulseResistanceTraceYScaleDc;
+    DiscreteItemList* pulseResistanceExternalTraceYScaleVolts;
     StringItem* pulseResistanceExternalDcAdc;
     DiscreteItemList* pulseResistanceExternalTraceAdc;
     DoubleRangeItem* pulseResistanceExternalCurrentNanoAmps;

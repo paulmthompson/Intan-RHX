@@ -125,8 +125,9 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     traceYScaleAcLabel = new QLabel(tr("AC Y:"), this);
     traceYScaleAcComboBox = new QComboBox(this);
     state->pulseResistanceTraceYScaleAc->setupComboBox(traceYScaleAcComboBox);
-    connect(traceYScaleAcComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setTraceYScaleAc(int)));
+    connect(traceYScaleAcComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setTraceYScaleUpper(int)));
 
+    traceYScaleDcLabel = new QLabel(tr("DC Y:"), this);
     traceYScaleDcComboBox = new QComboBox(this);
     state->pulseResistanceTraceYScaleDc->setupComboBox(traceYScaleDcComboBox);
     connect(traceYScaleDcComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(setTraceYScaleDc(int)));
@@ -149,7 +150,7 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     traceControlsRow->addWidget(traceTimeSpanComboBox);
     traceControlsRow->addWidget(traceYScaleAcLabel);
     traceControlsRow->addWidget(traceYScaleAcComboBox);
-    traceControlsRow->addWidget(new QLabel(tr("DC Y:"), this));
+    traceControlsRow->addWidget(traceYScaleDcLabel);
     traceControlsRow->addWidget(traceYScaleDcComboBox);
     traceControlsRow->addStretch(1);
 
@@ -245,6 +246,15 @@ void PulseResistanceDialog::setMode(int index)
     state->pulseResistanceMode->setIndex(index);
 }
 
+void PulseResistanceDialog::setTraceYScaleUpper(int index)
+{
+    if (state->pulseResistanceUsesExternalAdcTtl()) {
+        state->pulseResistanceExternalTraceYScaleVolts->setIndex(index);
+    } else {
+        state->pulseResistanceTraceYScaleAc->setIndex(index);
+    }
+}
+
 void PulseResistanceDialog::setExternalDcAdc(int index)
 {
     if (index < 0 || index >= externalDcAdcComboBox->count()) {
@@ -331,8 +341,20 @@ void PulseResistanceDialog::updateModeUi()
 
     const bool external = state->pulseResistanceUsesExternalAdcTtl();
     modeStack->setCurrentWidget(external ? externalPage : rhsPage);
-    traceYScaleAcLabel->setVisible(!external);
-    traceYScaleAcComboBox->setVisible(!external);
+
+    traceYScaleAcLabel->setText(external ? tr("Trace Y:") : tr("AC Y:"));
+    traceYScaleDcLabel->setText(external ? tr("Resistance Y:") : tr("DC Y:"));
+
+    traceYScaleAcComboBox->blockSignals(true);
+    if (external) {
+        state->pulseResistanceExternalTraceYScaleVolts->setupComboBox(traceYScaleAcComboBox);
+        traceYScaleAcComboBox->setCurrentIndex(state->pulseResistanceExternalTraceYScaleVolts->getIndex());
+    } else {
+        state->pulseResistanceTraceYScaleAc->setupComboBox(traceYScaleAcComboBox);
+        traceYScaleAcComboBox->setCurrentIndex(state->pulseResistanceTraceYScaleAc->getIndex());
+    }
+    traceYScaleAcComboBox->blockSignals(false);
+
     updateHelpText();
 }
 
@@ -413,8 +435,16 @@ void PulseResistanceDialog::updateFromState()
     if (traceTimeSpanComboBox->currentIndex() != state->pulseResistanceTraceTimeMs->getIndex()) {
         traceTimeSpanComboBox->setCurrentIndex(state->pulseResistanceTraceTimeMs->getIndex());
     }
-    if (traceYScaleAcComboBox->currentIndex() != state->pulseResistanceTraceYScaleAc->getIndex()) {
+    if (external) {
+        if (traceYScaleAcComboBox->currentIndex() != state->pulseResistanceExternalTraceYScaleVolts->getIndex()) {
+            traceYScaleAcComboBox->blockSignals(true);
+            traceYScaleAcComboBox->setCurrentIndex(state->pulseResistanceExternalTraceYScaleVolts->getIndex());
+            traceYScaleAcComboBox->blockSignals(false);
+        }
+    } else if (traceYScaleAcComboBox->currentIndex() != state->pulseResistanceTraceYScaleAc->getIndex()) {
+        traceYScaleAcComboBox->blockSignals(true);
         traceYScaleAcComboBox->setCurrentIndex(state->pulseResistanceTraceYScaleAc->getIndex());
+        traceYScaleAcComboBox->blockSignals(false);
     }
     if (traceYScaleDcComboBox->currentIndex() != state->pulseResistanceTraceYScaleDc->getIndex()) {
         traceYScaleDcComboBox->setCurrentIndex(state->pulseResistanceTraceYScaleDc->getIndex());

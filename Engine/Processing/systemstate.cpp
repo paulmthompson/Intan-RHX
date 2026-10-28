@@ -731,6 +731,11 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     pulseResistanceTraceYScaleAc->setValue("500");
     pulseResistanceTraceYScaleDc = new DiscreteItemList("PulseResistanceTraceScaleVolts", globalItems, this, XMLGroupGeneral,
                                                         TypeDependencyStim);
+    pulseResistanceTraceYScaleDc->addItem("0.01", "10 mV", 0.01);
+    pulseResistanceTraceYScaleDc->addItem("0.02", "20 mV", 0.02);
+    pulseResistanceTraceYScaleDc->addItem("0.05", "50 mV", 0.05);
+    pulseResistanceTraceYScaleDc->addItem("0.1", "100 mV", 0.1);
+    pulseResistanceTraceYScaleDc->addItem("0.2", "200 mV", 0.2);
     pulseResistanceTraceYScaleDc->addItem("0.5", "0.5 V", 0.5);
     pulseResistanceTraceYScaleDc->addItem("1.0", "1 V", 1.0);
     pulseResistanceTraceYScaleDc->addAlternateValueName("1.0", "1");
@@ -741,6 +746,19 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     pulseResistanceTraceYScaleDc->addItem("10.0", "10 V", 10.0);
     pulseResistanceTraceYScaleDc->addAlternateValueName("10.0", "10");
     pulseResistanceTraceYScaleDc->setValue("1.0");
+
+    pulseResistanceExternalTraceYScaleVolts =
+        new DiscreteItemList("PulseResistanceExternalTraceScaleVolts", globalItems, this, XMLGroupGeneral,
+                             TypeDependencyStim);
+    pulseResistanceExternalTraceYScaleVolts->addItem("0.0005", "0.5 mV", 0.0005);
+    pulseResistanceExternalTraceYScaleVolts->addItem("0.001", "1 mV", 0.001);
+    pulseResistanceExternalTraceYScaleVolts->addItem("0.002", "2 mV", 0.002);
+    pulseResistanceExternalTraceYScaleVolts->addItem("0.005", "5 mV", 0.005);
+    pulseResistanceExternalTraceYScaleVolts->addItem("0.01", "10 mV", 0.01);
+    pulseResistanceExternalTraceYScaleVolts->addItem("0.02", "20 mV", 0.02);
+    pulseResistanceExternalTraceYScaleVolts->addItem("0.05", "50 mV", 0.05);
+    pulseResistanceExternalTraceYScaleVolts->addItem("0.1", "100 mV", 0.1);
+    pulseResistanceExternalTraceYScaleVolts->setValue("0.002");
 
     QString defaultAnalogInName;
     if (numAnalogInputs > 0) {
