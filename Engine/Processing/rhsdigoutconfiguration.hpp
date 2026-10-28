@@ -35,7 +35,7 @@ struct RhsDigOutConfiguration
     RhsDigOutSource m_source = RhsDigOutSource::Sequencer;
     RhsDigOutSequenceMode m_sequenceMode = RhsDigOutSequenceMode::Single;
     bool m_enabled = false;
-    bool m_manualFire = false;
+    bool m_manualFire = true;
     int m_triggerSource = 0;
     bool m_edgeTriggered = true;
     bool m_triggerOnLow = false;

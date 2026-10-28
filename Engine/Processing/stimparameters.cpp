@@ -217,7 +217,7 @@ StimParameters::StimParameters(SingleItemList &hList_, SystemState *state_, Sign
 
         digOutManualTrigger = new BooleanItem(
             stimXmlParameterName("DigOutManualTrigger", programIndex_), hList_, state_,
-            false, XMLGroupStimParameters, TypeDependencyStim);
+            true, XMLGroupStimParameters, TypeDependencyStim);
 
         triggerSource = new DiscreteItemList(stimXmlParameterName("Source", programIndex_), hList_, state_, XMLGroupStimParameters, TypeDependencyStim);
         for (int i = 0; i < 16; ++i) {

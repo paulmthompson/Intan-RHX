@@ -45,7 +45,9 @@ RhsDigOutConfiguration rhsDigOutConfigurationFrom(const StimParameters& paramete
         static_cast<RhsDigOutSequenceMode>(parameters.pulseOrTrain->getIndex());
     configuration.m_enabled = parameters.enabled->getValue();
     configuration.m_manualFire =
-        parameters.digOutManualTrigger && parameters.digOutManualTrigger->getValue();
+        parameters.digOutManualTrigger && parameters.digOutManualTrigger->getValue() &&
+        static_cast<RhsDigOutSequenceMode>(parameters.pulseOrTrain->getIndex()) !=
+            RhsDigOutSequenceMode::Continuous;
     configuration.m_triggerSource = parameters.triggerSource->getIndex();
     configuration.m_edgeTriggered =
         parameters.triggerEdgeOrLevel->getIndex() == TriggerEdge;

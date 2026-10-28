@@ -191,6 +191,9 @@ void DigOutDialog::_readWidgetsIntoDraft()
     if (!_draft.m_manualFire) {
         _draft.m_triggerSource = triggerIndex;
     }
+    if (_draft.m_sequenceMode == RhsDigOutSequenceMode::Continuous) {
+        _draft.m_manualFire = false;
+    }
     _draft.m_edgeTriggered = _ui->edgeComboBox->currentIndex() == TriggerEdge;
     _draft.m_triggerOnLow = _ui->polarityComboBox->currentIndex() == TriggerLow;
     _draft.m_numberOfPulses = _ui->pulseCountSpinBox->value();
