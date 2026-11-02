@@ -17,15 +17,17 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Multimedia)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS MultimediaWidgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS UiTools REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR}Xml)
+
+
+#find_package(QT NAMES Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Multimedia)
+find_package(Qt6 REQUIRED COMPONENTS MultimediaWidgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 COMPONENTS UiTools REQUIRED)
+find_package(Qt6Xml)
 
 find_package(OpenCL REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS OpenGL)
+find_package(Qt6 REQUIRED COMPONENTS OpenGL)
 
 #Create Library
 set(Sources
@@ -121,6 +123,7 @@ set(Sources
         GUI/Dialogs/stimparamdialog.cpp 
         GUI/Dialogs/triggerrecorddialog.cpp 
         GUI/Dialogs/waveformselectdialog.cpp 
+        GUI/Widgets/abstractpanel.cpp 
         GUI/Widgets/abstractfigure.cpp 
         GUI/Widgets/antidromictraceplot.cpp
         GUI/Widgets/anoutfigure.cpp 
@@ -150,6 +153,7 @@ set(Sources
         GUI/Widgets/statusbars.cpp 
         GUI/Widgets/stimfigure.cpp 
         GUI/Widgets/tcpdisplay.cpp 
+        GUI/Widgets/testcontrolpanel.cpp 
         GUI/Widgets/voltagespinbox.cpp 
         GUI/Widgets/waveformdisplaycolumn.cpp 
         GUI/Widgets/waveformdisplaymanager.cpp 
@@ -256,6 +260,7 @@ set(Headers
         GUI/Dialogs/stimparamdialog.h 
         GUI/Dialogs/triggerrecorddialog.h 
         GUI/Dialogs/waveformselectdialog.h 
+        GUI/Widgets/abstractpanel.h 
         GUI/Widgets/abstractfigure.h 
         GUI/Widgets/antidromictraceplot.h
         GUI/Widgets/anoutfigure.h 
@@ -285,6 +290,7 @@ set(Headers
         GUI/Widgets/statusbars.h 
         GUI/Widgets/stimfigure.h 
         GUI/Widgets/tcpdisplay.h 
+        GUI/Widgets/testcontrolpanel.h 
         GUI/Widgets/voltagespinbox.h 
         GUI/Widgets/waveformdisplaycolumn.h 
         GUI/Widgets/waveformdisplaymanager.h 
@@ -322,25 +328,12 @@ if (UNIX)
         endif()
 endif()
 
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(IntanRHX
+qt_add_executable(IntanRHX
         MANUAL_FINALIZATION
         ${Sources}
         ${Headers}
         IntanRHX.qrc
-    )
-# Define target properties for Android with Qt 6 as:
-#    set_property(TARGET IntanRHX APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-#                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
-# For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
-else()
-    add_executable(IntanRHX
-        ${Sources}
-        ${Headers}
-        IntanRHX.qrc
-    )
-endif()
-
+)
 target_link_libraries(IntanRHX PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(IntanRHX PRIVATE Qt${QT_VERSION_MAJOR}::Multimedia)
 target_link_libraries(IntanRHX PRIVATE Qt${QT_VERSION_MAJOR}::MultimediaWidgets)

@@ -1,9 +1,10 @@
 #include "abstractpanel.h"
-#include "stimparamdialog.h"
+
 #include "anoutdialog.h"
-#include "digoutdialog.h"
-#include "controlwindow.h"
 #include "controlpanelconfiguretab.h"
+#include "controlwindow.h"
+#include "digoutdialog.hpp"
+#include "stimparamdialog.h"
 
 ColorWidget::ColorWidget(QWidget *parent) :
     QWidget(parent)
@@ -159,16 +160,18 @@ void AbstractPanel::openStimParametersDialog()
         }
     } else if (type == BoardDigitalOutSignal) {
         if (digOutDialog) {
-            disconnect(this, nullptr, digOutDialog, nullptr);
+            disconnect(digOutDialog, nullptr, this, nullptr);
             delete digOutDialog;
             digOutDialog = nullptr;
         }
-        digOutDialog = new DigOutDialog(state, selectedChannel, this);
-
-        if (digOutDialog->exec() == QDialog::Accepted){
-            state->stimParamsHaveChanged = true;
-            controllerInterface->uploadStimParameters(selectedChannel);
-        }
+        digOutDialog = new DigOutDialog(state, controllerInterface, selectedChannel, this);
+        connect(digOutDialog, &DigOutDialog::configurationApplied, this,
+                [this](Channel* channel) {
+                    state->stimParamsHaveChanged = true;
+                    controllerInterface->uploadStimParameters(channel);
+                    state->forceUpdate();
+                });
+        digOutDialog->activate();
     } else if (type == BoardDacSignal) {
         if (anOutDialog) {
             disconnect(this, nullptr, anOutDialog, nullptr);

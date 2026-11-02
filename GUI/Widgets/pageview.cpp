@@ -1266,8 +1266,9 @@ QString PageView::getSiteShape(int port, int site)
 
 void PageView::overwriteColor(QColor &color, const QString& colorName)
 {
-    if (color.isValidColorName(colorName))
-        color = QColor::fromString(colorName);
+    const QColor candidate(colorName);
+    if (candidate.isValid())
+        color = candidate;
 }
 
 void PageView::overwriteFloat(float &original, float newValue) {

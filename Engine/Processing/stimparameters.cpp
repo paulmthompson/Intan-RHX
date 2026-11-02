@@ -38,6 +38,8 @@
 
 #include "stimparameters.h"
 
+#include "rhsdigoutconfiguration.hpp"
+
 #include "systemstate.h"
 
 #include <QStringList>
@@ -498,11 +500,16 @@ QString StimParameters::validate()
             return "PulseTrainPeriodMicroseconds cannot be less than total pulse duration (sum of all phases used for this Shape)";
         break;
 
-    case BoardDigitalOutSignal:
-        // PulseTrainPeriod cannot be less than FirstPhaseDuration
-        if (pulseTrainPeriod->getValue() < firstPhaseDuration->getValue())
-            return "PulseTrainPeriodMicroseconds cannot be less than pulse duration (FirstPhaseDurationMicroseconds)";
+    case BoardDigitalOutSignal: {
+        RhsDigOutQuantizedTiming timing;
+        if (const auto error = validateAndQuantizeRhsDigOutConfiguration(
+                rhsDigOutConfigurationFrom(*this),
+                _state->sampleRate->getNumericValue(),
+                timing)) {
+            return *error;
+        }
         break;
+    }
 
     default:
         break;

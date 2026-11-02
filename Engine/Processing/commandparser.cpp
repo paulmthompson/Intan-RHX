@@ -31,8 +31,6 @@
 #include "commandparser.h"
 #include "controlwindow.h"
 
-#include "rhsdigoutconfiguration.hpp"
-
 CommandParser::CommandParser(SystemState* state_, ControllerInterface *controllerInterface_, QObject *parent) :
     QObject(parent),
     controlWindow(nullptr),
@@ -797,71 +795,4 @@ bool CommandParser::isDependencyRelated(QString parameter) const
         return true;
     }
     return false;
-}
-
-QString CommandParser::validateStimParams(StimParameters *stimParams) const
-{
-    double stimDuration = 0;
-
-    switch (stimParams->getSignalType()) {
-    case AmplifierSignal:
-        // PostTriggerDelay cannot be less than PreStimAmpSettle
-        if (stimParams->postTriggerDelay->getValue() < stimParams->preStimAmpSettle->getValue())
-            return "PostTriggerDelayMicroseconds cannot be less than PreStimAmpSettleMicroseconds";
-
-        // PostStimChargeRecovOff cannot be less than PostStimChargeRecovOn
-        if (stimParams->postStimChargeRecovOff->getValue() < stimParams->postStimChargeRecovOn->getValue())
-            return "PostStimChargeRecovOffMicroseconds cannot be less than PostStimChargeRecovOnMicroseconds";
-
-        // RefractoryPeriod cannot be less than PostStimAmpSettle OR PostStimChargeRecovOff
-        if (stimParams->refractoryPeriod->getValue() < stimParams->postStimAmpSettle->getValue())
-            return "RefractoryPeriodMicroseconds cannot be less than PostStimAmpSettleMicroseconds";
-        if (stimParams->refractoryPeriod->getValue() < stimParams->postStimChargeRecovOff->getValue())
-            return "RefractoryPeriodMicroseconds cannot be less than PostStimChargeRecovOffMicroseconds";
-
-        // PulseTrainPeriod cannot be less than stimDuration (which depends on Shape)
-        // Biphasic: stimDuration = FirstPhaseDuration + SecondPhaseDuration
-        // BiphasicWithInterphaseDelay: stimDuration = FirstPhaseDuration + InterphaseDelay + SecondPhaseDuration
-        // Triphasic: stimDuration = 2*FirstPhaseDuration + SecondPhaseDuration
-        if (stimParams->stimShape->getValue() == "Biphasic")
-            stimDuration = stimParams->firstPhaseDuration->getValue() + stimParams->secondPhaseDuration->getValue();
-        else if (stimParams->stimShape->getValue() == "BiphasicWithInterphaseDelay")
-            stimDuration = stimParams->firstPhaseDuration->getValue() + stimParams->interphaseDelay->getValue() + stimParams->secondPhaseDuration->getValue();
-        else
-            stimDuration = 2.0 * stimParams->firstPhaseDuration->getValue() + stimParams->secondPhaseDuration->getValue();
-        if (stimParams->pulseTrainPeriod->getValue() < stimDuration)
-            return "PulseTrainPeriodMicroseconds cannot be less than total pulse duration (sum of all phases used for this Shape)";
-
-    case BoardDacSignal:
-        // PulseTrainPeriod cannot be less than stimDuration (which depends on Shape)
-        // Biphasic: stimDuration = FirstPhaseDuration + SecondPhaseDuration
-        // BiphasicWithInterphaseDelay: stimDuration = FirstPhaseDuration + InterphaseDelay + SecondPhaseDuration
-        // Triphasic: stimDuration = 2*FirstPhaseDuration + SecondPhaseDuration
-        // Monophasic: stimDuration = FirstPhaseDuration
-        if (stimParams->stimShape->getValue() == "Biphasic")
-            stimDuration = stimParams->firstPhaseDuration->getValue() + stimParams->secondPhaseDuration->getValue();
-        else if (stimParams->stimShape->getValue() == "BiphasicWithInterphaseDelay")
-            stimDuration = stimParams->firstPhaseDuration->getValue() + stimParams->interphaseDelay->getValue() + stimParams->secondPhaseDuration->getValue();
-        else if (stimParams->stimShape->getValue() == "Triphasic")
-            stimDuration = 2.0 * stimParams->firstPhaseDuration->getValue() + stimParams->secondPhaseDuration->getValue();
-        else
-            stimDuration = stimParams->firstPhaseDuration->getValue();
-        if (stimParams->pulseTrainPeriod->getValue() < stimDuration)
-            return "PulseTrainPeriodMicroseconds cannot be less than total pulse duration (sum of all phases used for this Shape)";
-
-    case BoardDigitalOutSignal: {
-        RhsDigOutQuantizedTiming timing;
-        if (const auto error = validateAndQuantizeRhsDigOutConfiguration(
-                rhsDigOutConfigurationFrom(*stimParams),
-                state->sampleRate->getNumericValue(),
-                timing)) {
-            return *error;
-        }
-        break;
-    }
-
-    default:
-        break;
-    }
-    return "";
 }

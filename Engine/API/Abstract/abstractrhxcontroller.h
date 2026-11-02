@@ -309,7 +309,8 @@ public:
     virtual void uploadCommandList(const std::vector<unsigned int> &commandList, AuxCmdSlot auxCommandSlot, int bank) = 0;
 
     virtual int findConnectedChips(std::vector<ChipType> &chipType, std::vector<int> &portIndex, std::vector<int> &commandStream,
-                                   std::vector<int> &numChannelsOnPort, bool synthMaxChannels = false) = 0;
+                                   std::vector<int> &numChannelsOnPort, bool synthMaxChannels = false, bool returnToFastSettle = false,
+                                   bool usePreviousDelay = false, int selectedPort = 0, int lastDetectedChip = -1, int lastDetectedNumStreams = -1) = 0;
 
     int pipeReadError() const { return pipeReadErrorCode; }
 

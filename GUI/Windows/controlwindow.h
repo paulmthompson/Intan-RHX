@@ -349,8 +349,6 @@ private:
     void updateForFilename(bool valid);
     void updateLiveNotesDialog();
     void updateForRun();
-    void updateForLoad();
-    void updateForStop();
     void updateForStopping();
 
     void createActions();

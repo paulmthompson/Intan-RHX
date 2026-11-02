@@ -31,78 +31,46 @@
 #ifndef CONTROLPANEL_H
 #define CONTROLPANEL_H
 
-#include <QtWidgets>
 #include "abstractpanel.h"
-#include "controllerinterface.h"
-#include "systemstate.h"
-#include "commandparser.h"
-#include "filterdisplayselector.h"
 
-class ControlWindow;
-class StimParamDialog;
-class AnOutDialog;
-class DigOutDialog;
-class RhsDigOutLiveControlsWidget;
 class ControlPanelBandwidthTab;
 class ControlPanelImpedanceTab;
 class ControlPanelAudioAnalogTab;
-class ControlPanelConfigureTab;
 class ControlPanelTriggerTab;
+class RhsDigOutLiveControlsWidget;
 
-class ColorWidget : public QWidget
-{
-    Q_OBJECT
-public:
-    explicit ColorWidget(QWidget *parent = nullptr);
-
-    void setEnabled(bool enabled) { chooseColorToolButton->setEnabled(enabled); }
-    void setColor(QColor color);
-    void setBlank() { chooseColorToolButton->setIcon(blankIcon); }
-    void setCheckerboard() { chooseColorToolButton->setIcon(checkerboardIcon); }
-
-signals:
-    void clicked();
-
-private:
-    QToolButton *chooseColorToolButton;
-
-    QIcon checkerboardIcon;
-    QIcon blankIcon;
-};
-
-
-class ControlPanel : public QWidget
+class ControlPanel : public AbstractPanel
 {
     Q_OBJECT
 public:
     explicit ControlPanel(ControllerInterface* controllerInterface_, SystemState* state_, CommandParser* parser_,
                           ControlWindow *parent = nullptr);
-    ~ControlPanel();
 
-    void updateForRun();
-    void updateForLoad();
-    void updateForStop();
+    void updateForRun() override;
+    void updateForStop() override;
 
-    void updateSlidersEnabled(YScaleUsed yScaleUsed);
-    YScaleUsed slidersEnabled() const;
+    void updateSlidersEnabled(YScaleUsed yScaleUsed) override;
+    YScaleUsed slidersEnabled() const override;
 
-    void setCurrentTabName(QString tabName);
-    QString currentTabName() const;
+    void setCurrentTabName(QString tabName) override;
+    QString currentTabName() const override;
 
 public slots:
-    void updateFromState();
+    void updateFromState() override;
+
+protected:
+    QHBoxLayout* createSelectionLayout() override;
+    QHBoxLayout* createSelectionToolsLayout() override;
+    QHBoxLayout* createDisplayLayout() override;
+
+    void updateYScales() override;
+    void updateStimTrigger();
+    void updateStimParamDialogButton();
+
+protected slots:
+    void openStimParametersDialog();
 
 private slots:
-    void promptColorChange();
-    void clipWaveforms(int checked);
-    void changeTimeScale(int index);
-    void changeWideScale(int index);
-    void changeLowScale(int index);
-    void changeHighScale(int index);
-    void changeAuxScale(int index);
-    void changeAnaScale(int index);
-    void changeDCSScale(int index);
-    void openStimParametersDialog();
     void onStimParamDialogAccepted();
     void onStimParamDialogRejected();
     /** @brief Refresh main-panel live controls after a successful DigOut Apply/OK. */
@@ -112,77 +80,32 @@ private slots:
     void onRhsDigOutManualLevelRequested(bool high);
     void onRhsDigOutContinuousRequested(bool start);
     void onRhsDigOutFireRequested();
-    void enableChannelsSlot();
     void setExternalAmplifierGainFromUi(double gain);
 
 private:
-    SystemState* state;
-    CommandParser* parser;
-    ControlWindow* controlWindow;
-    ControllerInterface* controllerInterface;
-
-    FilterDisplaySelector *filterDisplaySelector;
-
     QToolButton *hideControlPanelButton;
     QLabel* topLabel;
-    QTabWidget *tabWidget;
     ControlPanelBandwidthTab *bandwidthTab;
     ControlPanelImpedanceTab *impedanceTab;
     ControlPanelAudioAnalogTab *audioAnalogTab;
-    ControlPanelConfigureTab *configureTab;
     ControlPanelTriggerTab *triggerTab;
 
-    QList<Channel*> selectedSignals;
-
-    StimParamDialog* stimParamDialog;
     Channel* stimParamDialogChannel;
-    AnOutDialog* anOutDialog;
-    DigOutDialog* digOutDialog;
     Channel* digOutDialogChannel;
     RhsDigOutLiveControlsWidget* rhsDigOutLiveControlsWidget;
-
-    QLabel *selectionNameLabel;
-    QLabel *selectionImpedanceLabel;
-    QLabel *selectionReferenceLabel;
-    QLabel *selectionStimTriggerLabel;
-
-    ColorWidget *colorAttribute;
-    QCheckBox *enableCheckBox;
-    QPushButton *renameButton;
-    QPushButton *setRefButton;
-    QPushButton *setStimButton;
 
     QLabel *externalAmplifierGainLabel;
     QDoubleSpinBox *externalAmplifierGainSpinBox;
 
-    QSlider *wideSlider;
     QSlider *lowSlider;
     QSlider *highSlider;
-    QSlider *variableSlider;
     QSlider *analogSlider;
 
-    QLabel *wideLabel;
     QLabel *lowLabel;
     QLabel *highLabel;
-    QLabel *variableLabel;
     QLabel *analogLabel;
 
-    QCheckBox* clipWaveformsCheckBox;
-    QComboBox *timeScaleComboBox;
-
-    QHBoxLayout* createSelectionLayout();
-    QHBoxLayout* createSelectionToolsLayout();
-    QHBoxLayout* createDisplayLayout();
-
-    void updateSelectionName();
-    void updateElectrodeImpedance();
-    void updateReferenceChannel();
-    void updateStimTrigger();
-    void updateColor();
-    void updateEnableCheckBox();
     void updateExternalAmplifierGain();
-    void updateYScales();
-    void updateStimParamDialogButton();
 };
 
 #endif // CONTROLPANEL_H

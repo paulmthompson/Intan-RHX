@@ -136,10 +136,9 @@ ControllerInterface::ControllerInterface(SystemState* state_, AbstractRHXControl
     _runLastTimeStampPtr(nullptr),
     _runWorkTimerPtr(nullptr),
     _runLoopTimerPtr(nullptr),
-    _runReportTimerPtr(nullptr)
+    _runReportTimerPtr(nullptr),
     audioEnabled(false),
-    tcpDataOutputEnabled(false),
-    is7310(is7310_)
+    tcpDataOutputEnabled(false)
 {
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
     openController(boardSerialNumber, state->testMode->getValue());

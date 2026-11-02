@@ -826,10 +826,9 @@ void ControlWindow::createMenus()
     toolsMenu->addAction(spectrogramAction);
     toolsMenu->addAction(probeMapAction);
 
-        // Network menu
-        tcpMenu = menuBar()->addMenu(tr("Network"));
-        tcpMenu->addAction(remoteControlAction);
-    }
+    // Network menu
+    tcpMenu = menuBar()->addMenu(tr("Network"));
+    tcpMenu->addAction(remoteControlAction);
 
     // Performance menu
     performanceMenu = menuBar()->addMenu(tr("Performance"));
@@ -1062,7 +1061,7 @@ void ControlWindow::updateForLoad()
 
 void ControlWindow::updateForStopping()
 {
-    emit setStatusBar(tr("Stopping..."));
+    emit setStatusBarText(tr("Stopping..."));
 
     runAction->setEnabled(false);
     fastForwardAction->setEnabled(false);

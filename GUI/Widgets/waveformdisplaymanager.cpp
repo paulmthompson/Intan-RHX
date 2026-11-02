@@ -86,7 +86,7 @@ void WaveformDisplayManager::calculateParameters()
 
 bool WaveformDisplayManager::addWaveform(const QString& waveName, bool isStim, bool isRaster)
 {
-    string name = waveName.toStdString();
+    std::string name = waveName.toStdString();
     if (data.find(name) != data.end()) return false;  // No repeats!  Do not read from the Waveform FIFO twice!
 
     WaveformDisplayDataStore* ds = new WaveformDisplayDataStore;

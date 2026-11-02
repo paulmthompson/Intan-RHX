@@ -962,7 +962,7 @@ void RHXController::setManualStimTrigger(int trigger, bool triggerOn)
     if (type != ControllerStimRecord) {
         return;
     }
-    std::lock_guard<std::mutex> lockOk(okMutex);
+    std::lock_guard<std::mutex> lockOk2(okMutex);
 
     dev->SetWireInValue(WireInManualTriggers_S_USB2, bitValue, mask);
     dev->UpdateWireIns();
