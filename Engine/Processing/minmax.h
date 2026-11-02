@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -38,7 +38,7 @@
 template <class Type> class MinMax
 {
 public:
-    MinMax() : minVal(std::numeric_limits<Type>::max()), maxVal(std::numeric_limits<Type>::lowest()) {}
+    MinMax() : minVal((std::numeric_limits<Type>::max)()), maxVal((std::numeric_limits<Type>::lowest)()) {}
     MinMax(const MinMax<Type> &init) : minVal(init.minVal), maxVal(init.maxVal) {}
     MinMax& operator=(const MinMax &init) { minVal = init.minVal; maxVal = init.maxVal; return *this; }
     MinMax(Type init) : minVal(init), maxVal(init) {}
@@ -58,8 +58,8 @@ public:
     }
     inline void reset()
     {
-        minVal = std::numeric_limits<Type>::max();
-        maxVal = std::numeric_limits<Type>::lowest();
+        minVal = (std::numeric_limits<Type>::max)();
+        maxVal = (std::numeric_limits<Type>::lowest)();
     }
     inline void swap()
     {

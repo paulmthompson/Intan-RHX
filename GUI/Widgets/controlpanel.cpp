@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -160,50 +160,29 @@ ControlPanel::ControlPanel(ControllerInterface* controllerInterface_, SystemStat
     wideSlider(nullptr),
     lowSlider(nullptr),
     highSlider(nullptr),
-    variableSlider(nullptr),
     analogSlider(nullptr),
     wideLabel(nullptr),
     lowLabel(nullptr),
     highLabel(nullptr),
-    variableLabel(nullptr),
-    analogLabel(nullptr),
-    clipWaveformsCheckBox(nullptr),
-    timeScaleComboBox(nullptr)
+    analogLabel(nullptr)
 {
-    state->writeToLog("Beginning of ControlPanel ctor");
-    setSizePolicy(QSizePolicy::Maximum, QSizePolicy::MinimumExpanding);
-
-    state->writeToLog("About to create topLabel");
     topLabel = new QLabel(tr("Selection Properties"), this);
-    state->writeToLog("Created topLabel. About to create FilterDisplaySelector");
-
-    filterDisplaySelector = new FilterDisplaySelector(state, this);
-    state->writeToLog("Created FilterDisplaySelector");
 
     hideControlPanelButton = new QToolButton(this);
     hideControlPanelButton->setIcon(QIcon(":/images/hideicon.png"));
     hideControlPanelButton->setToolTip(tr("Hide Control Panel"));
     connect(hideControlPanelButton, SIGNAL(clicked()), controlWindow, SLOT(hideControlPanel()));
-    state->writeToLog("Created hideControlPanelButton");
 
     bandwidthTab = new ControlPanelBandwidthTab(controllerInterface, state, this);
-    state->writeToLog("Created bandwidthTab");
     impedanceTab = new ControlPanelImpedanceTab(controllerInterface, state, parser, this);
-    state->writeToLog("Created impedanceTab");
     audioAnalogTab = new ControlPanelAudioAnalogTab(controllerInterface, state, this);
-    state->writeToLog("Created audioAnalogTab");
-    configureTab = new ControlPanelConfigureTab(controllerInterface, state, parser, this);
-    state->writeToLog("Created configureTab");
     triggerTab = new ControlPanelTriggerTab(controllerInterface, state, this);
-    state->writeToLog("Created triggerTab");
 
-    tabWidget = new QTabWidget(this);
     tabWidget->addTab(bandwidthTab, tr("BW"));
     tabWidget->addTab(impedanceTab, tr("Impedance"));
     tabWidget->addTab(audioAnalogTab, tr("Audio/Analog"));
     tabWidget->addTab(configureTab, tr("Config"));
     tabWidget->addTab(triggerTab, tr("Trigger"));
-    state->writeToLog("Created tabWidget");
 
     QHBoxLayout *topRow = new QHBoxLayout;
     topRow->addWidget(hideControlPanelButton);
@@ -235,27 +214,13 @@ ControlPanel::ControlPanel(ControllerInterface* controllerInterface_, SystemStat
     updateSlidersEnabled(yScaleUsed);
     connect(controllerInterface, &ControllerInterface::rhsDigOutRuntimeChanged,
             this, &ControlPanel::updateRhsDigOutLiveControls);
-    state->writeToLog("Created layout. About to call updateFromState()");
 
     updateFromState();
-    state->writeToLog("Completed updateFromState(). End of ControlPanel ctor");
-}
-
-ControlPanel::~ControlPanel()
-{
-    if (stimParamDialog) delete stimParamDialog;
-    if (anOutDialog) delete anOutDialog;
-    if (digOutDialog) delete digOutDialog;
 }
 
 void ControlPanel::updateForRun()
 {
     configureTab->updateForRun();
-}
-
-void ControlPanel::updateForLoad()
-{
-    setEnabled(false);
 }
 
 void ControlPanel::updateForStop()
@@ -332,6 +297,8 @@ QString ControlPanel::currentTabName() const
     } else {
         qDebug() << "Unrecognized tab widget.";
     }
+
+    return QString();
 }
 
 QHBoxLayout* ControlPanel::createSelectionLayout()
@@ -429,7 +396,7 @@ QHBoxLayout* ControlPanel::createDisplayLayout()
     connect(timeScaleComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(changeTimeScale(int)));
 
     clipWaveformsCheckBox = new QCheckBox(tr("Clip Waves"), this);
-    connect(clipWaveformsCheckBox, SIGNAL(stateChanged(int)), this, SLOT(clipWaveforms(int)));
+    connect(clipWaveformsCheckBox, SIGNAL(checkStateChanged(Qt::CheckState)), this, SLOT(clipWaveforms(Qt::CheckState)));
 
     QVBoxLayout *timeScaleColumn = new QVBoxLayout;
     timeScaleColumn->addWidget(clipWaveformsCheckBox);
@@ -476,7 +443,7 @@ QHBoxLayout* ControlPanel::createDisplayLayout()
     if (state->getControllerTypeEnum() == ControllerStimRecord) {
         variableSlider->setRange(0, state->yScaleDC->numberOfItems() - 1);
         variableSlider->setValue(state->yScaleDC->getIndex());
-        connect(variableSlider, SIGNAL(valueChanged(int)), this, SLOT(changeDCSScale(int)));
+        connect(variableSlider, SIGNAL(valueChanged(int)), this, SLOT(changeDCScale(int)));
     } else {
         variableSlider->setRange(0, state->yScaleAux->numberOfItems() - 1);
         variableSlider->setValue(state->yScaleAux->getIndex());
@@ -794,41 +761,25 @@ void ControlPanel::onRhsDigOutFireRequested()
 
 void ControlPanel::updateFromState()
 {
-    state->writeToLog("Beginning of updateFromState()");
     state->signalSources->getSelectedSignals(selectedSignals);
-    state->writeToLog("Got selected signals");
 
     filterDisplaySelector->updateFromState();
-    state->writeToLog("Completed filterDisplaySelector->updateFromState()");
     updateSelectionName();
-    state->writeToLog("Completed updateSelectionName()");
     updateElectrodeImpedance();
-    state->writeToLog("Completed updateElectrodeImpedance()");
     updateReferenceChannel();
-    state->writeToLog("Completed updateReferenceChannel()");
     updateColor();
-    state->writeToLog("Completed updateColor()");
     updateEnableCheckBox();
-    state->writeToLog("Completed updateEnableCheckBox()");
     updateExternalAmplifierGain();
-    state->writeToLog("Completed updateExternalAmplifierGain()");
     updateYScales();
-    state->writeToLog("Completed updateYScales()");
 
     clipWaveformsCheckBox->setChecked(state->clipWaveforms->getValue());
     timeScaleComboBox->setCurrentIndex(state->tScale->getIndex());
 
-    state->writeToLog("About to do tabs' updateFromStates");
     bandwidthTab->updateFromState();
-    state->writeToLog("Completed bandwidthTab->updateFromState()");
     impedanceTab->updateFromState();
-    state->writeToLog("Completed impedanceTab->updateFromState()");
     audioAnalogTab->updateFromState();
-    state->writeToLog("Completed audioAnalogTab->updateFromState()");
     configureTab->updateFromState();
-    state->writeToLog("Completed configureTab->updateFromState()");
     triggerTab->updateFromState();
-    state->writeToLog("Completed triggerTab->updateFromState()");
 
     if (state->getControllerTypeEnum() == ControllerStimRecord) {
         updateStimTrigger();
@@ -838,7 +789,6 @@ void ControlPanel::updateFromState()
         updateStimParamDialogButton();
         updateRhsDigOutLiveControls();
     }
-    state->writeToLog("End of ControlPanel::updateFromState()");
 }
 
 void ControlPanel::updateYScales()
@@ -927,7 +877,7 @@ void ControlPanel::updateElectrodeImpedance()
 }
 
 void ControlPanel::updateReferenceChannel()
-{   
+{
     if (selectedSignals.isEmpty()) {
         selectionReferenceLabel->setText(tr("no selection"));
         setRefButton->setEnabled(false);

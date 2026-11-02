@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -45,8 +45,8 @@ const int HASHMARKLENGTH = 5;
 
 // Software version number (e.g., version 1.3.5)
 #define SOFTWARE_MAIN_VERSION_NUMBER 3
-#define SOFTWARE_SECONDARY_VERSION_NUMBER 2
-#define SOFTWARE_TERTIARY_VERSION_NUMBER 0
+#define SOFTWARE_SECONDARY_VERSION_NUMBER 5
+#define SOFTWARE_TERTIARY_VERSION_NUMBER 2
 
 enum ControllerType {
     ControllerRecordUSB2 = 0,
@@ -62,6 +62,7 @@ enum DemoSelections {
 };
 
 enum AmplifierSampleRate {
+    SampleRateUnrecognized = -1,
     SampleRate1000Hz = 0,
     SampleRate1250Hz = 1,
     SampleRate1500Hz = 2,
@@ -82,6 +83,7 @@ enum AmplifierSampleRate {
 };
 
 enum StimStepSize {
+    StimStepSizeUnrecognized = -1,
     StimStepSizeMin = 0,
     StimStepSize10nA = 1,
     StimStepSize20nA = 2,
@@ -171,6 +173,12 @@ enum BoardMode {
     UnknownUSB3_7310Device
 };
 
+enum ConnectionStatus {
+    Disconnected,
+    Pending,
+    Connected
+};
+
 const unsigned int FIFOCapacityInWords = 67108864;
 
 // Maximum number of data blocks to read at once (limited by low-frequency impedance measurements)
@@ -224,10 +232,10 @@ const uint32_t TCPSpikeMagicNumber = 0x3ae2710f;
 #ifdef USE_QT
 #include <QString>
 
-const QString OrganizationName = "Intan Technologies";
+const QString OrganizationName = QStringLiteral("Intan Technologies");
 const QString OrganizationDomain = "intantech.com";
 const QString ApplicationName = "IntanRHX";
-const QString ApplicationCopyrightYear = "2020-2023";
+const QString ApplicationCopyrightYear = "2020-2026";
 
 const QString SoftwareVersion = QString::number(SOFTWARE_MAIN_VERSION_NUMBER) + "." +
                                 QString::number(SOFTWARE_SECONDARY_VERSION_NUMBER) + "." +
@@ -239,7 +247,9 @@ const QString ConfigFileRHDController = "ConfigRHDController.bit";
 const QString ConfigFileRHSController = "ConfigRHSController.bit";
 const QString ConfigFileXEM6010Tester = "ConfigXEM6010Tester.bit";
 const QString ConfigFileRHDController_7310 = "ConfigRHDController_7310.bit";
+const QString ConfigFileRHDController_7310_test = "ConfigRHDController_7310_test.bit";
 const QString ConfigFileRHSController_7310 = "ConfigRHSController_7310.bit";
+const QString ConfigFileRHSController_7310_test = "ConfigRHSController_7310_test.bit";
 
 // Special Unicode characters, as QString data type
 const QString DeltaSymbol = QString((QChar)0x0394);

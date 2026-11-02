@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -48,7 +48,7 @@ bool RestrictIfStimControllerOrRunning(const SystemState* state)
     { return (ControllerType) state->controllerType->getIndex() == ControllerStimRecord || state->running; }
 
 SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize stimStepSize_, int numSPIPorts_,
-                         bool expanderConnected_, DataFileReader* dataFileReader_) :
+                         bool expanderConnected_, bool testMode_, DataFileReader* dataFileReader_) :
     numSPIPorts(numSPIPorts_),
     logErrors(false),
     reportSpikes(false),
@@ -58,6 +58,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     dataFileReader(dataFileReader_)
 {
     setupLog();
+    QSettings settings;
 
     writeToLog("Entered SystemState ctor");
     // Private variables
@@ -75,6 +76,9 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
 
     expanderConnected = new BooleanItem("ExpanderConnected", globalItems, this, expanderConnected_, XMLGroupNone);
     expanderConnected->setRestricted(RestrictAlways, ReadOnlyErrorMessage);
+
+    testMode = new BooleanItem("TestMode", globalItems, this, testMode_, XMLGroupNone);
+    testMode->setRestricted(RestrictAlways, ReadOnlyErrorMessage);
 
     // Intrinsic variables that shouldn't be changed solely through software (e.g. hardware-related, or set in software upon startup)
     signalSources = new SignalSources(this);
@@ -152,6 +156,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     writeToDiskLatency->addItem("Medium", "Medium", 16.0);
     writeToDiskLatency->addItem("Low", "Low", 64.0);
     writeToDiskLatency->addItem("Lowest", "Lowest", 256.0);
+    writeToDiskLatency->addItem("Minimal", "Minimal", 256.0);
     writeToDiskLatency->setValue("Highest");
 
     createNewDirectory = new BooleanItem("CreateNewDirectory", globalItems, this, true);
@@ -203,7 +208,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     triggered = false;
     sweeping = false;
 
-    impedanceFilename = new StateFilenameItem("ImpedanceFilename", &stateFilenameItems, this);
+    impedanceFilename = new StateFilenameItem("ImpedanceFilename", &stateFilenameItems, this, "", "", "NoTimestampForImpedanceFiles");
 
     triggerSource = new DiscreteItemList("TriggerSource", globalItems, this);
     triggerSource->setRestricted(RestrictIfRunning, RunningErrorMessage);
@@ -236,6 +241,8 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     saveTriggerSource = new BooleanItem("TriggerSave", globalItems, this, true);
     saveTriggerSource->setRestricted(RestrictIfRunning, RunningErrorMessage);
 
+    playTriggerSound = new BooleanItem("PlayTriggerSound", globalItems, this, settings.value("playTriggerSound") == "True");
+
     writeToLog("Created saving data variables");
 
     // TCP
@@ -253,6 +260,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     audioFilter->setValue("Wide");
     audioVolume = new IntRangeItem("AudioVolume", globalItems, this, 0, 100, 50);
     audioThreshold = new IntRangeItem("AudioThresholdMicroVolts", globalItems, this, 0, 200, 0);
+    bufferWarningSoundsEnabled = new BooleanItem("BufferWarningSoundsEnabled", globalItems, this);
 
     writeToLog("Created audio variables");
 
@@ -294,9 +302,9 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     writeToLog("Created hardware audio/analog out variables");
 
     // TCP communication
-    tcpCommandCommunicator = new TCPCommunicator();
-    tcpWaveformDataCommunicator = new TCPCommunicator("127.0.0.1", 5001);
-    tcpSpikeDataCommunicator = new TCPCommunicator("127.0.0.1", 5002);
+    tcpCommandCommunicator = new StateTCPCommunicatorItem("TCPCommandSocket", &stateTCPCommunicatorItems, this, "127.0.0.1", 5000, Disconnected);
+    tcpWaveformDataCommunicator = new StateTCPCommunicatorItem("TCPWaveformDataSocket", &stateTCPCommunicatorItems, this, "127.0.0.1", 5001, Disconnected);
+    tcpSpikeDataCommunicator = new StateTCPCommunicatorItem("TCPSpikeDataSocket", &stateTCPCommunicatorItems, this, "127.0.0.1", 5002, Disconnected);
 
     writeToLog("Created tcp communication variables");
 
@@ -322,10 +330,10 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
 
     actualDspCutoffFreq = new DoubleRangeItem("ActualDSPCutoffFreqHertz", globalItems, this, 0.0, 8000.0, 1.0, XMLGroupReadOnly);
 
-    dspEnabled = new BooleanItem("DSPEnabled", globalItems, this, true);
+    dspEnabled = new BooleanItem("DSPEnabled", globalItems, this, !testMode_);
     dspEnabled->setRestricted(RestrictIfRunning, RunningErrorMessage);
 
-    desiredLowerBandwidth = new DoubleRangeItem("DesiredLowerBandwidthHertz", globalItems, this, 0.1, 500.0, 0.1);
+    desiredLowerBandwidth = new DoubleRangeItem("DesiredLowerBandwidthHertz", globalItems, this, 0.1, 500.0, testMode_ ? 10.0 : 0.1);
     desiredLowerBandwidth->setRestricted(RestrictIfRunning, RunningErrorMessage);
 
     actualLowerBandwidth = new DoubleRangeItem("ActualLowerBandwidthHertz", globalItems, this, 0.05, 1000.0, 0.1, XMLGroupReadOnly);
@@ -483,6 +491,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     tScale->setValue("2000");
 
     yScaleWide = new DiscreteItemList("WideScaleMicroVolts", globalItems, this);
+    yScaleWide->addItem("20", "20 " + MicroVoltsSymbol, 20.0 );
     yScaleWide->addItem("50", "50 " + MicroVoltsSymbol, 50.0 );
     yScaleWide->addItem("100", "100 " + MicroVoltsSymbol, 100.0 );
     yScaleWide->addItem("200", "200 " + MicroVoltsSymbol, 200.0 );
@@ -493,6 +502,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     yScaleWide->setValue("500");
 
     yScaleLow = new DiscreteItemList("LowScaleMicroVolts", globalItems, this);
+    yScaleLow->addItem("20", "20 " + MicroVoltsSymbol, 20.0 );
     yScaleLow->addItem("50", "50 " + MicroVoltsSymbol, 50.0 );
     yScaleLow->addItem("100", "100 " + MicroVoltsSymbol, 100.0 );
     yScaleLow->addItem("200", "200 " + MicroVoltsSymbol, 200.0 );
@@ -503,6 +513,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     yScaleLow->setValue("500");
 
     yScaleHigh = new DiscreteItemList("HighScaleMicroVolts", globalItems, this);
+    yScaleHigh->addItem("20", "20 " + MicroVoltsSymbol, 20.0 );
     yScaleHigh->addItem("50", "50 " + MicroVoltsSymbol, 50.0 );
     yScaleHigh->addItem("100", "100 " + MicroVoltsSymbol, 100.0 );
     yScaleHigh->addItem("200", "200 " + MicroVoltsSymbol, 200.0 );
@@ -560,7 +571,7 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     labelWidth->addItem("Hide", "Hide Tags", 0);
     labelWidth->addItem("Narrow", "Narrow Tags", 1);
     labelWidth->addItem("Wide", "Wide Tags", 2);
-    labelWidth->setValue("Wide");
+    labelWidth->setValue(testMode_ ? "Narrow" : "Wide");
 
     writeToLog("Created waveform plotting variables");
 
@@ -864,6 +875,9 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     tScaleSpikeScope->addItem("2", "2 ms", 2.0);
     tScaleSpikeScope->addItem("4", "4 ms", 4.0);
     tScaleSpikeScope->addItem("6", "6 ms", 6.0);
+    tScaleSpikeScope->addItem("10", "10 ms", 10.0);
+    tScaleSpikeScope->addItem("16", "16 ms", 16.0);
+    tScaleSpikeScope->addItem("20", "20 ms", 20.0);
     tScaleSpikeScope->setValue("2");
     numSpikesDisplayed = new DiscreteItemList("SpikeScopeNumSpikes", globalItems, this);
     numSpikesDisplayed->addItem("10", "10", 10);
@@ -931,6 +945,14 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
 
     writeToLog("Created stim only variables");
 
+    usePreviousDelay = new BooleanItem("UsePreviousDelay", globalItems, this, false, XMLGroupNone);
+    previousDelaySelectedPort = new IntRangeItem("PreviousDelaySelectedPort", globalItems, this, 0, 7, 0, XMLGroupNone);
+    lastDetectedChip = new IntRangeItem("LastDetectedChip", globalItems, this, -1, 1000, -1, XMLGroupNone);
+    lastDetectedNumStreams = new IntRangeItem("LastDetectedNumStreams", globalItems, this, -1, 1000, -1, XMLGroupNone);
+
+    testAuxIns = new BooleanItem("TestAuxIns", globalItems, this, getControllerTypeEnum() != ControllerStimRecord, XMLGroupNone);
+    testingPort = new StringItem("TestingPort", globalItems, this, "A", XMLGroupNone);
+
     // Start timer
     timerId = startTimer(20);  // Minimum time between two stateChanged() signals, in milliseconds.
     writeToLog("Started timer. End of SystemState ctor");
@@ -945,6 +967,9 @@ SystemState::~SystemState()
         delete p->second;
     }
     for (FilenameItemList::const_iterator p = stateFilenameItems.begin(); p != stateFilenameItems.end(); ++p) {
+        delete p->second;
+    }
+    for (TCPCommunicatorItemList::const_iterator p = stateTCPCommunicatorItems.begin(); p != stateTCPCommunicatorItems.end(); ++p) {
         delete p->second;
     }
 }
@@ -1013,21 +1038,51 @@ void SystemState::addStateFilenameItem(FilenameItemList &hList, StateFilenameIte
 }
 
 StateFilenameItem* SystemState::locateStateFilenameItem(FilenameItemList &hList, const QString& fullParameterName,
-                                                        QString &pathOrBase_) const
+                                                        QString &pathOrBaseOrTimestamp_) const
 {
-    // Divide fullParameterName into parameterName and pathOrBase.
+    // Divide fullParameterName into parameterName and pathOrBaseOrTimestamp.
     QString parameterName = fullParameterName.section('.', 0, 0);
-    QString pathOrBase = fullParameterName.section('.', 1, 1);
+    QString pathOrBaseOrTimestamp = fullParameterName.section('.', 1, 1);
 
     // Find the item, returning nullptr if not found.
     FilenameItemList::const_iterator p = hList.find(parameterName.toStdString());
     if (p == hList.end()) return nullptr;
 
-    // Return pathOrBase by reference (returning nullptr if pathOrBase isn't path or baseFilename)
-    if (pathOrBase.toLower() != p->second->getPathParameterName().toLower() && pathOrBase.toLower() != p->second->getBaseFilenameParameterName().toLower()) {
+    // Return pathOrBaseOrTimestamp by reference (returning nullptr if pathOrBaseOrTimestamp isn't path, baseFilename, or timestamp)
+    if ((pathOrBaseOrTimestamp.toLower() != p->second->getPathParameterName().toLower()) &&
+        (pathOrBaseOrTimestamp.toLower() != p->second->getBaseFilenameParameterName().toLower()) &&
+        (pathOrBaseOrTimestamp.toLower() != p->second->getTimestampParameterName().toLower())) {
         return nullptr;
     } else {
-        pathOrBase_ = pathOrBase;
+        pathOrBaseOrTimestamp_ = pathOrBaseOrTimestamp;
+        return p->second;
+    }
+}
+
+void SystemState::addStateTCPCommunicatorItem(TCPCommunicatorItemList &hList, StateTCPCommunicatorItem *item) const
+{
+    hList[item->getParameterName().toLower().toStdString()] = item;
+}
+
+StateTCPCommunicatorItem* SystemState::locateStateTCPCommunicatorItem(TCPCommunicatorItemList &hList, const QString &fullParameterName,
+                                                                      QString &hostOrPortOrStatus_) const
+{
+    // Divide fullParameterName into parameterName and hostOrPortOrStatus.
+    QString parameterName = fullParameterName.section('.', 0, 0);
+    QString hostOrPortOrStatus = fullParameterName.section('.', 1, 1);
+
+    // Find the item, returning nullptr if not found.
+    TCPCommunicatorItemList::const_iterator p = hList.find(parameterName.toStdString());
+    if (p == hList.end()) return nullptr;
+
+    // Return hostOrPortOrStatus by reference (returning nullptr if hostOrPortOrStatus isn't host, port, or status)
+    if ((hostOrPortOrStatus.toLower() != p->second->getHostParameterName().toLower()) &&
+        (hostOrPortOrStatus.toLower() != p->second->getPortParameterName().toLower()) &&
+        (hostOrPortOrStatus.toLower() != p->second->getStatusParameterName().toLower()) &&
+        (hostOrPortOrStatus.toLower() != p->second->getStatusOnClientDisconnectParameterName().toLower())) {
+        return nullptr;
+    } else {
+        hostOrPortOrStatus_ = hostOrPortOrStatus;
         return p->second;
     }
 }
@@ -1107,6 +1162,7 @@ QStringList SystemState::getAttributes(XMLGroup xmlGroup) const
     // Add stateFilenameItems to attributeList
     QString thisPath;
     QString thisBaseFilename;
+    QString thisTimestamp;
     for (FilenameItemList::const_iterator p = stateFilenameItems.begin(); p != stateFilenameItems.end(); ++p) {
         if (p->second->getXMLGroup() == xmlGroup) {
             bool addAttribute = false;
@@ -1131,6 +1187,45 @@ QStringList SystemState::getAttributes(XMLGroup xmlGroup) const
                 attributeList.append(thisPath);
                 thisBaseFilename = p->second->getParameterName() + "." + p->second->getBaseFilenameParameterName() + ":_:" + p->second->getBaseFilename();
                 attributeList.append(thisBaseFilename);
+                thisTimestamp = p->second->getParameterName() + "." + p->second->getTimestampParameterName() + ":_:" + p->second->getTimestamp();
+                attributeList.append(thisTimestamp);
+            }
+        }
+    }
+
+    // Add stateTCPCommunicatorItems to attributeList
+    QString thisHost;
+    QString thisPort;
+    QString thisStatus;
+    QString thisStatusOnClientDisconnect;
+    for (TCPCommunicatorItemList::const_iterator p = stateTCPCommunicatorItems.begin(); p != stateTCPCommunicatorItems.end(); ++p) {
+        if (p->second->getXMLGroup() == xmlGroup) {
+            bool addAttribute = false;
+            switch (p->second->getTypeDependency()) {
+            case TypeDependencyNone:
+                addAttribute = true;
+                break;
+            case TypeDependencyNonStim:
+                if (getControllerTypeEnum() != ControllerStimRecord) {
+                    addAttribute = true;
+                }
+                break;
+            case TypeDependencyStim:
+                if (getControllerTypeEnum() == ControllerStimRecord) {
+                    addAttribute = true;
+                }
+                break;
+            }
+
+            if (addAttribute) {
+                thisHost = p->second->getParameterName() + "." + p->second->getHostParameterName() + ":_:" + p->second->getHost();
+                attributeList.append(thisHost);
+                thisPort = p->second->getParameterName() + "." + p->second->getPortParameterName() + ":_:" + p->second->getPort();
+                attributeList.append(thisPort);
+                thisStatus = p->second->getParameterName() + "." + p->second->getStatusParameterName() + ":_:" + p->second->getStatus();
+                attributeList.append(thisStatus);
+                thisStatusOnClientDisconnect = p->second->getParameterName() + "." + p->second->getStatusOnClientDisconnectParameterName() + ":_:" + p->second->getStatusOnClientDisconnect();
+                attributeList.append(thisStatusOnClientDisconnect);
             }
         }
     }

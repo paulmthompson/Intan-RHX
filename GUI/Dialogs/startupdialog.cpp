@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -33,7 +33,7 @@
 #include <QtWidgets>
 
 StartupDialog::StartupDialog(ControllerType controllerType_, AmplifierSampleRate* sampleRate_, StimStepSize* stimStepSize_,
-                             bool* rememberSettings_, bool askToRememberSettings, QWidget *parent) :
+                             bool* rememberSettings_, bool askToRememberSettings, bool testMode, QWidget *parent) :
     QDialog(parent),
     controllerType(controllerType_),
     sampleRate(sampleRate_),
@@ -67,7 +67,7 @@ StartupDialog::StartupDialog(ControllerType controllerType_, AmplifierSampleRate
         sampleRateComboBox->addItem(tr("20.0 kHz"));
         sampleRateComboBox->addItem(tr("25.0 kHz"));
         sampleRateComboBox->addItem(tr("30.0 kHz"));
-        sampleRateComboBox->setCurrentIndex(14);
+        testMode ? sampleRateComboBox->setCurrentIndex(16) : sampleRateComboBox->setCurrentIndex(14);
     }
 
     QHBoxLayout *sampleRateLayout = new QHBoxLayout();
@@ -130,14 +130,11 @@ StartupDialog::StartupDialog(ControllerType controllerType_, AmplifierSampleRate
     }
 
     setWindowTitle(tr("Select Sample Rate"));
+    setWindowFlags(windowFlags() | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+
     mainLayout->addWidget(rememberSettingsCheckBox);
     mainLayout->addLayout(buttonBoxRow);
     setLayout(mainLayout);
-}
-
-void StartupDialog::closeEvent(QCloseEvent *)
-{
-    exit(EXIT_FAILURE);
 }
 
 void StartupDialog::accept()

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -60,6 +60,9 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
     plottingModeComboBox = new QComboBox(this);
     state->plottingMode->setupComboBox(plottingModeComboBox);
 
+    bufferWarningSoundCheckBox = new QCheckBox("Play warning sounds as HW/SW buffers fill.", this);
+    bufferWarningSoundCheckBox->setChecked(state->bufferWarningSoundsEnabled->getValue());
+
     QHBoxLayout *XPUSelectionRow = new QHBoxLayout;
     XPUSelectionRow->addWidget(new QLabel(tr("Selected XPU:"), this));
     XPUSelectionRow->addWidget(XPUSelectionComboBox);
@@ -67,10 +70,14 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
     QHBoxLayout *writeLatencySelectionRow = new QHBoxLayout;
     writeLatencySelectionRow->addWidget(new QLabel(tr("Write Latency:"), this));
     writeLatencySelectionRow->addWidget(writeLatencyComboBox);
+    connect(writeLatencyComboBox, SIGNAL(currentTextChanged(QString)), this, SLOT(toggleMinimalLatencyNote()));
 
     QHBoxLayout *plottingModeRow = new QHBoxLayout;
     plottingModeRow->addWidget(new QLabel(tr("Plotting Mode:"), this));
     plottingModeRow->addWidget(plottingModeComboBox);
+
+    QHBoxLayout *bufferWarningSoundRow = new QHBoxLayout;
+    bufferWarningSoundRow->addWidget(bufferWarningSoundCheckBox);
 
     QVBoxLayout *XPUGroupBoxLayout = new QVBoxLayout;
     XPUGroupBoxLayout->addWidget(new QLabel(tr(         "This software can use any connected XPU (CPU or GPU) to accelerate filtering\n"
@@ -88,12 +95,26 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
                                                         "When saving large amounts of data, the highest latency is recommended."), this));
     writeLatencyGroupBoxLayout->addLayout(writeLatencySelectionRow);
 
+    minimalLatencyNoteLabel = new QLabel(tr("Note: When Minimal is selected, data is flushed as quickly as possible,\n"
+                                           "minimizing latency at the cost of overhead for every open file. The One\n"
+                                           "File Per Channel format, and sometimes the One File Per Signal Type\n"
+                                           "format, may incur significant delays. If many open data files increase\n"
+                                           "the overhead cost enough to bottleneck data, the HW/SW buffers will\n"
+                                           "eventually begin to fill. When using Minimal, either the Traditional or\n"
+                                           "One File Per Signal Type format is recommended. Otherwise, increase\n"
+                                           "latency to Lowest for safer operation."), this);
+
+    writeLatencyGroupBoxLayout->addWidget(minimalLatencyNoteLabel);
+
     QVBoxLayout *plottingModeGroupBoxLayout = new QVBoxLayout;
     plottingModeGroupBoxLayout->addWidget(new QLabel(tr("For large resolution monitors, the Original method of plotting may be too\n"
                                                         "slow to keep up in real time. High Efficiency plotting mode significantly\n"
                                                         "improves performance by only plotting the most recently acquired sections\n"
                                                         "of the waveforms. This feature works only for sweep mode."), this));
     plottingModeGroupBoxLayout->addLayout(plottingModeRow);
+
+    QVBoxLayout *bufferWarningSoundGroupBoxLayout = new QVBoxLayout;
+    bufferWarningSoundGroupBoxLayout->addLayout(bufferWarningSoundRow);
 
     QGroupBox *XPUGroupBox = new QGroupBox(tr("XPU"), this);
     XPUGroupBox->setLayout(XPUGroupBoxLayout);
@@ -104,6 +125,9 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
     QGroupBox *plottingModeGroupBox = new QGroupBox(tr("Plotting Mode"), this);
     plottingModeGroupBox->setLayout(plottingModeGroupBoxLayout);
 
+    QGroupBox *bufferWarningSoundGroupBox = new QGroupBox(tr("HW/SW Buffer Warning Sounds"), this);
+    bufferWarningSoundGroupBox->setLayout(bufferWarningSoundGroupBoxLayout);
+
     buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
 
     connect(buttonBox, SIGNAL(accepted()), this, SLOT(accept()));
@@ -113,9 +137,12 @@ PerformanceOptimizationDialog::PerformanceOptimizationDialog(SystemState* state_
     mainLayout->addWidget(XPUGroupBox);
     mainLayout->addWidget(writeLatencyGroupBox);
     mainLayout->addWidget(plottingModeGroupBox);
+    mainLayout->addWidget(bufferWarningSoundGroupBox);
     mainLayout->addWidget(buttonBox);
 
     setLayout(mainLayout);
+
+    toggleMinimalLatencyNote();
 
     initialize();
 }
@@ -134,4 +161,18 @@ void PerformanceOptimizationDialog::initialize()
 
     // Find the current plottingMode state and make the selected entry in its combo box.
     plottingModeComboBox->setCurrentIndex(state->plottingMode->getIndex());
+
+    // Find the current bufferWarningSoundsEnabled state and update its check box.
+    bufferWarningSoundCheckBox->setChecked(state->bufferWarningSoundsEnabled->getValue());
+
+    if (state->testMode->getValue()) {
+        writeLatencyComboBox->setEnabled(false);
+        plottingModeComboBox->setEnabled(false);
+    }
+}
+
+void PerformanceOptimizationDialog::toggleMinimalLatencyNote()
+{
+    minimalLatencyNoteLabel->setVisible(writeLatencyComboBox->currentText() == "Minimal");
+    QTimer::singleShot(0, this, &PerformanceOptimizationDialog::adjustSize);
 }

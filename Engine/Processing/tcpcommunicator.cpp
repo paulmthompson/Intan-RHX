@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,23 +18,24 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
 #include "tcpcommunicator.h"
 
-TCPCommunicator::TCPCommunicator(QString address_, int port_, QObject *parent) :
+TCPCommunicator::TCPCommunicator(QString host_, int port_, ConnectionStatus status_, ConnectionStatus statusOnClientDisconnect_, QObject *parent) :
     QObject(parent),
     passwordCleared(false),
-    status(Disconnected),
-    address(address_),
+    status(status_),
+    statusOnClientDisconnect(statusOnClientDisconnect_),
+    host(host_),
     port(port_),
     server(nullptr),
     socket(nullptr)
@@ -53,7 +54,7 @@ void TCPCommunicator::establishConnection()
     if (connectionAvailable()) {
         socket = server->nextPendingConnection();
         connect(socket, SIGNAL(readyRead()), this, SLOT(emitReadyRead()));
-        connect(socket, SIGNAL(disconnected()), this, SLOT(returnToDisconnected()));
+        connect(socket, SIGNAL(disconnected()), this, SLOT(handleDisconnection()));
         server->close();
         status = Connected;
         emit statusChanged();
@@ -65,7 +66,7 @@ bool TCPCommunicator::serverListening()
     return server->isListening();
 }
 
-bool TCPCommunicator::listen(QString host, int port)
+bool TCPCommunicator::listen()
 {
     status = Pending;
     emit statusChanged();
@@ -108,21 +109,27 @@ void TCPCommunicator::writeData(char *data, qint64 len)
 void TCPCommunicator::attemptNewConnection()
 {
     if (!serverListening()) {
-        listen(address, port);
+        listen();
     }
 }
 
-void TCPCommunicator::returnToDisconnected()
+void TCPCommunicator::handleDisconnection(bool fromClient)
 {
     if (socket) {
         // Before disconnecting, if any data is on the socket, grab it.
         cachedCommands = socket->readAll();
         // Disconnect and destroy socket
-        socket->disconnectFromHost();
+        disconnect(socket, SIGNAL(readyRead()), this, SLOT(emitReadyRead()));
+        disconnect(socket, SIGNAL(disconnected()), this, SLOT(handleDisconnection()));
         socket = nullptr;
     }
     server->close();
-    status = Disconnected;
+
+    if (fromClient && statusOnClientDisconnect == Pending) {
+        attemptNewConnection();
+    } else {
+        status = Disconnected;
+    }
     emit statusChanged();
 }
 

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -72,11 +72,11 @@ ProbeMapWindow::ProbeMapWindow(SystemState* state_, ControllerInterface* control
     bestFitAction->setShortcuts(bestFitShortcuts);
 
     zoomInAction = new QAction(QIcon(":/images/zoomin.png"), "Zoom in. Shortcut: 'MouseWheelUp' or 'Shift+UpArrow' or 'Ctrl+UpArrow' or '+'", this);
-    QList<QKeySequence> zoomInShortcuts = QList<QKeySequence>() << Qt::Key_Plus << Qt::Key_Equal << (Qt::SHIFT + Qt::Key_Up) << (Qt::CTRL + Qt::Key_Up);
+    QList<QKeySequence> zoomInShortcuts = QList<QKeySequence>() << Qt::Key_Plus << Qt::Key_Equal << (Qt::SHIFT | Qt::Key_Up) << (Qt::CTRL | Qt::Key_Up);
     zoomInAction->setShortcuts(zoomInShortcuts);
 
     zoomOutAction = new QAction(QIcon(":/images/zoomout.png"), "Zoom out. Shortcut: 'MouseWheelDown' or 'Shift+DownArrow' or 'Ctrl+DownArrow' or '-'", this);
-    QList<QKeySequence> zoomOutShortcuts = QList<QKeySequence>() << Qt::Key_Minus << Qt::Key_Underscore << (Qt::SHIFT + Qt::Key_Down) << (Qt::CTRL + Qt::Key_Down);
+    QList<QKeySequence> zoomOutShortcuts = QList<QKeySequence>() << Qt::Key_Minus << Qt::Key_Underscore << (Qt::SHIFT | Qt::Key_Down) << (Qt::CTRL | Qt::Key_Down);
     zoomOutAction->setShortcuts(zoomOutShortcuts);
 
     scrollUpAction = new QAction(QIcon(":/images/uparrow.png"), "Scroll up. Shortcut: 'Shift+MouseWheelUp' or 'UpArrow' or 'PageUp'", this);
@@ -153,7 +153,7 @@ ProbeMapWindow::ProbeMapWindow(SystemState* state_, ControllerInterface* control
     toolBar->addAction(impedanceViewAction);
     toolBar->addAction(spikeViewAction);
 
-    this->addToolBar(Qt::RightToolBarArea, toolBar);
+    addToolBar(Qt::RightToolBarArea, toolBar);
 
     impedanceGradient = new ImpedanceGradient();
     impedanceGradient->hide();
@@ -540,7 +540,7 @@ void ProbeMapWindow::clearTabWidget() {
 QVector<ElectrodeSite*> ProbeMapWindow::getSitesWithName(const QString& nativeName)
 {
     QString name = nativeName.left(1);
-    int channelNum = nativeName.right(nativeName.length() - 2).toInt();
+    int channelNum = QStringView{nativeName}.right(nativeName.length() - 2).toInt();
     QVector<ElectrodeSite*> sites;
 
     for (int pageIndex = 0; pageIndex < state->probeMapSettings.pages.size(); pageIndex++) {

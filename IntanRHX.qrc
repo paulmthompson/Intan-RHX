@@ -56,5 +56,9 @@
         <file>images/IntanLogo_32x32_white_frame.png</file>
         <file>images/spike.png</file>
         <file>images/default.png</file>
+        <file>sounds/triggerendbeep.wav</file>
+        <file>sounds/triggerstartbeep.wav</file>
+        <file>sounds/majorwarning.wav</file>
+        <file>sounds/minorwarning.wav</file>
     </qresource>
 </RCC>

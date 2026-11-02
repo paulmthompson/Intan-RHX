@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -135,6 +135,8 @@ public:
     void selectAuxCommandLength(AuxCmdSlot auxCommandSlot, int loopIndex, int endIndex) override;
     void selectAuxCommandBank(BoardPort port, AuxCmdSlot auxCommandSlot, int bank) override; // not used with ControllerStimRecord
 
+    void setDigOut(int channel, bool high) override;
+
     int getBoardMode() override;
     int getNumSPIPorts(bool& expanderBoardDetected) override;
 
@@ -167,12 +169,14 @@ public:
     void uploadCommandList(const std::vector<unsigned int> &commandList, AuxCmdSlot auxCommandSlot, int bank = 0) override;
 
     int findConnectedChips(std::vector<ChipType> &chipType, std::vector<int> &portIndex, std::vector<int> &commandStream,
-                           std::vector<int> &numChannelsOnPort, bool = false) override;
+                           std::vector<int> &numChannelsOnPort, bool /*synthMaxChannels = false*/, bool returnToFastSettle = false,
+                           bool usePreviousDelay = false, int selectedPort = 0, int lastDetectedChip = -1,
+                           int lastDetectedNumStreams = -1) override;
 
     // Physical board only
     static void resetBoard(okCFrontPanel* dev_);
     static int getBoardMode(okCFrontPanel* dev_);
-    static int getNumSPIPorts(okCFrontPanel *dev_, bool isUSB3, bool& expanderBoardDetected, bool isRHS7310 = false);
+    static int getNumSPIPorts(okCFrontPanel *dev_, bool isUSB3, bool& expanderBoardDetected);
 
 private:
     // Objects of this class should not be copied.  Disable copy and assignment operators.
@@ -344,6 +348,8 @@ private:
     /** WireIn 0x05 bit masks (custom amp-maintenance bitfile). */
     static constexpr unsigned int StimCmdWireInAmpMaintenanceMask = 0x02;
     static constexpr unsigned int StimCmdWireInAuxExecuteMask = 0x04;
+
+    int previousDelay;
 };
 
 #endif // RHXCONTROLLER_H

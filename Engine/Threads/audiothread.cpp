@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,25 +18,17 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
-#include <QtGlobal>
-
-#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
-#include <QAudioDevice>
-#include <QAudioSink>
-#endif
-
-#include <QAudioDeviceInfo>
-
+#include <QMediaDevices>
 #include "signalsources.h"
 #include "audiothread.h"
 
@@ -59,20 +51,25 @@ AudioThread::AudioThread(SystemState *state_, WaveformFifo *waveformFifo_, const
 
 void AudioThread::initialize()
 {
-    state->writeToLog("Audio Thread initialize begin");
+    QAudioDevice defaultDevice(QMediaDevices::defaultAudioOutput());
+    mFormat = defaultDevice.preferredFormat();
+    mFormat.setChannelConfig(QAudioFormat::ChannelConfigMono);
+    mFormat.setSampleFormat(QAudioFormat::Float);
+    numSoundBytes = NumSoundSamples * mFormat.bytesPerSample();
+
+
     // Initialize variables.
-    mDevice = QAudioDeviceInfo::defaultOutputDevice();
     currentValue = 0.0F;
     nextValue = 0.0F;
     interpRatio = 0.0;
     interpLength = 0;
-    dataRatio = sampleRate / 44100.0;
+    dataRatio = sampleRate / mFormat.sampleRate();
     rawBlockSampleSize = ceil(dataRatio * NumSoundSamples);
 
-    // Initialize raw data array.
-    rawData = new float[rawBlockSampleSize];
+    // Initialize raw data (microVolts) array.
+    rawDatauV = new float[rawBlockSampleSize];
     for (int i = 0; i < rawBlockSampleSize; ++i) {
-        rawData[i] = 0.0F;
+        rawDatauV[i] = 0.0F;
     }
 
     // Initialize interp float array.
@@ -81,38 +78,19 @@ void AudioThread::initialize()
         interpFloats[i] = 0.0F;
     }
 
-    // Initialize interp data array.
-    interpInts = new int32_t[NumSoundSamples];
-    for (int i = 0; i < NumSoundSamples; ++i) {
-        interpInts[i] = 0;
-    }
-
     // Initialize buffer.
-    finalSoundBytesBuffer = new char[NumSoundBytes];
-    for (int i = 0; i < NumSoundBytes; ++i) {
-        finalSoundBytesBuffer[i] = (char) 0;
-    }
-
-    // Set up audio format.
-    mFormat.setSampleRate(44100);
-    mFormat.setChannelCount(1);
-    mFormat.setSampleSize(16);
-    mFormat.setCodec("audio/pcm");
-    mFormat.setByteOrder(QAudioFormat::LittleEndian);
-    mFormat.setSampleType(QAudioFormat::SignedInt);
-    QAudioDeviceInfo info(mDevice);
-    if (!info.isFormatSupported(mFormat)) {
-        qWarning() << "Default format not supported - trying to use nearest";
-        mFormat = info.nearestFormat(mFormat);
+    finalSoundBytesBuffer.resize(numSoundBytes * mFormat.channelCount());
+    for (int i = 0; i < numSoundBytes; ++i) {
+        finalSoundBytesBuffer[i] = 0;
     }
 
     // Create audio IO and output device.
-    buf = new QByteArray();
-    s = new QDataStream(buf, QIODevice::ReadWrite);
-    mAudioOutput = new QAudioOutput(mDevice, mFormat);
-    connect(mAudioOutput, SIGNAL(stateChanged(QAudio::State)), this, SLOT(catchError()));
-    state->writeToLog("Audio Thread initialize end");
+    mAudioSink = std::make_unique<QAudioSink>(defaultDevice, mFormat);
+    connect(mAudioSink.get(), SIGNAL(stateChanged(QAudio::State)), this, SLOT(catchError()));
+    qreal linearVolume = QAudio::convertVolume(volume / qreal(100), QAudio::LogarithmicVolumeScale, QAudio::LinearVolumeScale);
+    mAudioSink->setVolume(linearVolume);
 }
+
 
 void AudioThread::run()
 {
@@ -122,14 +100,25 @@ void AudioThread::run()
 
             // Any 'start up' code goes here.
             initialize();
+            QBuffer m_buffer;
+            m_buffer.setBuffer(&finalSoundBytesBuffer);
+            m_buffer.open(QIODevice::ReadOnly);
 
             while (keepGoing && !stopThread) {
 
-                // Wait for samples to arrive from WaveformFifo (enough where, when scaled to 44.1 kHz audio, NumSoundSamples can be written)
+                if (!state->running) {
+                    qApp->processEvents();
+                    continue;
+                }
+
+                // Start audio (if it's not started already)
+                if (mAudioSink->state() != QAudio::ActiveState) {
+                    mAudioSink->start(&m_buffer);
+                }
+
+                // Wait for samples to arrive from WaveformFifo (enough where, when scaled to audio sample rate, NumSoundSamples can be written)
                 if (waveformFifo->requestReadNewData(WaveformFifo::ReaderAudio, rawBlockSampleSize)) {
-                    s->device()->seek(0);
-                    s->writeRawData(finalSoundBytesBuffer, NumSoundBytes);
-                    s->device()->seek(0);
+                    m_buffer.seek(0);
 
                     // Populate rawData from WaveformFifo
                     if (!fillBufferFromWaveformFifo()) {
@@ -140,12 +129,6 @@ void AudioThread::run()
                     // Populate finalSoundBytesBuffer from rawData
                     processAudioData();
 
-                    // Start audio (if it's not started already)
-                    if (mAudioOutput->state() != QAudio::ActiveState) {
-                        mAudioOutput->start(s->device());
-                    }
-                    qApp->processEvents();
-
                 } else {
                     // Probably could sleep here for a while
                     qApp->processEvents();
@@ -153,14 +136,10 @@ void AudioThread::run()
            }
 
            // Any 'finish up' code goes here.
-           mAudioOutput->stop();
+           mAudioSink->stop();
 
-           delete [] rawData;
+           delete [] rawDatauV;
            delete [] interpFloats;
-           delete [] interpInts;
-           delete [] finalSoundBytesBuffer;
-           delete s;
-           delete buf;
 
            running = false;
         } else {
@@ -188,14 +167,17 @@ void AudioThread::close()
 bool AudioThread::fillBufferFromWaveformFifo()
 {
     // Update volume and noise slicer threshold values.
-    volume = state->audioVolume->getValue();
-    threshold = state->audioThreshold->getValue();
-
     // Out of an abundance of caution, bound these values read from state in case of any glitches due to threading issues.
-    volume = qBound(minVolume, volume, maxVolume);
-    threshold = qBound(minThreshold, threshold, maxThreshold);
+    if (volume != state->audioVolume->getValue()) {
+        volume = qBound(minVolume, state->audioVolume->getValue(), maxVolume);
+        qreal linearVolume = QAudio::convertVolume(volume / qreal(100), QAudio::LogarithmicVolumeScale, QAudio::LinearVolumeScale);
+        mAudioSink->setVolume(linearVolume);
+    }
+    if (threshold != state->audioThreshold->getValue()) {
+        threshold = qBound(minThreshold, state->audioThreshold->getValue(), maxThreshold);
+    }
 
-    // Fill rawData with samples from waveformFifo, based on single selected channel.
+    // Fill rawDatauV with samples from waveformFifo, based on single selected channel.
     bool validAudioSource = true;
     QString selectedChannelName = state->signalSources->singleSelectedAmplifierChannelName();
     if (selectedChannelName.isEmpty()) validAudioSource = false;
@@ -211,12 +193,12 @@ bool AudioThread::fillBufferFromWaveformFifo()
     if (validAudioSource) {
         newChannelString = selectedChannelFilterName;
         for (int i = 0; i < rawBlockSampleSize; ++i) {
-            rawData[i] = waveformFifo->getGpuAmplifierData(WaveformFifo::ReaderAudio, waveformAddress, i);
+            rawDatauV[i] = waveformFifo->getGpuAmplifierData(WaveformFifo::ReaderAudio, waveformAddress, i);
         }
     } else {
         newChannelString = "";
         for (int i = 0; i < rawBlockSampleSize; ++i) {
-            rawData[i] = 0.0F;
+            rawDatauV[i] = 0.0F;
         }
     }
     if (newChannelString != currentChannelString) {
@@ -229,14 +211,12 @@ bool AudioThread::fillBufferFromWaveformFifo()
 
 void AudioThread::processAudioData()
 {
-    state->writeToLog("Process audio data start");
     // Do floating point interpolation.
     originalSamplesCopied = 0;
     soundSamplesCopied = 0;
     while (originalSamplesCopied < rawBlockSampleSize) {
-        qApp->processEvents();
         currentValue = nextValue;
-        nextValue = rawData[originalSamplesCopied];
+        nextValue = rawDatauV[originalSamplesCopied];
 
         while (interpRatio < 1.0) {
             // Ensure that no writing beyond allocated memory for interpFloats occurs
@@ -268,51 +248,80 @@ void AudioThread::processAudioData()
         }
     }
 
-    // Do audio volume, and numerically convert to int.
+    float myMin = 0.0f;
+    float myMax = 0.0f;
     for (int i = 0; i < soundSamplesCopied; ++i) {
-        interpFloats[i] = (volume / 2) * (interpFloats[i] / 0.195F);
+        if (interpFloats[i] > myMax) {
+            myMax = interpFloats[i];
+        }
+        if (interpFloats[i] < myMin) {
+            myMin = interpFloats[i];
+        }
     }
 
-    // As float, trim to max of +- 32767.
+    // Scale from -ClipLevel:+ClipLevel to -1.0:1.0
+    // Default: ClipLevel = 6000.0;
     for (int i = 0; i < soundSamplesCopied; ++i) {
-        interpFloats[i] = qBound(-32768.0F, interpFloats[i], 32767.0F);
+        interpFloats[i] = interpFloats[i] / ClipLevel;
+
+        // Clamp any values outside this range to max/min values
+        if (interpFloats[i] > 1.0) {
+            interpFloats[i] = 1.0;
+        } else if (interpFloats[i] < -1.0) {
+            interpFloats[i] = -1.0;
+        }
+
+        // Additional volume scaling (+-1 to +-VolumeBoost)
+        // Default: VolumeBoost = 10.0;
+        interpFloats[i] = interpFloats[i] * VolumeBoost;
     }
 
-    // Convert to int.
+    // Convert to correct format for audio output
+    // Adapted from Qt example "audiooutput", version 6.8.2
+    char *ptr = finalSoundBytesBuffer.data();
     for (int i = 0; i < soundSamplesCopied; ++i) {
-        interpInts[i] = (int32_t) round(interpFloats[i]);
+        for (int j = 0; j < mFormat.channelCount(); ++j) {
+            switch (mFormat.sampleFormat()) {
+            case QAudioFormat::UInt8:
+                qToLittleEndian<quint8>((1.0 + interpFloats[i] / 2 * 255), ptr);
+                ptr += sizeof(quint8);
+                break;
+            case QAudioFormat::Int16:
+                qToLittleEndian<qint16>(interpFloats[i] * 32767);
+                ptr += sizeof(qint16);
+                break;
+            case QAudioFormat::Int32:
+                qToLittleEndian<int32_t>(interpFloats[i] * std::numeric_limits<qint32>::max());
+                ptr += sizeof(qint32);
+                break;
+            case QAudioFormat::Float:
+                qToLittleEndian<float>(interpFloats[i], ptr);
+                ptr += sizeof(float);
+                break;
+            default:
+                break;
+            }
+        }
     }
-
-    // Fill buffer with final data.
-    char *ptr = finalSoundBytesBuffer;
-    for (int i = 0; i < NumSoundSamples; ++i) {
-        qToLittleEndian<int16_t>(interpInts[i], ptr);
-        ptr += 2;
-    }
-    state->writeToLog("Process audio data end");
 }
 
 void AudioThread::catchError()
 {
-    QAudio::Error errorValue = mAudioOutput->error();
+    QAudio::Error errorValue = mAudioSink->error();
     switch (errorValue) {
     case QAudio::NoError:
         break;
     case QAudio::OpenError:
-        qDebug() << "Open Error";
-        state->writeToLog("Open Error");
+        qDebug().noquote() << "rhx-audio: Open Error";
         break;
     case QAudio::IOError:
-        qDebug() << "IO Error";
-        state->writeToLog("IO Error");
+        qDebug().noquote() << "rhx-audio: IO Error";
         break;
     case QAudio::UnderrunError:
-        qDebug() << "Underrun Error";
-        state->writeToLog("Underrun Error");
+        qDebug().noquote() << "rhx-audio: Underrun Error";
         break;
     case QAudio::FatalError:
-        qDebug() << "Fatal Error";
-        state->writeToLog("Fatal Error");
+        qDebug().noquote() << "rhx-audio: Fatal Error";
         break;
     }
 }

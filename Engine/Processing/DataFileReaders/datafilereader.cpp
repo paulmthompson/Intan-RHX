@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -225,9 +225,9 @@ DataFileReader::DataFileReader(const QString& fileName, bool& canReadFile, QStri
             AbstractRHXController::getSampleRate(headerInfo.sampleRate);
 
     // Determine data file format.
-    DataFileFormat format;
+    // DataFileFormat format;
     if (headerInfo.dataSizeInBytes > 0) {
-        format = TraditionalIntanFormat;  // Traditional Intan .rhd/.rhs file format
+        // format = TraditionalIntanFormat;  // Traditional Intan .rhd/.rhs file format
         dataFileManager = new TraditionalIntanFileManager(fileName, &headerInfo, canReadFile, report, this);
     } else {
         QFileInfo fileInfo(fileName);
@@ -257,10 +257,10 @@ DataFileReader::DataFileReader(const QString& fileName, bool& canReadFile, QStri
             }
         }
         if (foundPerSignalTypeFile) {
-            format = FilePerSignalTypeFormat;  // "One file per signal type" format
+            // format = FilePerSignalTypeFormat;  // "One file per signal type" format
             dataFileManager = new FilePerSignalTypeManager(fileName, &headerInfo, canReadFile, report, this);
         } else {
-            format = FilePerChannelFormat; // "One file per channel" format
+            // format = FilePerChannelFormat; // "One file per channel" format
             dataFileManager = new FilePerChannelManager(fileName, &headerInfo, canReadFile, report, this);
         }
     }

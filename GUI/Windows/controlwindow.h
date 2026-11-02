@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -44,6 +44,7 @@
 #include "setfileformatdialog.h"
 #include "triggerrecorddialog.h"
 #include "controlpanel.h"
+#include "testcontrolpanel.h"
 #include "multicolumndisplay.h"
 #include "tcpdisplay.h"
 #include "commandparser.h"
@@ -65,7 +66,7 @@ class ControlWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    ControlWindow(SystemState* state_, CommandParser* parser_, ControllerInterface* controllerInterface_);
+    ControlWindow(SystemState* state_, CommandParser* parser_, ControllerInterface* controllerInterface_, AbstractRHXController* rhxController_);
     ~ControlWindow();
 
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -75,8 +76,14 @@ public:
     bool ungroupIsPossible() const { return multiColumnDisplay->ungroupIsPossible(); }
 
     void enableSelectedChannels(bool enable) { multiColumnDisplay->enableSelectedChannels(enable); }
-    bool loadSettingsFile(QString filename);
+    bool loadSettingsFile(QString filename, bool silent=false);
     void restoreDisplaySettings();
+
+    void updateForLoad();
+    void updateForStop();
+    QString getDisplaySettingsString();
+
+    XMLInterface* stimParametersInterface;
 
 signals:
     void sendSetCommand(QString parameter, QString value);
@@ -85,7 +92,7 @@ signals:
     void sendExecuteCommandWithParameter(QString action, QString parameter);
     void sendNoteCommand(QString noteString);
     void setTimeLabel(QString text);
-    void setStatusBar(QString text);
+    void setStatusBarText(QString text);
     void setStatusBarReadyPlayback();
     void jumpToStart();
     void jumpToEnd();
@@ -93,11 +100,13 @@ signals:
     void jumpRelative(double jumpInSeconds);
     void setDataFileReaderSpeed(double playbackSpeed);
     void setDataFileReaderLive(bool isLive);
+    void establishWaveformConnection();
+    void establishSpikeConnection();
 
 public slots:
     void updateFromState();
     void updateForChangeHeadstages();
-    void updateTimeLabel(QString text) { timeLabel->setText("<b>" + text + "</b>"); }
+    void updateTimeLabel(QString text) { if (state->testMode->getValue()) return; timeLabel->setText("<b>" + text + "</b>"); }
     void updateTopStatusLabel(QString text) { topStatusLabel->setText(text); }
     void updateStatusBar(QString text) { statusBarLabel->setText(text); }
     void queueErrorMessage(QString errorMessage) { queuedErrorMessage = errorMessage; }
@@ -187,7 +196,9 @@ private slots:
     void changeAudioVolume(int volume);
     void changeAudioThreshold(int threshold);
 
-    void remoteControl(); // Create a non-modal dialog window governing TCP communication.
+    void remoteControl();
+
+    void receiveBufferWarning(BufferStatus newStatus);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -197,6 +208,7 @@ protected:
 private:
     SystemState* state;
     ControllerInterface* controllerInterface;
+    AbstractRHXController* rhxController;
     CommandParser* parser;
 
     QToolButton *showControlPanelButton;
@@ -307,7 +319,7 @@ private:
 
     StatusBars* statusBars;
 
-    ControlPanel *controlPanel;
+    AbstractPanel *controlPanel;
 
     MultiColumnDisplay *multiColumnDisplay;
 
@@ -319,9 +331,10 @@ private:
 
     QSpacerItem *showHideStretch;
 
-    XMLInterface* stimParametersInterface;
-
     StimParametersClipboard *stimClipboard;
+
+    QSoundEffect *minorBufferWarning;
+    QSoundEffect *majorBufferWarning;
 
     bool currentlyRunning;
     bool currentlyTeardownInProgress;

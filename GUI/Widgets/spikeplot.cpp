@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -49,8 +49,8 @@ SpikePlot::SpikePlot(SystemState* state_, QWidget *parent) :
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     setFocusPolicy(Qt::StrongFocus);
 
-    samplesPreDetect = 90;
-    samplesPostDetect = 180;
+    samplesPreDetect = 300;
+    samplesPostDetect = 600;
 
     latestRmsCalculation = 0.0;
     latestSpikeRateCalculation = 0;
@@ -139,6 +139,8 @@ void SpikePlot::paintEvent(QPaintEvent * /* event */)
     int snippetLength = samplesPreDetect + samplesPostDetect;
     QPointF *polyline = new QPointF[snippetLength];
 
+    double tScale = state->tScaleSpikeScope->getNumericValue();
+
     if (history) {
         bool showArtifacts = state->artifactsShown->getValue();
 
@@ -216,11 +218,34 @@ void SpikePlot::paintEvent(QPaintEvent * /* event */)
     // Draw vertical axis lines.
     int tMax = qFloor(ct.xMaxReal());
     for (int t = qCeil(ct.xMinReal()); t <= tMax; ++t) {
-        if (t == 0) {
-            painter.setPen(Qt::white);
-        } else {
-            painter.setPen(Qt::darkGray);
+        (t == 0) ? painter.setPen(Qt::white) : painter.setPen(Qt::darkGray);
+
+        // For tScale of 2, 4, or 6 ms, draw a vertical line every 1 ms.
+        // For tScale of 10 ms, draw a vertical line every 2 ms.
+        // For tScale of 16 or 20 ms, draw a vertical line every 4 ms.
+        int divisor = 1;
+        switch ((int) tScale) {
+        case 2:
+        case 4:
+        case 6:
+            divisor = 1;
+            break;
+
+        case 10:
+            divisor = 2;
+            break;
+
+        case 16:
+        case 20:
+            divisor = 4;
+            break;
         }
+
+        // Only draw a vertical line at the far-left border t, the far-right border t, or a t divisible by divisor.
+        // For example, don't draw t = 3 ms with tScale of 20 ms (divisor = 4), but do draw t = 4 ms.
+        if (t != ct.xMinReal() && t != ct.xMaxReal() && t % divisor != 0)
+            continue;  // This t line is not important enough to draw, so move on to next iteration of for loop.
+
         plotDecorator.drawVerticalAxisLine(ct, t);
 
         // Write time axis labels.

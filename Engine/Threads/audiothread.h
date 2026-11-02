@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -32,16 +32,9 @@
 #define AUDIOTHREAD_H
 
 #include <QThread>
-#include <QtGlobal>
-
-#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
-#include <QAudioDevice>
 #include <QAudioSink>
-#endif
-
-#include <QAudioOutput>
 #include <QAudioFormat>
-
+#include <QMediaDevices>
 #include <cstdint>
 #include <mutex>
 
@@ -67,15 +60,11 @@ private slots:
     void catchError();
 
 private:
+    const double ClipLevel = 600.0;
+    const double VolumeBoost = 10.0;
 
-    // For some reason, Mac seems to do better with larger audio write periods, and Windows better with smaller write periods.
-    // These values don't completely eliminate audio popping, but seem to reduce them considerably, especially after running for a bit.
-#if __APPLE__
-    const int NumSoundSamples = 24000;
-#else
-    const int NumSoundSamples = 5000;
-#endif
-    const int NumSoundBytes = 2 * NumSoundSamples;
+    const int NumSoundSamples = 8000;
+    int numSoundBytes;
 
     SystemState* state;
     WaveformFifo* waveformFifo;
@@ -92,37 +81,27 @@ private:
 
     int rawBlockSampleSize;
 
-    float *rawData;
+    float *rawDatauV;
     float *interpFloats;
-    int32_t *interpInts;
-    char* finalSoundBytesBuffer;
+    QByteArray finalSoundBytesBuffer;
 
     double dataRatio;
 
     int originalSamplesCopied;
     int soundSamplesCopied;
 
-    volatile bool keepGoing;
-    volatile bool running;
-    volatile bool stopThread;
+    std::atomic_bool keepGoing;
+    std::atomic_bool running;
+    std::atomic_bool stopThread;
 
     float currentValue;
     float nextValue;
     double interpRatio;
     int interpLength;
 
-#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
-    QAudioDevice mDevice;
-#else
-    QAudioDeviceInfo mDevice;
-#endif
-
-    QAudioOutput* mAudioOutput;
     QAudioFormat mFormat;
-
-    QByteArray* buf;
+    std::unique_ptr<QAudioSink> mAudioSink;
     QDataStream* s;
-
 
     QString currentChannelString;
 

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -32,8 +32,9 @@
 
 TCPDataOutputThread::TCPDataOutputThread(WaveformFifo *waveformFifo_, const double sampleRate_, SystemState *state_, QObject *parent) :
     QThread(parent),
-    tcpWaveformDataCommunicator(state_->tcpWaveformDataCommunicator),
-    tcpSpikeDataCommunicator(state_->tcpSpikeDataCommunicator),
+    tcpWaveformDataCommunicator(state_->tcpWaveformDataCommunicator->communicator),
+    tcpSpikeDataCommunicator(state_->tcpSpikeDataCommunicator->communicator),
+    previousSample(nullptr),
     waveformFifo(waveformFifo_),
     signalSources(state_->signalSources),
     sampleRate(sampleRate_),
@@ -42,8 +43,7 @@ TCPDataOutputThread::TCPDataOutputThread(WaveformFifo *waveformFifo_, const doub
     stopThread(false),
     parentObject(parent),
     connected(false),
-    state(state_),
-    previousSample(nullptr)
+    state(state_)
 {
 }
 
@@ -53,6 +53,8 @@ TCPDataOutputThread::~TCPDataOutputThread()
 
 void TCPDataOutputThread::run()
 {
+    uint32_t lastTimestamp = 0;
+    uint32_t timestamp = 0;
     while (!stopThread) {
         if (keepGoing) {
             running = true;
@@ -64,7 +66,7 @@ void TCPDataOutputThread::run()
             while (keepGoing && !stopThread) {
 
                 if (closeRequested) {
-                    this->closeInternal();
+                    closeInternal();
                     closeCompleted = true;
                     break;
                 } else {
@@ -72,8 +74,8 @@ void TCPDataOutputThread::run()
                 }
 
                 // If neither waveform nor spike ports are connected, just do a dummy read of the WaveformFifo
-                if (tcpWaveformDataCommunicator->status != TCPCommunicator::Connected &&
-                        tcpSpikeDataCommunicator->status != TCPCommunicator::Connected) {
+                if (tcpWaveformDataCommunicator->status != Connected &&
+                        tcpSpikeDataCommunicator->status != Connected) {
                     if (waveformFifo->requestReadNewData(WaveformFifo::ReaderTCP, FramesPerBlock * state->tcpNumDataBlocksWrite->getValue())) {
                         waveformFifo->freeOldData(WaveformFifo::ReaderTCP);
                     }
@@ -99,8 +101,14 @@ void TCPDataOutputThread::run()
                                 waveformArray.replace(waveformArrayIndex, sizeof(TCPWaveformMagicNumber), (const char*)(&TCPWaveformMagicNumber), sizeof(TCPWaveformMagicNumber));
                                 waveformArrayIndex += sizeof(TCPWaveformMagicNumber);
                             }
-                            uint32_t timestamp = waveformFifo->getTimeStamp(WaveformFifo::ReaderTCP, i);
+                            lastTimestamp = timestamp;
+                            timestamp = waveformFifo->getTimeStamp(WaveformFifo::ReaderTCP, i);
+                            //uint32_t timestamp = waveformFifo->getTimeStamp(WaveformFifo::ReaderTCP, i);
                             waveformArray.replace(waveformArrayIndex, sizeof(timestamp), (const char*)(&timestamp), sizeof(timestamp));
+                            if (timestamp != lastTimestamp + 1) {
+                                qDebug() << "discontinuity in timestamps. timestamp: " << timestamp << " last timestamp: " << lastTimestamp << "i: " << i;
+                            }
+                            //qDebug() << "timestamp: " << timestamp << " size of timestamp: " << sizeof(timestamp) << " waveform array index: " << waveformArrayIndex << "i: " << i;
                             waveformArrayIndex += sizeof(timestamp);
 
                             // Grab digital in word and digital out word
@@ -304,9 +312,9 @@ void TCPDataOutputThread::run()
                                 }
                             }
                         }
-                        if (tcpWaveformDataCommunicator->status == TCPCommunicator::Connected)
+                        if (tcpWaveformDataCommunicator->status == Connected)
                             tcpWaveformDataCommunicator->writeData(waveformArray.data(), waveformArrayIndex);
-                        if (tcpSpikeDataCommunicator->status == TCPCommunicator::Connected)
+                        if (tcpSpikeDataCommunicator->status == Connected)
                             tcpSpikeDataCommunicator->writeData(spikeArray.data(), spikeArrayIndex);
                         waveformArrayIndex = 0;
                         spikeArrayIndex = 0;

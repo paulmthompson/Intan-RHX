@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -65,13 +65,13 @@ FilePerSignalTypeSaveManager::FilePerSignalTypeSaveManager(WaveformFifo* wavefor
 
 FilePerSignalTypeSaveManager::~FilePerSignalTypeSaveManager()
 {
-    closeAllSaveFiles();
 }
 
 bool FilePerSignalTypeSaveManager::openAllSaveFiles()
 {
     const QString DataFileExtension = ".dat";
     dateTimeStamp = getDateTimeStamp();
+    state->filename->setTimestamp(dateTimeStamp.mid(1)); // Ignore first character, which is an underscore
     int bufferSize = calculateBufferSize(state);
 
     QString subdirName, subdirPath;
@@ -359,6 +359,8 @@ int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeI
         timeStampFile->writeInt32((int) waveformFifo->getTimeStamp(WaveformFifo::ReaderDisk, timeIndex + t) - timeStampOffset);
     }
     numBytesWritten += timeStampFile->getNumBytesWritten();
+    if (minimalLatency)
+        timeStampFile->forceFlush();
 
     // Save amplifier data.
     if (amplifierFile) {
@@ -373,6 +375,9 @@ int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeI
             amplifierFile->writeUInt16AsSigned(uint16Array2, numSamples * (int) (saveList.amplifier.size() + auxInputWaveform.size()));
         }
         numBytesWritten += amplifierFile->getNumBytesWritten();
+        qDebug() << "forcing flush of " << numSamples << " samples. Total numBytesWritten: " << numBytesWritten;
+        if (minimalLatency)
+            amplifierFile->forceFlush();
     }
     if (lowpassAmplifierFile) {
         int downsampleFactor = (int) state->lowpassWaveformDownsampleRate->getNumericValue();
@@ -380,11 +385,15 @@ int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeI
                                                    downsampleFactor);
         lowpassAmplifierFile->writeUInt16AsSigned(uint16Array, (numSamples / downsampleFactor) * (int) saveList.amplifier.size());
         numBytesWritten += lowpassAmplifierFile->getNumBytesWritten();
+        if (minimalLatency)
+            lowpassAmplifierFile->forceFlush();
     }
     if (highpassAmplifierFile) {
         waveformFifo->copyGpuAmplifierDataArrayRaw(WaveformFifo::ReaderDisk, uint16Array, amplifierHighpassGPUWaveform, timeIndex, numSamples);
         highpassAmplifierFile->writeUInt16AsSigned(uint16Array, numSamples * (int) saveList.amplifier.size());
         numBytesWritten += highpassAmplifierFile->getNumBytesWritten();
+        if (minimalLatency)
+            highpassAmplifierFile->forceFlush();
     }
 
     // Save spike data.
@@ -425,6 +434,8 @@ int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeI
             convertDcAmplifierValue(uint16Array, vArray, numSamples * (int) dcAmplifierWaveform.size());
             dcAmplifierFile->writeUInt16(uint16Array, numSamples * (int) dcAmplifierWaveform.size());
             numBytesWritten += dcAmplifierFile->getNumBytesWritten();
+            if (minimalLatency)
+                dcAmplifierFile->forceFlush();
         }
 
         // Save stimulation data.
@@ -432,6 +443,8 @@ int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeI
         stimFile->writeUInt16StimDataArray(uint16Array, numSamples, (int) stimFlagsWaveform.size(),
                                            posStimAmplitudes, negStimAmplitudes);
         numBytesWritten += stimFile->getNumBytesWritten();
+        if (minimalLatency)
+            stimFile->forceFlush();
     }
 
     if (type != ControllerStimRecord) {
@@ -441,6 +454,8 @@ int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeI
             convertAuxInputValue(uint16Array, vArray, numSamples * (int) auxInputWaveform.size());
             auxInputFile->writeUInt16(uint16Array, numSamples * (int) auxInputWaveform.size());
             numBytesWritten += auxInputFile->getNumBytesWritten();
+            if (minimalLatency)
+                auxInputFile->forceFlush();
         }
 
         // Save supply voltage data.
@@ -449,6 +464,8 @@ int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeI
             convertSupplyVoltageValue(uint16Array, vArray, numSamples * (int) supplyVoltageWaveform.size());
             supplyVoltageFile->writeUInt16(uint16Array, numSamples * (int) supplyVoltageWaveform.size());
             numBytesWritten += supplyVoltageFile->getNumBytesWritten();
+            if (minimalLatency)
+                supplyVoltageFile->forceFlush();
         }
     }
 
@@ -458,6 +475,8 @@ int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeI
         convertBoardAdcValue(uint16Array, vArray, numSamples * (int) boardAdcWaveform.size());
         analogInputFile->writeUInt16(uint16Array, numSamples * (int) boardAdcWaveform.size());
         numBytesWritten += analogInputFile->getNumBytesWritten();
+        if (minimalLatency)
+            analogInputFile->forceFlush();
     }
 
     if (type == ControllerStimRecord) {
@@ -467,6 +486,8 @@ int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeI
             convertBoardDacValue(uint16Array, vArray, numSamples * (int) boardDacWaveform.size());
             analogOutputFile->writeUInt16(uint16Array, numSamples * (int) boardDacWaveform.size());
             numBytesWritten += analogOutputFile->getNumBytesWritten();
+            if (minimalLatency)
+                analogOutputFile->forceFlush();
         }
     }
 
@@ -476,6 +497,8 @@ int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeI
         waveformFifo->copyDigitalData(WaveformFifo::ReaderDisk, uint16Array, boardDigitalInWaveform, timeIndex, numSamples);
         digitalInputFile->writeUInt16(uint16Array, numSamples);
         numBytesWritten += digitalInputFile->getNumBytesWritten();
+        if (minimalLatency)
+            digitalInputFile->forceFlush();
     }
 
     // Save board digital output data, optionally.
@@ -484,6 +507,8 @@ int64_t FilePerSignalTypeSaveManager::writeToSaveFiles(int numSamples, int timeI
         waveformFifo->copyDigitalData(WaveformFifo::ReaderDisk, uint16Array, boardDigitalOutWaveform, timeIndex, numSamples);
         digitalOutputFile->writeUInt16(uint16Array, numSamples);
         numBytesWritten += digitalOutputFile->getNumBytesWritten();
+        if (minimalLatency)
+            digitalOutputFile->forceFlush();
     }
 
     delete [] vArray;

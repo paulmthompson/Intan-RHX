@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -222,9 +222,9 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
     connect(buttonBox, SIGNAL(rejected()), this, SLOT(reject()));
 
     // Connect internal signals and slots.
-    connect(enableChargeRecoveryCheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableWidgets()));
-    connect(enableAmpSettleCheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableWidgets()));
-    connect(enableStimCheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableWidgets()));
+    connect(enableChargeRecoveryCheckBox, SIGNAL(checkStateChanged(Qt::CheckState)), this, SLOT(enableWidgets()));
+    connect(enableAmpSettleCheckBox, SIGNAL(checkStateChanged(Qt::CheckState)), this, SLOT(enableWidgets()));
+    connect(enableStimCheckBox, SIGNAL(checkStateChanged(Qt::CheckState)), this, SLOT(enableWidgets()));
     connect(pulseOrTrainComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(enableWidgets()));
     connect(stimShapeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(enableWidgets()));
     connect(triggerSourceComboBox, SIGNAL(currentIndexChanged(int)),
@@ -233,17 +233,13 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
             this, SLOT(commitAnalogInTriggerThresholdFromSpinBox()));
 
     connect(stimShapeComboBox, SIGNAL(currentIndexChanged(int)), this, SIGNAL(chargeChanged()));
-    connect(stimShapeComboBox, SIGNAL(currentIndexChanged(int)), this, SIGNAL(minimumPeriodChanged()));
     connect(stimPolarityComboBox, SIGNAL(currentIndexChanged(int)), this, SIGNAL(chargeChanged()));
     connect(firstPhaseDurationSpinBox, SIGNAL(valueChanged(double)), this, SIGNAL(chargeChanged()));
-    connect(firstPhaseDurationSpinBox, SIGNAL(valueChanged(double)), this, SIGNAL(minimumPeriodChanged()));
     connect(secondPhaseDurationSpinBox, SIGNAL(valueChanged(double)), this, SIGNAL(chargeChanged()));
-    connect(secondPhaseDurationSpinBox, SIGNAL(valueChanged(double)), this, SIGNAL(minimumPeriodChanged()));
     connect(firstPhaseAmplitudeSpinBox, SIGNAL(valueChanged(double)), this, SIGNAL(chargeChanged()));
     connect(secondPhaseAmplitudeSpinBox, SIGNAL(valueChanged(double)), this, SIGNAL(chargeChanged()));
     connect(this, SIGNAL(chargeChanged()), this, SLOT(calculateCharge()));
     connect(pulseTrainPeriodSpinBox, SIGNAL(valueChanged(double)), this, SLOT(calculatePulseTrainFrequency()));
-    connect(this, SIGNAL(minimumPeriodChanged()), this, SLOT(constrainPulseTrainPeriod()));
     connect(preStimAmpSettleSpinBox, SIGNAL(trueValueChanged(double)), this, SLOT(constrainPostTriggerDelay()));
     connect(postStimChargeRecovOnSpinBox, SIGNAL(trueValueChanged(double)), this, SLOT(constrainPostStimChargeRecovery()));
     connect(postStimAmpSettleSpinBox, SIGNAL(trueValueChanged(double)), this, SLOT(constrainRefractoryPeriod()));
@@ -251,7 +247,6 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
     connect(firstPhaseDurationSpinBox, SIGNAL(editingFinished()), this, SLOT(roundTimeInputs()));
     connect(secondPhaseDurationSpinBox, SIGNAL(editingFinished()), this, SLOT(roundTimeInputs()));
     connect(interphaseDelaySpinBox, SIGNAL(editingFinished()), this, SLOT(roundTimeInputs()));
-    connect(interphaseDelaySpinBox, SIGNAL(valueChanged(double)), this, SIGNAL(minimumPeriodChanged()));
     connect(postTriggerDelaySpinBox, SIGNAL(editingFinished()), this, SLOT(roundTimeInputs()));
     connect(pulseTrainPeriodSpinBox, SIGNAL(editingFinished()), this, SLOT(roundTimeInputs()));
     connect(refractoryPeriodSpinBox, SIGNAL(editingFinished()), this, SLOT(roundTimeInputs()));
@@ -309,6 +304,13 @@ StimParamDialog::StimParamDialog(SystemState* state_, Channel* channel_, QWidget
     postStimChargeRecovOffSpinBox->setValue(1);
     postStimChargeRecovOnSpinBox->setValue(1);
     enableChargeRecoveryCheckBox->setChecked(false);
+
+    // Connect these signals only after initial values have been set.
+    connect(stimShapeComboBox, SIGNAL(currentIndexChanged(int)), this, SIGNAL(minimumPeriodChanged()));
+    connect(firstPhaseDurationSpinBox, SIGNAL(valueChanged(double)), this, SIGNAL(minimumPeriodChanged()));
+    connect(secondPhaseDurationSpinBox, SIGNAL(valueChanged(double)), this, SIGNAL(minimumPeriodChanged()));
+    connect(interphaseDelaySpinBox, SIGNAL(valueChanged(double)), this, SIGNAL(minimumPeriodChanged()));
+    connect(this, SIGNAL(minimumPeriodChanged()), this, SLOT(constrainPulseTrainPeriod()));
 
     // Update dialog's state based on structParameters.
     updateParametersFromState(parameters);

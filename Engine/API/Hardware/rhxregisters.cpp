@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -1122,7 +1122,7 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType, unsigned
     } else {
         switch (commandType) {
         case RHXCommandConvert:
-            if ((arg1 < 0) || (arg1 > 63)) {
+            if (((int)arg1 < 0) || (arg1 > 63)) {
                 std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                         "Channel number out of range.\n";
                 return -1;
@@ -1130,7 +1130,7 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType, unsigned
             return 0x0000 + (arg1 << 8);  // 00cccccc0000000h; if the command is 'Convert',
                                           // arg1 is the channel number.
         case RHXCommandRegRead:
-            if ((arg1 < 0) || (arg1 > 63)) {
+            if (((int)arg1 < 0) || (arg1 > 63)) {
                 std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                         "Register address out of range.\n";
                 return -1;
@@ -1182,12 +1182,12 @@ unsigned int RHXRegisters::createRHXCommand(RHXCommandType commandType, unsigned
     } else {
         switch (commandType) {
         case RHXCommandRegWrite:
-            if ((arg1 < 0) || (arg1 > 63)) {
+            if (((int)arg1 < 0) || (arg1 > 63)) {
                 std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                         "Register address out of range.\n";
                 return -1;
             }
-            if ((arg2 < 0) || (arg2 > 255)) {
+            if (((int)arg2 < 0) || (arg2 > 255)) {
                 std::cerr << "Error in RHXRegisters::createRHXCommand: " <<
                         "Register data out of range.\n";
                 return -1;
@@ -1317,6 +1317,7 @@ void RHXRegisters::setStimStepSize(StimStepSize step)
         stimNBias = 15;
         break;
     case StimStepSizeMax:
+    default:
         stimStepSel1 = 0;
         stimStepSel2 = 0;
         stimStepSel3 = 0;
@@ -1807,6 +1808,31 @@ int RHXRegisters::createCommandListSetStimMagnitudes(std::vector<unsigned int> &
     // Now, configure RAM registers.
     commandList.push_back(createRHXCommand(RHXCommandRegWrite, 96 + channel, getRegisterValue(96 + channel), 1, 0)); // positive register; update
     commandList.push_back(createRHXCommand(RHXCommandRegWrite, 64 + channel, getRegisterValue(64 + channel), 1, 0)); // negative register; update
+
+    // More dummy commands to make 128 total commands
+    while (commandList.size() < 128) {
+        commandList.push_back(createRHXCommand(RHXCommandRegRead, 255));
+    }
+
+    return (int)commandList.size();
+}
+
+int RHXRegisters::createCommandListSetStimMagnitudesAllChannels(std::vector<unsigned int> &commandList, int posMag, int posTrim, int negMag, int negTrim)
+{
+    if (type != ControllerStimRecord) return -1;
+
+    commandList.clear(); // If command list already exists, erase it and start a new one.
+
+    // Start with two dummy commands.
+    commandList.push_back(createRHXCommand(RHXCommandRegRead, 255));
+    commandList.push_back(createRHXCommand(RHXCommandRegRead, 255));
+
+    for (int channel = 0; channel < 16; channel++) {
+        setPosStimMagnitude(channel, posMag, posTrim);
+        setNegStimMagnitude(channel, negMag, negTrim);
+        commandList.push_back(createRHXCommand(RHXCommandRegWrite, 96 + channel, getRegisterValue(96 + channel), 1, 0)); // positive register; update
+        commandList.push_back(createRHXCommand(RHXCommandRegWrite, 64 + channel, getRegisterValue(64 + channel), 1, 0)); // negative register; update
+    }
 
     // More dummy commands to make 128 total commands
     while (commandList.size() < 128) {

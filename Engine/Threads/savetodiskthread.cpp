@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 #include <QElapsedTimer>
@@ -43,13 +43,26 @@ SaveToDiskThread::SaveToDiskThread(WaveformFifo* waveformFifo_, SystemState* sta
     keepGoing = false;
     running = false;
     stopThread = false;
+
+    connect(parent, SIGNAL(rescanFinished()), this, SLOT(updateTriggerWaveformPointers()));
 }
 
 SaveToDiskThread::~SaveToDiskThread()
 {
     if (saveManager) {
+        saveManager->closeAllSaveFiles();
         delete saveManager;
         saveManager = nullptr;
+    }
+}
+
+void SaveToDiskThread::updateTriggerWaveformPointers()
+{
+    boardDigitalInWaveform = waveformFifo->getDigitalWaveformPointer("DIGITAL-IN-WORD");
+    boardAdcWaveform.resize(AbstractRHXController::numAnalogIO(state->getControllerTypeEnum(), state->expanderConnected->getValue()));
+    for (int i = 0; i < (int) boardAdcWaveform.size(); ++i) {
+        boardAdcWaveform[i] = waveformFifo->getAnalogWaveformPointer("ANALOG-IN-" +
+                                                                     AbstractRHXController::getAnalogIOChannelNumber(state->getControllerTypeEnum(), i));
     }
 }
 
@@ -57,13 +70,8 @@ void SaveToDiskThread::run()
 {
     const int NumSamples = RHXDataBlock::samplesPerDataBlock(state->getControllerTypeEnum());
     int bytesPerMinute = 0;
-
-    boardDigitalInWaveform = waveformFifo->getDigitalWaveformPointer("DIGITAL-IN-WORD");
-    boardAdcWaveform.resize(AbstractRHXController::numAnalogIO(state->getControllerTypeEnum(), state->expanderConnected->getValue()));
-    for (int i = 0; i < (int) boardAdcWaveform.size(); ++i) {
-        boardAdcWaveform[i] = waveformFifo->getAnalogWaveformPointer("ANALOG-IN-" +
-                                                AbstractRHXController::getAnalogIOChannelNumber(state->getControllerTypeEnum(), i));
-    }
+    const QString saveFileErrorMessage = "Could not open save file(s). Please check that the provided filename is valid, the provided path location exists, and that the location doesn't require elevated permissions to write to.";
+    updateTriggerWaveformPointers();
 
     while (!stopThread) {
         digitalTrigger = state->triggerSource->getValue().left(3).toUpper() == "DIG";
@@ -75,7 +83,7 @@ void SaveToDiskThread::run()
 
         totalRecordedSamples = 0;
         int64_t totalSamplesInFile = 0;
-        int64_t totalBytesWritten = 0;
+        //int64_t totalBytesWritten = 0;
 
         int64_t blocksWritten = 0;
 
@@ -104,13 +112,15 @@ void SaveToDiskThread::run()
                 if (!isRecording && state->recording) {     // Manual start recording.
 //                    cout << "MANUAL START RECORD" << EndOfLine;
                     if (!saveManager->openAllSaveFiles()) {
-                        emit error("Could not open save file(s)");
+                        emit error(saveFileErrorMessage);
                         emit sendSetCommand("RunMode", "Stop");
+                        close();
+                        break;
                     } else {
                         isRecording = true;
                         totalRecordedSamples = 0;
                         totalSamplesInFile = 0;
-                        totalBytesWritten = 0;
+                        // totalBytesWritten = 0;
                         bytesPerMinute = saveManager->bytesPerMinute();
                     }
                 }
@@ -127,18 +137,23 @@ void SaveToDiskThread::run()
 
                         if (triggerBeginFound) {    // Triggered start recording.
 //                            cout << "TRIGGER BEGIN FOUND" << endl;
+                            if (state->playTriggerSound->getValue()) {
+                                emit triggerStart();
+                            }
                             state->triggered = true;
                             state->triggerSet = false;
                             state->recording = true;
                             if (!saveManager->openAllSaveFiles()) {
-                                emit error("Could not open save file(s)");
+                                emit error(saveFileErrorMessage);
                                 emit sendSetCommand("RunMode", "Stop");
+                                close();
+                                break;
                             } else {
                                 isRecording = true;
                                 triggerBeginCounter = 0;
                                 totalRecordedSamples = 0;
                                 totalSamplesInFile = 0;
-                                totalBytesWritten = 0;
+                                // totalBytesWritten = 0;
                                 bytesPerMinute = saveManager->bytesPerMinute();
 
                                 saveManager->setTimeStampOffset(waveformFifo->getTimeStamp(WaveformFifo::ReaderDisk, triggerTimeIndex));
@@ -173,7 +188,7 @@ void SaveToDiskThread::run()
 
                     if (isRecording) {
                         // Save new data to disk.
-                        totalBytesWritten = saveManager->writeToSaveFiles(NumSamples);
+                        int64_t totalBytesWritten = saveManager->writeToSaveFiles(NumSamples);
                         if (statusBarUpdateTimer.elapsed() >= 250) {  // Update status bar every 250 msec.
                             setStatusBarRecording(bytesPerMinute, saveManager->saveFileDateTimeStamp(), totalBytesWritten);
                             statusBarUpdateTimer.restart();
@@ -205,6 +220,10 @@ void SaveToDiskThread::run()
                                 state->recording = false;
                                 saveManager->closeAllSaveFiles();
                                 isRecording = false;
+
+                                if (state->playTriggerSound->getValue()) {
+                                    emit triggerEnd();
+                                }
                             }
                         }
 
@@ -216,8 +235,10 @@ void SaveToDiskThread::run()
 //                                    cout << "TIME LIMIT REACHED; STARTING NEW FILE" << endl;
                                     saveManager->closeAllSaveFiles();
                                     if (!saveManager->openAllSaveFiles()) {
-                                        emit error("Could not open save file(s)");
+                                        emit error(saveFileErrorMessage);
                                         emit sendSetCommand("RunMode", "Stop");
+                                        close();
+                                        break;
                                     } else {
                                         totalSamplesInFile = 0;
                                         bytesPerMinute = saveManager->bytesPerMinute();
@@ -255,7 +276,7 @@ void SaveToDiskThread::run()
             if (isRecording) {
 //                cout << "MANUAL STOP RECORD; CLOSING SAVE FILE" << EndOfLine;
                 saveManager->closeAllSaveFiles();
-                isRecording = false;
+                // isRecording = false;
             }
             running = false;
             state->recording = false;
@@ -263,6 +284,7 @@ void SaveToDiskThread::run()
             state->triggerSet = false;
         } else {
             if (saveManager) {
+                saveManager->closeAllSaveFiles();
                 delete saveManager;
                 saveManager = nullptr;
             }
@@ -270,6 +292,7 @@ void SaveToDiskThread::run()
         }
     }
     if (saveManager) {
+        saveManager->closeAllSaveFiles();
         delete saveManager;
         saveManager = nullptr;
     }

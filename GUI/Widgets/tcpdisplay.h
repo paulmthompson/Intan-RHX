@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -65,6 +65,7 @@ private:
     QPushButton *commandsConnectButton;
     QPushButton *commandsDisconnectButton;
     QLabel *commandsStatus;
+    QCheckBox *commandsRemainPendingCheckBox;
 
     QTextEdit *commandTextEdit;
     QPushButton *clearCommandsButton;
@@ -77,6 +78,9 @@ private:
 
     QPushButton *waveformOutputDisconnectButton;
     QPushButton *spikeOutputDisconnectButton;
+
+    QCheckBox *waveformRemainPendingCheckBox;
+    QCheckBox *spikeRemainPendingCheckBox;
 
     QTableWidget *presentChannelsTable;
 
@@ -91,7 +95,8 @@ private:
 
     QTableWidget *channelsToStreamTable;
 
-    QLabel *dataOutputStatus;
+    QLabel *waveformDataOutputStatus;
+    QLabel *spikeDataOutputStatus;
 
     QLabel *dataRateStatus;
 
@@ -108,11 +113,17 @@ private:
 private slots:
     void updateCommandWidgets();
 
+    void commandsHostEdited();
+    void commandsPortChanged();
+    void commandsRemainPendingChanged(bool isChecked);
+
     void waveformOutputHostEdited();
     void waveformOutputPortChanged();
+    void waveformOutputRemainPendingChanged(bool isChecked);
 
     void spikeOutputHostEdited();
     void spikeOutputPortChanged();
+    void spikeOutputRemainPendingChanged(bool isChecked);
 
     void clearCommands();
     void clearErrors();
@@ -124,6 +135,7 @@ private slots:
     void addAllChannels();
     void removeAllChannels();
 
+    void updateDataOutputWidget(ConnectionStatus status, QPushButton* connectButton, QPushButton* disconnectButton, QLabel* statusLabel, const QString& portName);
     void updateDataOutputWidgets();
 
 signals:

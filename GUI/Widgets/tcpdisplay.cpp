@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -37,39 +37,41 @@ TCPDisplay::TCPDisplay(SystemState* state_, QWidget *parent) :
     state = state_;
     signalSources = state_->signalSources;
 
-    connect(this, SIGNAL(establishWaveformConnection()), state->tcpWaveformDataCommunicator, SLOT(establishConnection()));
-    connect(this, SIGNAL(establishSpikeConnection()), state->tcpSpikeDataCommunicator, SLOT(establishConnection()));
+    connect(this, SIGNAL(establishWaveformConnection()), state->tcpWaveformDataCommunicator->communicator, SLOT(establishConnection()));
+    connect(this, SIGNAL(establishSpikeConnection()), state->tcpSpikeDataCommunicator->communicator, SLOT(establishConnection()));
 
-    connect(state->tcpCommandCommunicator, SIGNAL(newConnection()), this, SLOT(processNewCommandConnection()));
-    connect(state->tcpCommandCommunicator, SIGNAL(statusChanged()), this, SLOT(updateCommandWidgets()));
+    connect(state->tcpCommandCommunicator->communicator, SIGNAL(newConnection()), this, SLOT(processNewCommandConnection()));
+    connect(state->tcpCommandCommunicator->communicator, SIGNAL(statusChanged()), this, SLOT(updateCommandWidgets()));
 
-    connect(state->tcpWaveformDataCommunicator, SIGNAL(newConnection()), this, SLOT(processNewWaveformOutputConnection()));
-    connect(state->tcpWaveformDataCommunicator, SIGNAL(statusChanged()), this, SLOT(updateDataOutputWidgets()));
+    connect(state->tcpWaveformDataCommunicator->communicator, SIGNAL(newConnection()), this, SLOT(processNewWaveformOutputConnection()));
+    connect(state->tcpWaveformDataCommunicator->communicator, SIGNAL(statusChanged()), this, SLOT(updateDataOutputWidgets()));
 
-    connect(state->tcpSpikeDataCommunicator, SIGNAL(newConnection()), this, SLOT(processNewSpikeOutputConnection()));
-    connect(state->tcpSpikeDataCommunicator, SIGNAL(statusChanged()), this, SLOT(updateDataOutputWidgets()));
+    connect(state->tcpSpikeDataCommunicator->communicator, SIGNAL(newConnection()), this, SLOT(processNewSpikeOutputConnection()));
+    connect(state->tcpSpikeDataCommunicator->communicator, SIGNAL(statusChanged()), this, SLOT(updateDataOutputWidgets()));
 
     QTabWidget *tabWidget = new QTabWidget(this);
 
-    commandsHostLineEdit = new QLineEdit("127.0.0.1", this);
+    commandsHostLineEdit = new QLineEdit(state->tcpCommandCommunicator->communicator->host, this);
+    waveformOutputHostLineEdit = new QLineEdit(state->tcpWaveformDataCommunicator->communicator->host, this);
+    spikeOutputHostLineEdit = new QLineEdit(state->tcpSpikeDataCommunicator->communicator->host, this);
 
-    waveformOutputHostLineEdit = new QLineEdit(state->tcpWaveformDataCommunicator->address, this);
-    spikeOutputHostLineEdit = new QLineEdit(state->tcpSpikeDataCommunicator->address, this);
-
+    connect(commandsHostLineEdit, SIGNAL(textEdited(QString)), this, SLOT(commandsHostEdited()));
     connect(waveformOutputHostLineEdit, SIGNAL(textEdited(QString)), this, SLOT(waveformOutputHostEdited()));
+    connect(spikeOutputHostLineEdit, SIGNAL(textEdited(QString)), this, SLOT(spikeOutputHostEdited()));
 
     commandsPortSpinBox = new QSpinBox(this);
     commandsPortSpinBox->setRange(0,9999);
-    commandsPortSpinBox->setValue(5000);
+    commandsPortSpinBox->setValue(state->tcpCommandCommunicator->communicator->port);
 
     waveformOutputPortSpinBox = new QSpinBox(this);
     waveformOutputPortSpinBox->setRange(0,9999);
-    waveformOutputPortSpinBox->setValue(state->tcpWaveformDataCommunicator->port);
+    waveformOutputPortSpinBox->setValue(state->tcpWaveformDataCommunicator->communicator->port);
 
     spikeOutputPortSpinBox = new QSpinBox(this);
     spikeOutputPortSpinBox->setRange(0,9999);
-    spikeOutputPortSpinBox->setValue(state->tcpSpikeDataCommunicator->port);
+    spikeOutputPortSpinBox->setValue(state->tcpSpikeDataCommunicator->communicator->port);
 
+    connect(commandsPortSpinBox, SIGNAL(valueChanged(int)), this, SLOT(commandsPortChanged()));
     connect(waveformOutputPortSpinBox, SIGNAL(valueChanged(int)), this, SLOT(waveformOutputPortChanged()));
     connect(spikeOutputPortSpinBox, SIGNAL(valueChanged(int)), this, SLOT(spikeOutputPortChanged()));
 
@@ -81,6 +83,15 @@ TCPDisplay::TCPDisplay(SystemState* state_, QWidget *parent) :
 
     spikeOutputConnectButton = new QPushButton(tr("Connect"));
     connect(spikeOutputConnectButton, SIGNAL(clicked(bool)), this, SLOT(spikeOutputConnect()));
+
+    commandsRemainPendingCheckBox = new QCheckBox(tr("Remain Pending When Client Disconnects"), this);
+    connect(commandsRemainPendingCheckBox, SIGNAL(toggled(bool)), this, SLOT(commandsRemainPendingChanged(bool)));
+
+    waveformRemainPendingCheckBox = new QCheckBox(tr("Remain Pending When Client Disconnects"), this);
+    connect(waveformRemainPendingCheckBox, SIGNAL(toggled(bool)), this, SLOT(waveformOutputRemainPendingChanged(bool)));
+
+    spikeRemainPendingCheckBox = new QCheckBox(tr("Remain Pending When Client Disconnects"), this);
+    connect(spikeRemainPendingCheckBox, SIGNAL(toggled(bool)), this, SLOT(spikeOutputRemainPendingChanged(bool)));
 
     presentChannelsTable = new QTableWidget(1, 1, this);
     presentChannelsTable->horizontalHeader()->setStretchLastSection(true);
@@ -136,15 +147,18 @@ TCPDisplay::TCPDisplay(SystemState* state_, QWidget *parent) :
 
     commandsStatus = new QLabel(tr("Disconnected"), this);
 
-    dataOutputStatus = new QLabel(tr("Disconnected"), this);
+    waveformDataOutputStatus = new QLabel(tr("Disconnected"), this);
+    spikeDataOutputStatus = new QLabel(tr("Disconnected"), this);
 
     commandTextEdit = new QTextEdit(this);
     commandTextEdit->setReadOnly(true);
+    commandTextEdit->document()->setMaximumBlockCount(1000);
     clearCommandsButton = new QPushButton(tr("Clear Commands"), this);
     connect(clearCommandsButton, SIGNAL(clicked()), this, SLOT(clearCommands()));
 
     errorTextEdit = new QTextEdit(this);
     errorTextEdit->setReadOnly(true);
+    errorTextEdit->document()->setMaximumBlockCount(1000);
     clearErrorsButton = new QPushButton(tr("Clear Errors"), this);
     connect(clearErrorsButton, SIGNAL(clicked()), this, SLOT(clearErrors()));
 
@@ -164,8 +178,16 @@ TCPDisplay::TCPDisplay(SystemState* state_, QWidget *parent) :
     waveformOutputAddressRow->addWidget(waveformOutputConnectButton);
     waveformOutputAddressRow->addWidget(waveformOutputDisconnectButton);
 
+    QHBoxLayout *waveformRemainPendingRow = new QHBoxLayout;
+    waveformRemainPendingRow->addWidget(waveformRemainPendingCheckBox);
+    waveformRemainPendingRow->addStretch();
+
+    QVBoxLayout *waveformOutputLayout = new QVBoxLayout;
+    waveformOutputLayout->addLayout(waveformOutputAddressRow);
+    waveformOutputLayout->addLayout(waveformRemainPendingRow);
+
     QGroupBox *waveformOutputGroupBox = new QGroupBox(tr("Waveform Output"), this);
-    waveformOutputGroupBox->setLayout(waveformOutputAddressRow);
+    waveformOutputGroupBox->setLayout(waveformOutputLayout);
 
     QHBoxLayout *spikeOutputAddressRow = new QHBoxLayout;
     spikeOutputAddressRow->addWidget(new QLabel(tr("Host"), this));
@@ -175,8 +197,16 @@ TCPDisplay::TCPDisplay(SystemState* state_, QWidget *parent) :
     spikeOutputAddressRow->addWidget(spikeOutputConnectButton);
     spikeOutputAddressRow->addWidget(spikeOutputDisconnectButton);
 
+    QHBoxLayout *spikeRemainPendingRow = new QHBoxLayout;
+    spikeRemainPendingRow->addWidget(spikeRemainPendingCheckBox);
+    spikeRemainPendingRow->addStretch();
+
+    QVBoxLayout *spikeOutputLayout = new QVBoxLayout;
+    spikeOutputLayout->addLayout(spikeOutputAddressRow);
+    spikeOutputLayout->addLayout(spikeRemainPendingRow);
+
     QGroupBox *spikeOutputGroupBox = new QGroupBox(tr("Spike Output"), this);
-    spikeOutputGroupBox->setLayout(spikeOutputAddressRow);
+    spikeOutputGroupBox->setLayout(spikeOutputLayout);
 
     QHBoxLayout *commandsStatusRow = new QHBoxLayout;
     commandsStatusRow->addWidget(commandsConnectButton);
@@ -184,10 +214,13 @@ TCPDisplay::TCPDisplay(SystemState* state_, QWidget *parent) :
     commandsStatusRow->addWidget(new QLabel(tr("Status:"), this));
     commandsStatusRow->addWidget(commandsStatus);
     commandsStatusRow->addStretch();
+    commandsStatusRow->addWidget(commandsRemainPendingCheckBox);
 
     QHBoxLayout *dataOutputStatusRow1 = new QHBoxLayout;
     dataOutputStatusRow1->addWidget(new QLabel(tr("Status:"), this));
-    dataOutputStatusRow1->addWidget(dataOutputStatus);
+    dataOutputStatusRow1->addWidget(waveformDataOutputStatus);
+    dataOutputStatusRow1->addWidget(new QLabel("; ", this));
+    dataOutputStatusRow1->addWidget(spikeDataOutputStatus);
     dataOutputStatusRow1->addStretch();
 
     QHBoxLayout *dataOutputStatusRow2 = new QHBoxLayout;
@@ -284,18 +317,28 @@ TCPDisplay::TCPDisplay(SystemState* state_, QWidget *parent) :
 
 void TCPDisplay::updateFromState()
 {
-    waveformOutputHostLineEdit->setText(state->tcpWaveformDataCommunicator->address);
-    waveformOutputPortSpinBox->setValue(state->tcpWaveformDataCommunicator->port);
-    spikeOutputHostLineEdit->setText(state->tcpSpikeDataCommunicator->address);
-    spikeOutputPortSpinBox->setValue(state->tcpSpikeDataCommunicator->port);
+    commandsHostLineEdit->setText(state->tcpCommandCommunicator->communicator->host);
+    commandsPortSpinBox->setValue(state->tcpCommandCommunicator->communicator->port);
+    commandsRemainPendingCheckBox->setChecked(state->tcpCommandCommunicator->communicator->statusOnClientDisconnect == Pending);
+    waveformOutputHostLineEdit->setText(state->tcpWaveformDataCommunicator->communicator->host);
+    waveformOutputPortSpinBox->setValue(state->tcpWaveformDataCommunicator->communicator->port);
+    waveformRemainPendingCheckBox->setChecked(state->tcpWaveformDataCommunicator->communicator->statusOnClientDisconnect == Pending);
+    spikeOutputHostLineEdit->setText(state->tcpSpikeDataCommunicator->communicator->host);
+    spikeOutputPortSpinBox->setValue(state->tcpSpikeDataCommunicator->communicator->port);
+    spikeRemainPendingCheckBox->setChecked(state->tcpSpikeDataCommunicator->communicator->statusOnClientDisconnect == Pending);
+    updateCommandWidgets();
     updateDataOutputWidgets();
 }
 
 void TCPDisplay::processNewCommandConnection()
 {
-    if (state->tcpCommandCommunicator->connectionAvailable()) {
-        state->tcpCommandCommunicator->establishConnection();
-        connect(state->tcpCommandCommunicator, SIGNAL(readyRead()), this, SLOT(readClientCommand()), Qt::QueuedConnection);
+    static bool firstCommandConnection = true;
+    if (state->tcpCommandCommunicator->communicator->connectionAvailable()) {
+        state->tcpCommandCommunicator->communicator->establishConnection();
+        if (firstCommandConnection) {
+            connect(state->tcpCommandCommunicator->communicator, SIGNAL(readyRead()), this, SLOT(readClientCommand()), Qt::QueuedConnection);
+        }
+        firstCommandConnection = false;
     }
 }
 
@@ -313,52 +356,50 @@ void TCPDisplay::processNewSpikeOutputConnection()
 
 void TCPDisplay::commandsConnect()
 {
-    if (!state->tcpCommandCommunicator->serverListening()) {
-        state->tcpCommandCommunicator->listen(commandsHostLineEdit->text(), commandsPortSpinBox->value());
-    }
+    state->tcpCommandCommunicator->communicator->attemptNewConnection();
 }
 
 void TCPDisplay::waveformOutputConnect()
 {
-    emit sendExecuteCommand("connecttcpwaveformdataoutput");
+    state->tcpWaveformDataCommunicator->communicator->attemptNewConnection();
 }
 
 void TCPDisplay::spikeOutputConnect()
 {
-    emit sendExecuteCommand("connecttcpspikedataoutput");
+    state->tcpSpikeDataCommunicator->communicator->attemptNewConnection();
 }
 
 void TCPDisplay::commandsDisconnect()
 {
-    state->tcpCommandCommunicator->returnToDisconnected();
+    state->tcpCommandCommunicator->communicator->handleDisconnection(false);
 }
 
 void TCPDisplay::waveformOutputDisconnect()
 {
-    emit sendExecuteCommand("disconnecttcpwaveformdataoutput");
+    state->tcpWaveformDataCommunicator->communicator->handleDisconnection(false);
 }
 
 void TCPDisplay::spikeOutputDisconnect()
 {
-    emit sendExecuteCommand("disconnecttcpspikedataoutput");
+    state->tcpSpikeDataCommunicator->communicator->handleDisconnection(false);
 }
 
 void TCPDisplay::readClientCommand()
 {
     QString receivedCommand;
-    receivedCommand = state->tcpCommandCommunicator->read();
+    receivedCommand = state->tcpCommandCommunicator->communicator->read();
     commandTextEdit->append(receivedCommand);
     parseCommands(receivedCommand);
 }
 
 void TCPDisplay::updateCommandWidgets()
 {
-    if (state->tcpCommandCommunicator->status == TCPCommunicator::Connected) {
+    if (state->tcpCommandCommunicator->communicator->status == Connected) {
         commandsStatus->setText(tr("Connected"));
         commandsStatus->setStyleSheet("QLabel { color : green; }");
         commandsConnectButton->setEnabled(false);
         commandsDisconnectButton->setEnabled(true);
-    } else if (state->tcpCommandCommunicator->status == TCPCommunicator::Pending) {
+    } else if (state->tcpCommandCommunicator->communicator->status == Pending) {
         commandsStatus->setText(tr("Pending"));
         commandsStatus->setStyleSheet("QLabel {color : orange; }");
         commandsConnectButton->setEnabled(false);
@@ -371,107 +412,35 @@ void TCPDisplay::updateCommandWidgets()
     }
 }
 
+void TCPDisplay::updateDataOutputWidget(ConnectionStatus status, QPushButton* connectButton, QPushButton* disconnectButton, QLabel* statusLabel, const QString& portName)
+{
+    connectButton->setEnabled(status == Disconnected);
+    disconnectButton->setEnabled(status != Disconnected);
+
+    switch (status) {
+    case Connected:
+        statusLabel->setText(portName + " Port Connected");
+        statusLabel->setStyleSheet("QLabel { color : green; }");
+        break;
+    case Pending:
+        statusLabel->setText(portName + " Port Pending");
+        statusLabel->setStyleSheet("QLabel { color : orange; }");
+        break;
+    default:
+        statusLabel->setText(portName + " Port Disconnected");
+        statusLabel->setStyleSheet("QLabel { color : red; }");
+    }
+}
+
 void TCPDisplay::updateDataOutputWidgets()
 {
-    if (state->tcpWaveformDataCommunicator->status == TCPCommunicator::Connected &&
-            state->tcpSpikeDataCommunicator->status == TCPCommunicator::Connected) {
-        // If both ports are connected, report it, green
+    ConnectionStatus waveformStatus = state->tcpWaveformDataCommunicator->communicator->status;
+    ConnectionStatus spikeStatus = state->tcpSpikeDataCommunicator->communicator->status;
 
-        dataOutputStatus->setText(tr("Both Ports Connected"));
-        dataOutputStatus->setStyleSheet("QLabel { color : green; }");
-        waveformOutputConnectButton->setEnabled(false);
-        spikeOutputConnectButton->setEnabled(false);
-        waveformOutputDisconnectButton->setEnabled(true);
-        spikeOutputDisconnectButton->setEnabled(true);
-    } else if (state->tcpWaveformDataCommunicator->status == TCPCommunicator::Disconnected &&
-               state->tcpSpikeDataCommunicator->status == TCPCommunicator::Disconnected) {
-        // If both ports are disconnected, report it, red
+    updateDataOutputWidget(waveformStatus, waveformOutputConnectButton, waveformOutputDisconnectButton, waveformDataOutputStatus, "Waveform");
+    updateDataOutputWidget(spikeStatus, spikeOutputConnectButton, spikeOutputDisconnectButton, spikeDataOutputStatus, "Spike");
 
-        dataOutputStatus->setText(tr("Both Ports Disconnected"));
-        dataOutputStatus->setStyleSheet("QLabel { color : red; }");
-        waveformOutputConnectButton->setEnabled(true);
-        spikeOutputConnectButton->setEnabled(true);
-        waveformOutputDisconnectButton->setEnabled(false);
-        spikeOutputDisconnectButton->setEnabled(false);
-    } else if (state->tcpWaveformDataCommunicator->status == TCPCommunicator::Pending &&
-             state->tcpSpikeDataCommunicator->status == TCPCommunicator::Pending) {
-        // If both ports are pending, report it, orange
-
-        dataOutputStatus->setText(tr("Both Ports Pending"));
-        dataOutputStatus->setStyleSheet("QLabel { color : orange; }");
-        waveformOutputConnectButton->setEnabled(false);
-        spikeOutputConnectButton->setEnabled(false);
-        waveformOutputDisconnectButton->setEnabled(true);
-        spikeOutputDisconnectButton->setEnabled(true);
-    } else if (state->tcpWaveformDataCommunicator->status == TCPCommunicator::Connected &&
-             state->tcpSpikeDataCommunicator->status == TCPCommunicator::Disconnected) {
-        // If waveform port is connected but spike port is disconnected, report it, red
-
-        dataOutputStatus->setText(tr("Waveform Port Connected, Spike Port Disconnected"));
-        dataOutputStatus->setStyleSheet("QLabel { color : red; }");
-        waveformOutputConnectButton->setEnabled(false);
-        spikeOutputConnectButton->setEnabled(true);
-        waveformOutputDisconnectButton->setEnabled(true);
-        spikeOutputDisconnectButton->setEnabled(false);
-    } else if (state->tcpWaveformDataCommunicator->status == TCPCommunicator::Disconnected &&
-             state->tcpSpikeDataCommunicator->status == TCPCommunicator::Connected) {
-        // If waveform port is disconnected but spike port is connected, report it, red
-
-        dataOutputStatus->setText(tr("Waveform Port Disconnected, Spike Port Connected"));
-        dataOutputStatus->setStyleSheet("QLabel { color : red; }");
-        waveformOutputConnectButton->setEnabled(true);
-        spikeOutputConnectButton->setEnabled(false);
-        waveformOutputDisconnectButton->setEnabled(false);
-        spikeOutputDisconnectButton->setEnabled(true);
-    } else if (state->tcpWaveformDataCommunicator->status == TCPCommunicator::Connected &&
-             state->tcpSpikeDataCommunicator->status == TCPCommunicator::Pending) {
-        // If waveform port is connected but spike port is pending, report it, orange
-
-        dataOutputStatus->setText(tr("Waveform Port Connected, Spike Port Pending"));
-        dataOutputStatus->setStyleSheet("QLabel { color : orange; }");
-        waveformOutputConnectButton->setEnabled(false);
-        spikeOutputConnectButton->setEnabled(false);
-        waveformOutputDisconnectButton->setEnabled(true);
-        spikeOutputDisconnectButton->setEnabled(true);
-    } else if (state->tcpWaveformDataCommunicator->status == TCPCommunicator::Pending &&
-             state->tcpSpikeDataCommunicator->status == TCPCommunicator::Connected) {
-        // If waveform port is pending but spike port is connected, report it, orange
-
-        dataOutputStatus->setText(tr("Waveform Port Pending, Spike Port Connected"));
-        dataOutputStatus->setStyleSheet("QLabel { color : orange; }");
-        waveformOutputConnectButton->setEnabled(false);
-        spikeOutputConnectButton->setEnabled(false);
-        waveformOutputDisconnectButton->setEnabled(true);
-        spikeOutputDisconnectButton->setEnabled(true);
-    } else if (state->tcpWaveformDataCommunicator->status == TCPCommunicator::Pending &&
-             state->tcpSpikeDataCommunicator->status == TCPCommunicator::Disconnected) {
-        // If waveform port is pending but spike port is disconnected, report it, red
-
-        dataOutputStatus->setText(tr("Waveform Port Pending, Spike Port Disconnected"));
-        dataOutputStatus->setStyleSheet("QLabel { color : red; }");
-        waveformOutputConnectButton->setEnabled(false);
-        spikeOutputConnectButton->setEnabled(true);
-        waveformOutputDisconnectButton->setEnabled(true);
-        spikeOutputDisconnectButton->setEnabled(false);
-    } else if (state->tcpWaveformDataCommunicator->status == TCPCommunicator::Disconnected &&
-             state->tcpSpikeDataCommunicator->status == TCPCommunicator::Pending) {
-        // If waveform port is disconnected but spike port is pending, report it, red
-
-        dataOutputStatus->setText(tr("Waveform Port Pending, Spike Port Disconnected"));
-        dataOutputStatus->setStyleSheet("QLabel { color : red; }");
-        waveformOutputConnectButton->setEnabled(true);
-        spikeOutputConnectButton->setEnabled(false);
-        waveformOutputDisconnectButton->setEnabled(false);
-        spikeOutputDisconnectButton->setEnabled(true);
-    } else {
-        qDebug() << "We should never get here... unforeseen combination of TCP port connections";
-        qDebug() << "Waveform Data status: " << (int) state->tcpWaveformDataCommunicator->status;
-        qDebug() << "Spike Data status: " << (int) state->tcpSpikeDataCommunicator->status;
-        return;
-    }
-
-    if (state->tcpWaveformDataCommunicator->status != TCPCommunicator::Connected ||
-            state->tcpSpikeDataCommunicator->status != TCPCommunicator::Connected) {
+    if (waveformStatus != Connected && spikeStatus != Connected) {
         dataRateStatus->setText(tr("No TCP connection to stream data over"));
     } else if (!state->running) {
         dataRateStatus->setText(tr("Ready to stream data when board runs"));
@@ -486,24 +455,49 @@ void TCPDisplay::updateDataOutputWidgets()
     updateTables();
 }
 
+void TCPDisplay::commandsHostEdited()
+{
+    state->tcpCommandCommunicator->communicator->host = commandsHostLineEdit->text();
+}
+
+void TCPDisplay::commandsPortChanged()
+{
+    state->tcpCommandCommunicator->communicator->port = commandsPortSpinBox->value();
+}
+
 void TCPDisplay::waveformOutputHostEdited()
 {
-    state->tcpWaveformDataCommunicator->address = waveformOutputHostLineEdit->text();
+    state->tcpWaveformDataCommunicator->communicator->host = waveformOutputHostLineEdit->text();
 }
 
 void TCPDisplay::spikeOutputHostEdited()
 {
-    state->tcpSpikeDataCommunicator->address = spikeOutputHostLineEdit->text();
+    state->tcpSpikeDataCommunicator->communicator->host = spikeOutputHostLineEdit->text();
 }
 
 void TCPDisplay::waveformOutputPortChanged()
 {
-    state->tcpWaveformDataCommunicator->port = waveformOutputPortSpinBox->value();
+    state->tcpWaveformDataCommunicator->communicator->port = waveformOutputPortSpinBox->value();
 }
 
 void TCPDisplay::spikeOutputPortChanged()
 {
-    state->tcpSpikeDataCommunicator->port = spikeOutputPortSpinBox->value();
+    state->tcpSpikeDataCommunicator->communicator->port = spikeOutputPortSpinBox->value();
+}
+
+void TCPDisplay::commandsRemainPendingChanged(bool isChecked)
+{
+    state->tcpCommandCommunicator->setStatusOnClientDisconnect(isChecked ? "Pending" : "Disconnected");
+}
+
+void TCPDisplay::waveformOutputRemainPendingChanged(bool isChecked)
+{
+    state->tcpWaveformDataCommunicator->setStatusOnClientDisconnect(isChecked ? "Pending" : "Disconnected");
+}
+
+void TCPDisplay::spikeOutputRemainPendingChanged(bool isChecked)
+{
+    state->tcpSpikeDataCommunicator->setStatusOnClientDisconnect(isChecked ? "Pending" : "Disconnected");
 }
 
 void TCPDisplay::clearCommands()
@@ -824,7 +818,7 @@ void TCPDisplay::parseCommands(const QString& commands)
             } else {
                 QString errorMessage = "Error - Command " + QString::number(i + 1) + ": Set commands require a parameter and a value";
                 errorTextEdit->append(errorMessage);
-                state->tcpCommandCommunicator->writeQString(errorMessage);
+                state->tcpCommandCommunicator->communicator->writeQString(errorMessage);
             }
         } else if (words.at(0).toLower() == "get") {
             // "Get" syntax: "get" + parameter
@@ -833,7 +827,7 @@ void TCPDisplay::parseCommands(const QString& commands)
             } else {
                 QString errorMessage = "Error - Command " + QString::number(i + 1) + ": Get commands require a parameter";
                 errorTextEdit->append(errorMessage);
-                state->tcpCommandCommunicator->writeQString(errorMessage);
+                state->tcpCommandCommunicator->communicator->writeQString(errorMessage);
             }
         } else if (words.at(0).toLower() == "execute") {
             // "Execute" syntax: "execute" + action
@@ -844,7 +838,7 @@ void TCPDisplay::parseCommands(const QString& commands)
             } else {
                 QString errorMessage = "Error - Command " + QString::number(i + 1) + ": Execute commands require an action";
                 errorTextEdit->append(errorMessage);
-                state->tcpCommandCommunicator->writeQString(errorMessage);
+                state->tcpCommandCommunicator->communicator->writeQString(errorMessage);
             }
         } else if (words.at(0).toLower() == "livenotes") {
             // "LiveNotes" syntax: "livenotes" + action
@@ -853,23 +847,24 @@ void TCPDisplay::parseCommands(const QString& commands)
             // Unrecognized command
             QString errorMessage = "Error - Command " + QString::number(i + 1) + ": Unrecognized command";
             errorTextEdit->append(errorMessage);
-            state->tcpCommandCommunicator->writeQString(errorMessage);
+            state->tcpCommandCommunicator->communicator->writeQString(errorMessage);
         }
     }
 }
 
 void TCPDisplay::TCPReturn(QString result)
 {
-    state->tcpCommandCommunicator->writeQString(result);
+    state->tcpCommandCommunicator->communicator->writeQString(result);
 }
 
 void TCPDisplay::TCPError(QString errorString)
 {
     errorTextEdit->append(errorString);
-    state->tcpCommandCommunicator->writeQString(errorString);
+    state->tcpCommandCommunicator->communicator->writeQString(errorString);
 }
 
 void TCPDisplay::TCPWarning(QString warningString)
 {
     errorTextEdit->append(warningString);
+    state->tcpCommandCommunicator->communicator->writeQString(warningString);
 }

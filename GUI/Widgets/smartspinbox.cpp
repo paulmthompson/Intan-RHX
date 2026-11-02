@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -59,7 +59,13 @@ CurrentSpinBox::CurrentSpinBox(double step_, QWidget *parent) :
 {
     doubleSpinBox->setDecimals(2);
     doubleSpinBox->setSuffix(" " + MicroAmpsSymbol);
-    doubleSpinBox->setMaximumWidth(doubleSpinBox->fontMetrics().horizontalAdvance("99999999  uA  +-"));
+    QStyleOptionSpinBox opt;
+    opt.initFrom(doubleSpinBox);
+    QRect upRect = doubleSpinBox->style()->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxUp, doubleSpinBox);
+    QRect downRect = doubleSpinBox->style()->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxDown, doubleSpinBox);
+    int buttonWidth = qMax(upRect.width(), downRect.width());
+    int textWidth = doubleSpinBox->fontMetrics().horizontalAdvance("99999999  uA  +-");
+    doubleSpinBox->setMaximumWidth(textWidth + buttonWidth + 4);
 }
 
 void CurrentSpinBox::setTrueMinimum(double min)
@@ -115,17 +121,17 @@ void CurrentSpinBox::roundValue()
 {
     // Use modulo to find the difference between the current value and the closest multiple of step.
     // Due to errors in floating point modulo, conduct modulo in the integer domain, and then bring back to double.
-    long valueint = (long) ((this->getTrueValue() * 1000) + 0.5);
+    long valueint = (long) ((getTrueValue() * 1000) + 0.5);
     long currentstepint = (long) (round(step * 1000));
     int modint = valueint % currentstepint;
     double mod = modint / 1000.0;
 
     if (mod != 0.0) {  // If the modulo is not zero, the current value is not a multiple of current step.
         if (mod < step / 2.0) {  // If the modulo is less than half of the current step, the value should round down.
-            if (this->getTrueValue() >= 1000.0) {
+            if (getTrueValue() >= 1000.0) {
                 // If the current units are milliamps, the difference should be scaled to milliamps as well.
                 doubleSpinBox->setValue(doubleSpinBox->value() - mod / 1000.0);
-            } else if (this->getTrueValue() < 1000.0 && this->getTrueValue() >= 1.0) {
+            } else if (getTrueValue() < 1000.0 && getTrueValue() >= 1.0) {
                 // If the current units are microamps, the difference doesn't need to be scaled.
                 doubleSpinBox->setValue(doubleSpinBox->value() - mod);
             } else {
@@ -134,10 +140,10 @@ void CurrentSpinBox::roundValue()
             }
         } else {
             // If the modulo is greater than or equal to half of the current step, the value should round up.
-            if (this->getTrueValue() >= 1000.0) {
+            if (getTrueValue() >= 1000.0) {
                 // If the current units are milliamps, the difference should be scaled to milliamps as well.
                 doubleSpinBox->setValue(doubleSpinBox->value() + (step - mod) / 1000.0);
-            } else if (this->getTrueValue() < 1000.0 && this->getTrueValue() >= 1.0) {
+            } else if (getTrueValue() < 1000.0 && getTrueValue() >= 1.0) {
                 // If the current units are microamps, the difference doesn't need to be scaled.
                 doubleSpinBox->setValue(doubleSpinBox->value() + (step - mod));
             } else {
@@ -235,7 +241,13 @@ TimeSpinBox::TimeSpinBox(double step_, QWidget *parent) :
 {
     doubleSpinBox->setDecimals(1);
     doubleSpinBox->setSuffix(" " + MicroSecondsSymbol);
-    doubleSpinBox->setMaximumWidth(doubleSpinBox->fontMetrics().horizontalAdvance("99999999  ms  +-"));
+    QStyleOptionSpinBox opt;
+    opt.initFrom(doubleSpinBox);
+    QRect upRect = doubleSpinBox->style()->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxUp, doubleSpinBox);
+    QRect downRect = doubleSpinBox->style()->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxDown, doubleSpinBox);
+    int buttonWidth = qMax(upRect.width(), downRect.width());
+    int textWidth = doubleSpinBox->fontMetrics().horizontalAdvance("99999999  ms  +-");
+    doubleSpinBox->setMaximumWidth(textWidth + buttonWidth + 4);
 }
 
 void TimeSpinBox::setTrueMinimum(double min)
@@ -294,7 +306,7 @@ void TimeSpinBox::roundValue()
 {
     // Use modulo to find the difference between the current value and the closest multiple of step.
     // Due to errors in floating point modulo, coduct modulo in the integer domain, and then bring back to double.
-    long valueint = (long) ((this->getTrueValue() * 1000) + 0.5);
+    long valueint = (long) ((getTrueValue() * 1000) + 0.5);
     long timestepint = (long) (round(step * 1000));
     int modint = valueint % timestepint;
     double mod = modint / 1000.0;
@@ -303,7 +315,7 @@ void TimeSpinBox::roundValue()
     if (mod != 0.0) {
         // If the modulo is less than half of the time step, the value should round down.
         if (mod < step / 2.0) {
-            if (this->getTrueValue() < 1000.0) {
+            if (getTrueValue() < 1000.0) {
                 // If the current units are microseconds, the difference doesn't need to be scaled.
                 doubleSpinBox->setValue(doubleSpinBox->value() - mod);
             } else {
@@ -312,7 +324,7 @@ void TimeSpinBox::roundValue()
             }
         } else {  // If the modulo is greater than or equal to half of the time step, the value should round up.
             // If the current units are microseconds, the difference doesn't need to be scaled.
-            if (this->getTrueValue() < 1000) {
+            if (getTrueValue() < 1000) {
                 doubleSpinBox->setValue(doubleSpinBox->value() + (step - mod));
             } else {
             // If the current units are milliseconds, the difference should be scaled to milliseconds as well.

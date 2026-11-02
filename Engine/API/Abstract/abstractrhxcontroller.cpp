@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -913,10 +913,10 @@ StreamChannelPair AbstractRHXController::streamChannelFromWaveName(const std::st
     int channelNumber;
     if (auxChannel) {
         channelNumber = stoi(waveName.substr(5,1));
-        if (channelNumber < 1 || channelNumber > 6) return streamChannelPair;
+        if ((channelNumber < 1) || (channelNumber > 6)) return streamChannelPair;
     } else {
         channelNumber = stoi(waveName.substr(2,3));
-        if (channelNumber < 0 || channelNumber > 127) return streamChannelPair;
+        if ((channelNumber < 0) || (channelNumber > 127)) return streamChannelPair;
     }
 
     if (type == ControllerStimRecord) {

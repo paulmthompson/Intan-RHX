@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -42,7 +42,8 @@
 SaveManager::SaveManager(WaveformFifo* waveformFifo_, SystemState* state_) :
     waveformFifo(waveformFifo_),
     state(state_),
-    signalSources(state_->signalSources)
+    signalSources(state_->signalSources),
+    minimalLatency(state_->writeToDiskLatency->getValueString() == "Minimal")
 {
     type = state->getControllerTypeEnum();
     timeStampOffset = 0;
@@ -123,7 +124,7 @@ int64_t SaveManager::writeIntanFileHeader(SaveFile* saveFile)
 void SaveManager::writeLiveNote(const QString& note, int64_t numSamplesRecorded)
 {
     if (!liveNotesFile) {  // If live notes file has not yet been created, do so now.
-        liveNotesFile = new SaveFile(liveNotesFileName, 128);
+        liveNotesFile = new SaveFile((liveNotesFileName.chopped(4) + saveFileDateTimeStamp() + ".txt"), 128);
         if (!state->note1->getValueString().isEmpty()) {
             writeLiveNoteEntry(0, state->note1->getValueString());
         }
@@ -149,6 +150,7 @@ void SaveManager::writeLiveNoteEntry(uint64_t timestamp, const QString& note)
         QTime recordTime(0, 0);
         QString timeString = recordTime.addSecs(timeInSeconds).toString("HH:mm:ss");
         liveNotesFile->writeQStringAsAsciiText(timestampString + ", " + timeString + ", " + note + "\r\n");
+        liveNotesFile->forceFlush();
     } else {
         std::cerr << "SaveManager::writeLiveNoteEntry: live notes file " << liveNotesFileName.toStdString() << " is not open.\n";
     }

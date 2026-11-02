@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -72,7 +72,8 @@
 #include "pulseresistancedialog.h"
 #include "rhsdigoutconfiguration.hpp"
 
-class ControlPanel;
+class AbstractPanel;
+class QSoundEffect;
 
 class ControllerInterface : public QObject
 {
@@ -170,7 +171,7 @@ public:
     bool fastForwardPossible() const { return currentSweepPosition < 0; }
 
     void setDisplay(MultiColumnDisplay* display_) { display = display_; }
-    void setControlPanel(ControlPanel* controlPanel_) { controlPanel = controlPanel_; }
+    void setControlPanel(AbstractPanel* controlPanel_) { controlPanel = controlPanel_; }
     void setISIDialog(ISIDialog* isiDialog_) { isiDialog = isiDialog_; }
     void setPSTHDialog(PSTHDialog* psthDialog_) { psthDialog = psthDialog_; }
     void setSpectrogramDialog(SpectrogramDialog* spectrogramDialog_) { spectrogramDialog = spectrogramDialog_; }
@@ -357,8 +358,12 @@ public:
     void uploadAmpSettleSettings();
     void uploadChargeRecoverySettings();
     void uploadBandwidthSettings();
+    void uploadAutoStimParameters(int stream);
+    void clearStimParameters(int stream);
     void uploadStimParameters(Channel* channel);
     void uploadStimParameters();
+
+    void setDigOut(int channel, bool high);
 
 signals:
     void setTimeLabel(QString text);
@@ -368,6 +373,8 @@ signals:
     void cpuLoadPercent(double percent);
     void TCPErrorMessage(QString errorMessage);
     void rhsDigOutRuntimeChanged(int channel);
+    void TCPWarningMessage(QString warningMessage);
+    void rescanFinished();
 
 public slots:
     void updateFromState();
@@ -375,13 +382,15 @@ public slots:
     void manualStimTriggerOn(QString keyName);
     void manualStimTriggerOff(QString keyName);
     void manualStimTriggerPulse(QString keyName);
+    void playSoundTriggerStart();
+    void playSoundTriggerEnd();
 
 private slots:
     void updateHardwareFifo(double percentFull) { emit setHardwareFifoStatus(percentFull); }
     void updateWaveformProcessorCpuLoad(double percentLoad) { waveformProcessorCpuLoad = percentLoad; }
 
 private:
-    void openController(const QString& boardSerialNumber);
+    void openController(const QString& boardSerialNumber, bool testMode);
     void initializeController();
     int scanPorts(std::vector<ChipType> &chipType, std::vector<int> &portIndex, std::vector<int> &commandStream,
                   std::vector<int> &numChannelsOnPort);
@@ -391,6 +400,7 @@ private:
     void addPlaybackHeadstageChannels();
 
     void sendTCPError(QString errorMessage);
+    void sendTCPWarning(QString warningMessage);
     void pipeReadErrorMessage(int errorID);
 
     /**
@@ -458,6 +468,9 @@ private:
                                        uint64_t generation,
                                        bool rearmWhenCurrent);
 
+    QSoundEffect* triggerStartBeep;
+    QSoundEffect* triggerEndBeep;
+
     SystemState* state;
     AbstractRHXController* rhxController;
     DataFileReader* dataFileReader;
@@ -471,7 +484,7 @@ private:
     WaveformProcessorThread* waveformProcessorThread;
 
     MultiColumnDisplay* display;
-    ControlPanel* controlPanel;
+    AbstractPanel* controlPanel;
     ISIDialog* isiDialog;
     PSTHDialog* psthDialog;
     SpectrogramDialog* spectrogramDialog;

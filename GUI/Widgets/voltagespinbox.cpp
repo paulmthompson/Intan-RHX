@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -53,7 +53,7 @@ void VoltageSpinBox::roundValue()
     int sign = (getValue() >= 0 ? 1 : -1);
     // Use modulo to find the difference between the current value and the closest multiple of voltage step
     // due to errors in floating point modulo, conduct modulo in the integer domain, and then bring back to double.
-    long valueInt = (long) ((this->getValue() * 1000.0) + sign * 0.5);
+    long valueInt = (long) ((getValue() * 1000.0) + sign * 0.5);
     long voltagestepInt = (long) (voltagestep * 1000.0);
     int modint = (sign * valueInt) % voltagestepInt;
     double mod = modint / 1000.0;

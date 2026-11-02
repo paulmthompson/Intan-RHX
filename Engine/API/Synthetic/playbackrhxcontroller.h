@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -109,13 +109,12 @@ public:
 
     void clearTtlOut() override {}
     void resetSequencers() override {}
-    void commandRhsDigOut(RhsDigOutCommand, int = 0) override {}
-    bool supportsRhsDigOutCommands() const override { return false; }
-    void programStimReg(int, int, StimRegister, uint32_t, int = 0) override {}
+    void programStimReg(int, int, StimRegister, int) override {}
     void uploadCommandList(const std::vector<unsigned int>&, AuxCmdSlot, int) override {}
 
     int findConnectedChips(std::vector<ChipType> &chipType, std::vector<int> &portIndex, std::vector<int> &commandStream,
-                           std::vector<int> &numChannelsOnPort, bool synthMaxChannels = false) override;
+                           std::vector<int> &numChannelsOnPort, bool synthMaxChannels = false, bool returnToFastSettle = false,
+                           bool usePreviousDelay = false, int selectedPort = 0, int lastDetectedChip = -1, int lastDetectedNumStreams = -1) override;
 
 private:
     unsigned int numWordsInFifo() override;

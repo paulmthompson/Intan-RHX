@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,27 +18,38 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
 #include <QApplication>
+#include <QCommandLineParser>
+#include <QStyleFactory>
 #include "boardselectdialog.h"
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-#ifdef __APPLE__
-    app.setStyle(QStyleFactory::create("Fusion"));
-#endif
+    QCommandLineParser parser;
+    parser.setApplicationDescription("Intan RHX Software. Run with --settings=startup.ini to skip startup dialog.");
+    parser.addHelpOption();
+    app.setApplicationVersion(SoftwareVersion);
+    parser.addVersionOption();
 
-    BoardSelectDialog boardSelectDialog;
+    QCommandLineOption settingsOption(QStringList() << "s" << "settings", "Specify settings INI file to skip startup dialog.", "file");
+    parser.addOption(settingsOption);
+    parser.process(app);
+
+    QString settingsFileName = parser.value(settingsOption);
+
+    app.setStyle(QStyleFactory::create("Fusion"));
+    BoardSelectDialog boardSelectDialog(settingsFileName);
     return app.exec();
 }

@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -294,7 +294,13 @@ int DisplayListManager::findSelectedWaveform(const QList<DisplayedWaveform>& lis
     int length = list.size();
 
     for (int i = 0; i < length; ++i) {
-        if (y >= list[i].yTop && y <= list[i].yBottom) return i;
+        if (y >= list[i].yTop && y <= list[i].yBottom) {
+            if (list[i].waveformType == WaveformDivider || list[i].waveformType == UnknownWaveform) {
+                // Return with no waveform found if WaveformDivider or UnknownWaveform cases apply.
+                return -1;
+            }
+            return i;
+        }
     }
     if (y < list[0].yTop) return -1;
     if (y > list[length - 1].yBottom) return -(length + 1);
@@ -671,7 +677,7 @@ void DisplayListManager::selectAdjacentWaveforms(WaveIndex waveIndex, int sectio
     if (sectionExtent == -1) sectionExtent = numDisplayedWaveforms(waveIndex.inPinned);
     selectWaveform(wave->waveName);
 
-    int firstSelected;
+    int firstSelected = 0;
     for (int i = 0; i < sectionExtent; ++i) {
         if (displayedWaveform(i, waveIndex.inPinned)->isSelected()) {
             firstSelected = i;

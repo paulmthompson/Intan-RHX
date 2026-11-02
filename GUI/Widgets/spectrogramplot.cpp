@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -426,15 +426,15 @@ void SpectrogramPlot::paintEvent(QPaintEvent* /* event */)
         plotDecorator.drawLabeledTickMarkRight("1000" + psdUnitsMicro, ctColorScale, 3.0, TickMarkLength);
 
         painter.setPen(Qt::lightGray);
-        for (double i = -2.0; i < 3.0; ++i) {
-            plotDecorator.drawTickMarkRight(ctColorScale, i + Log10_2, TickMarkMinorLength);
-            plotDecorator.drawTickMarkRight(ctColorScale, i + Log10_3, TickMarkMinorLength);
-            plotDecorator.drawTickMarkRight(ctColorScale, i + Log10_4, TickMarkMinorLength);
-            plotDecorator.drawTickMarkRight(ctColorScale, i + Log10_5, TickMarkMinorLength);
-            plotDecorator.drawTickMarkRight(ctColorScale, i + Log10_6, TickMarkMinorLength);
-            plotDecorator.drawTickMarkRight(ctColorScale, i + Log10_7, TickMarkMinorLength);
-            plotDecorator.drawTickMarkRight(ctColorScale, i + Log10_8, TickMarkMinorLength);
-            plotDecorator.drawTickMarkRight(ctColorScale, i + Log10_9, TickMarkMinorLength);
+        for (int i = -2; i < 3; ++i) {
+            plotDecorator.drawTickMarkRight(ctColorScale, ((double) i) + Log10_2, TickMarkMinorLength);
+            plotDecorator.drawTickMarkRight(ctColorScale, ((double) i) + Log10_3, TickMarkMinorLength);
+            plotDecorator.drawTickMarkRight(ctColorScale, ((double) i) + Log10_4, TickMarkMinorLength);
+            plotDecorator.drawTickMarkRight(ctColorScale, ((double) i) + Log10_5, TickMarkMinorLength);
+            plotDecorator.drawTickMarkRight(ctColorScale, ((double) i) + Log10_6, TickMarkMinorLength);
+            plotDecorator.drawTickMarkRight(ctColorScale, ((double) i) + Log10_7, TickMarkMinorLength);
+            plotDecorator.drawTickMarkRight(ctColorScale, ((double) i) + Log10_8, TickMarkMinorLength);
+            plotDecorator.drawTickMarkRight(ctColorScale, ((double) i) + Log10_9, TickMarkMinorLength);
         }
 
         plotDecorator.drawTickMarkRight(ctColorScale, 3.0 + Log10_2, TickMarkMinorLength);
@@ -506,15 +506,15 @@ void SpectrogramPlot::paintEvent(QPaintEvent* /* event */)
         plotDecorator.drawLabeledTickMarkLeft("1000" + psdUnitsMicro, ct, 3.0, TickMarkLength);
 
         painter.setPen(Qt::lightGray);
-        for (double i = -2.0; i < 3.0; ++i) {
-            plotDecorator.drawTickMarkLeft(ct, i + Log10_2, TickMarkMinorLength);
-            plotDecorator.drawTickMarkLeft(ct, i + Log10_3, TickMarkMinorLength);
-            plotDecorator.drawTickMarkLeft(ct, i + Log10_4, TickMarkMinorLength);
-            plotDecorator.drawTickMarkLeft(ct, i + Log10_5, TickMarkMinorLength);
-            plotDecorator.drawTickMarkLeft(ct, i + Log10_6, TickMarkMinorLength);
-            plotDecorator.drawTickMarkLeft(ct, i + Log10_7, TickMarkMinorLength);
-            plotDecorator.drawTickMarkLeft(ct, i + Log10_8, TickMarkMinorLength);
-            plotDecorator.drawTickMarkLeft(ct, i + Log10_9, TickMarkMinorLength);
+        for (int i = -2; i < 3; ++i) {
+            plotDecorator.drawTickMarkLeft(ct, ((double) i) + Log10_2, TickMarkMinorLength);
+            plotDecorator.drawTickMarkLeft(ct, ((double) i) + Log10_3, TickMarkMinorLength);
+            plotDecorator.drawTickMarkLeft(ct, ((double) i) + Log10_4, TickMarkMinorLength);
+            plotDecorator.drawTickMarkLeft(ct, ((double) i) + Log10_5, TickMarkMinorLength);
+            plotDecorator.drawTickMarkLeft(ct, ((double) i) + Log10_6, TickMarkMinorLength);
+            plotDecorator.drawTickMarkLeft(ct, ((double) i) + Log10_7, TickMarkMinorLength);
+            plotDecorator.drawTickMarkLeft(ct, ((double) i) + Log10_8, TickMarkMinorLength);
+            plotDecorator.drawTickMarkLeft(ct, ((double) i) + Log10_9, TickMarkMinorLength);
         }
         plotDecorator.drawTickMarkLeft(ct, 3.0 + Log10_2, TickMarkMinorLength);
         plotDecorator.drawTickMarkLeft(ct, 3.0 + Log10_3, TickMarkMinorLength);

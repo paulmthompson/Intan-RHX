@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -46,7 +46,7 @@ USBDataThread::USBDataThread(AbstractRHXController* controller_, DataStreamFifo*
     bufferSize = (BufferSizeInBlocks + 1) * BytesPerWord *
             RHXDataBlock::dataBlockSizeInWords(controller->getType(), controller->maxNumDataStreams());
     memoryNeededGB = sizeof(uint8_t) * bufferSize / (1024.0 * 1024.0 * 1024.0);
-    std::cout << "USBDataThread: Allocating " << bufferSize / 1.0e6 << " MBytes for USB buffer." << '\n';
+    std::cout << "USBDataThread: Allocating " << bufferSize / 1.0e6 << " MBytes for USB buffer." << std::endl;
     usbBuffer = nullptr;
 
     memoryAllocated = true;
@@ -54,7 +54,7 @@ USBDataThread::USBDataThread(AbstractRHXController* controller_, DataStreamFifo*
         usbBuffer = new uint8_t [bufferSize];
     } catch (std::bad_alloc&) {
         memoryAllocated = false;
-        std::cerr << "Error: USBDataThread constructor could not allocate " << memoryNeededGB << " GB of memory." << '\n';
+        std::cerr << "Error: USBDataThread constructor could not allocate " << memoryNeededGB << " GB of memory." << std::endl;
     }
 
 //    std::cout << "Ideal thread count: " << QThread::idealThreadCount() << EndOfLine;
@@ -89,6 +89,7 @@ void USBDataThread::run()
 
             controller->setStimCmdMode(true);
             controller->setContinuousRunMode(true);
+            controller->setMaxTimeStep(0);
             controller->run();
             fifoReportTimer.start();
 //            loopTimer.start();

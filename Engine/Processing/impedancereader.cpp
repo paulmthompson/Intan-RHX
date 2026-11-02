@@ -1,9 +1,9 @@
 //------------------------------------------------------------------------------
 //
 //  Intan Technologies RHX Data Acquisition Software
-//  Version 3.2.0
+//  Version 3.5.2
 //
-//  Copyright (c) 2020-2023 Intan Technologies
+//  Copyright (c) 2020-2026 Intan Technologies
 //
 //  This file is part of the Intan Technologies RHX Data Acquisition Software.
 //
@@ -18,13 +18,13 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 //  This software is provided 'as-is', without any express or implied warranty.
 //  In no event will the authors be held liable for any damages arising from
 //  the use of this software.
 //
-//  See <http://www.intantech.com> for documentation and product information.
+//  See <https://www.intantech.com> for documentation and product information.
 //
 //------------------------------------------------------------------------------
 
@@ -196,10 +196,13 @@ bool ImpedanceReader::measureImpedances()
 
             chipRegisters.setZcheckChannel(channel);
             if (controllerType == ControllerStimRecord) {
-                commandSequenceLength = chipRegisters.createCommandListRHSRegisterConfig(commandList, false);
+                //commandSequenceLength = chipRegisters.createCommandListRHSRegisterConfig(commandList, false);
+                chipRegisters.createCommandListRHSRegisterConfig(commandList, false);
             } else {
-                commandSequenceLength = chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
-                                                                                         RHXDataBlock::samplesPerDataBlock(controllerType));
+                //commandSequenceLength = chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
+                                                                                         //RHXDataBlock::samplesPerDataBlock(controllerType));
+                chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
+                                                                 RHXDataBlock::samplesPerDataBlock(controllerType));
             }
 
             // Upload version with no ADC calibration to AuxCmd3 RAM bank
@@ -251,9 +254,11 @@ bool ImpedanceReader::measureImpedances()
             // and repeat the previous steps.
             if (rhd2164ChipPresent) {
                 chipRegisters.setZcheckChannel(channel + 32);  // Address channels 32-63.
-                commandSequenceLength =
-                        chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
-                                                                         RHXDataBlock::samplesPerDataBlock(controllerType));
+                //commandSequenceLength =
+                        //chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
+                                                                         //RHXDataBlock::samplesPerDataBlock(controllerType));
+                chipRegisters.createCommandListRHDRegisterConfig(commandList, false,
+                                                                 RHXDataBlock::samplesPerDataBlock(controllerType));
                 // Upload version with no ADC calibration to AuxCmd3 RAM Bank 1.
                 rhxController->uploadCommandList(commandList, AbstractRHXController::AuxCmd3, 3);
 
