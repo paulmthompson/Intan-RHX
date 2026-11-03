@@ -1,8 +1,8 @@
-//------------------------------------------------------------------------------
-//
-//  Intan Technologies RHX Data Acquisition Software
-//
-//------------------------------------------------------------------------------
+/**
+ * @file antidromicspikedetection.hpp
+ * @brief Antidromic spike detection.
+ * @ingroup Antidromic
+*/
 
 #ifndef ANTIDROMICSPIKEDETECTION_HPP
 #define ANTIDROMICSPIKEDETECTION_HPP

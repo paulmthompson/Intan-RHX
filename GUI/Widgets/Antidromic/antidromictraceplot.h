@@ -1,8 +1,8 @@
-//------------------------------------------------------------------------------
-//
-//  Intan Technologies RHX Data Acquisition Software
-//
-//------------------------------------------------------------------------------
+/**
+ * @file antidromictraceplot.h
+ * @brief Antidromic trace plot widget.
+ * @ingroup Antidromic
+*/
 
 #ifndef ANTIDROMICTRACEPLOT_H
 #define ANTIDROMICTRACEPLOT_H
@@ -16,7 +16,7 @@
 
 #include <QtWidgets>
 
-#include "antidromictracecapture.hpp"
+#include "Antidromic/antidromictracecapture.hpp"
 #include "plotutilities.h"
 #include "systemstate.h"
 

@@ -68,7 +68,7 @@
 #include "psthdialog.h"
 #include "spectrogramdialog.h"
 #include "spikesortingdialog.h"
-#include "antidromicstimulationdialog.hpp"
+#include "Antidromic/antidromicstimulationdialog.hpp"
 #include "pulseresistancedialog.h"
 #include "rhsdigoutconfiguration.hpp"
 

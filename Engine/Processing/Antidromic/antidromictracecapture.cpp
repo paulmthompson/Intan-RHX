@@ -1,8 +1,8 @@
-//------------------------------------------------------------------------------
-//
-//  Intan Technologies RHX Data Acquisition Software
-//
-//------------------------------------------------------------------------------
+/**
+ * @file antidromictracecapture.cpp
+ * @brief Antidromic trace capture.
+ * @ingroup Antidromic
+*/
 
 #include "antidromictracecapture.hpp"
 

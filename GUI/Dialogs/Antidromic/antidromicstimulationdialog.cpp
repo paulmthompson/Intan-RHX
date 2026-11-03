@@ -1,13 +1,13 @@
-//------------------------------------------------------------------------------
-//
-//  Intan Technologies RHX Data Acquisition Software
-//
-//------------------------------------------------------------------------------
+/**
+ * @file antidromicstimulationdialog.cpp
+ * @brief Antidromic stimulation dialog.
+ * @ingroup Antidromic
+*/
 
 #include "antidromicstimulationdialog.hpp"
 
 #include "antidromicchannelselection.hpp"
-#include "antidromictraceplot.h"
+#include "Antidromic/antidromictraceplot.h"
 #include "channel.h"
 #include "signalsources.h"
 #include "systemstate.h"

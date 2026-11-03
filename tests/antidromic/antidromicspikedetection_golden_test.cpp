@@ -2,7 +2,7 @@
 // Golden vectors for antidromic spike detection helpers.
 //------------------------------------------------------------------------------
 
-#include "antidromicspikedetection.hpp"
+#include "Antidromic/antidromicspikedetection.hpp"
 
 #include <cmath>
 #include <cstdlib>

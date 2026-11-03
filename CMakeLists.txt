@@ -81,8 +81,7 @@ set(Sources
         Engine/Processing/boardadcspikedetection.cpp
         Engine/Processing/spikescopechannelname.cpp
         Engine/Processing/pulseelectroderesistance.cpp
-        Engine/Processing/antidromictracecapture.cpp
-        Engine/Processing/antidromicspikedetection.cpp
+
         Engine/Processing/xmlinterface.cpp 
         Engine/Threads/audiothread.cpp 
         Engine/Threads/savetodiskthread.cpp 
@@ -90,9 +89,7 @@ set(Sources
         Engine/Threads/usbdatathread.cpp 
         Engine/Threads/waveformprocessorthread.cpp 
         GUI/Dialogs/advancedstartupdialog.cpp 
-        GUI/Dialogs/antidromicchannelselection.cpp
-        GUI/Dialogs/antidromicstimulationdialog.cpp
-        GUI/Dialogs/antidromicstimulationdialog.ui
+
         GUI/Dialogs/ampsettledialog.cpp 
         GUI/Dialogs/analogoutconfigdialog.cpp 
         GUI/Dialogs/anoutdialog.cpp 
@@ -125,7 +122,7 @@ set(Sources
         GUI/Dialogs/waveformselectdialog.cpp 
         GUI/Widgets/abstractpanel.cpp 
         GUI/Widgets/abstractfigure.cpp 
-        GUI/Widgets/antidromictraceplot.cpp
+
         GUI/Widgets/anoutfigure.cpp 
         GUI/Widgets/controlpanelaudioanalogtab.cpp 
         GUI/Widgets/controlpanelbandwidthtab.cpp 
@@ -220,8 +217,7 @@ set(Headers
         Engine/Processing/boardadcspikedetection.hpp
         Engine/Processing/spikescopechannelname.hpp
         Engine/Processing/pulseelectroderesistance.hpp
-        Engine/Processing/antidromictracecapture.hpp
-        Engine/Processing/antidromicspikedetection.hpp
+
         Engine/Processing/xmlinterface.h 
         Engine/Threads/audiothread.h 
         Engine/Threads/savetodiskthread.h 
@@ -229,8 +225,7 @@ set(Headers
         Engine/Threads/usbdatathread.h 
         Engine/Threads/waveformprocessorthread.h 
         GUI/Dialogs/advancedstartupdialog.h 
-        GUI/Dialogs/antidromicchannelselection.hpp
-        GUI/Dialogs/antidromicstimulationdialog.hpp
+
         GUI/Dialogs/ampsettledialog.h 
         GUI/Dialogs/analogoutconfigdialog.h 
         GUI/Dialogs/anoutdialog.h 
@@ -262,7 +257,7 @@ set(Headers
         GUI/Dialogs/waveformselectdialog.h 
         GUI/Widgets/abstractpanel.h 
         GUI/Widgets/abstractfigure.h 
-        GUI/Widgets/antidromictraceplot.h
+ 
         GUI/Widgets/anoutfigure.h 
         GUI/Widgets/controlpanelaudioanalogtab.h 
         GUI/Widgets/controlpanelbandwidthtab.h 
@@ -303,6 +298,23 @@ set(Headers
         GUI/Windows/viewfilterswindow.h
 )
 
+set(AntidromicSources
+    GUI/Widgets/Antidromic/antidromictraceplot.h
+    GUI/Widgets/Antidromic/antidromictraceplot.cpp
+
+    GUI/Dialogs/Antidromic/antidromicchannelselection.hpp
+    GUI/Dialogs/Antidromic/antidromicchannelselection.cpp
+
+    GUI/Dialogs/Antidromic/antidromicstimulationdialog.cpp
+    GUI/Dialogs/Antidromic/antidromicstimulationdialog.ui
+    GUI/Dialogs/Antidromic/antidromicstimulationdialog.hpp
+
+    Engine/Processing/Antidromic/antidromictracecapture.hpp
+    Engine/Processing/Antidromic/antidromictracecapture.cpp
+    Engine/Processing/Antidromic/antidromicspikedetection.cpp
+    Engine/Processing/Antidromic/antidromicspikedetection.hpp
+    )
+
 
 #[[
 The CTest module helps with several testing functions.
@@ -332,6 +344,7 @@ qt_add_executable(IntanRHX
         MANUAL_FINALIZATION
         ${Sources}
         ${Headers}
+        ${AntidromicSources}
         IntanRHX.qrc
 )
 target_link_libraries(IntanRHX PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)

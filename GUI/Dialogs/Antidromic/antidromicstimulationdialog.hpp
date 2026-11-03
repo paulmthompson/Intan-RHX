@@ -1,8 +1,8 @@
-//------------------------------------------------------------------------------
-//
-//  Intan Technologies RHX Data Acquisition Software
-//
-//------------------------------------------------------------------------------
+/**
+ * @file antidromicstimulationdialog.hpp
+ * @brief Antidromic stimulation dialog.
+ * @ingroup Antidromic
+*/
 
 #ifndef ANTIDROMICSTIMULATIONDIALOG_HPP
 #define ANTIDROMICSTIMULATIONDIALOG_HPP
@@ -13,8 +13,8 @@
 
 #include <QDialog>
 
-#include "antidromicspikedetection.hpp"
-#include "antidromictracecapture.hpp"
+#include "Antidromic/antidromicspikedetection.hpp"
+#include "Antidromic/antidromictracecapture.hpp"
 
 class AntidromicTracePlot;
 class SystemState;

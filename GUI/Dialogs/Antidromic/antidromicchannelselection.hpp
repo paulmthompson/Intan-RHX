@@ -1,8 +1,8 @@
-//------------------------------------------------------------------------------
-//
-//  Intan Technologies RHX Data Acquisition Software
-//
-//------------------------------------------------------------------------------
+/**
+ * @file antidromicchannelselection.hpp
+ * @brief Antidromic channel selection dialog.
+ * @ingroup Antidromic
+*/
 
 #ifndef ANTIDROMICCHANNELSELECTION_HPP
 #define ANTIDROMICCHANNELSELECTION_HPP
