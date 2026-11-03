@@ -6,10 +6,11 @@
 
 #include "antidromictraceplot.h"
 
+#include "rhxglobals.h"
+#include "systemstate.h" // SystemState
+
 #include <algorithm>
 #include <cmath>
-
-#include "rhxglobals.h"
 
 namespace {
 

@@ -7,14 +7,14 @@
 #ifndef ANTIDROMICSTIMULATIONDIALOG_HPP
 #define ANTIDROMICSTIMULATIONDIALOG_HPP
 
-#include <deque>
-#include <optional>
-#include <vector>
+#include "Antidromic/antidromicspikedetection.hpp"
+#include "Antidromic/antidromictracecapture.hpp"
 
 #include <QDialog>
 
-#include "Antidromic/antidromicspikedetection.hpp"
-#include "Antidromic/antidromictracecapture.hpp"
+#include <deque>
+#include <optional>
+#include <vector>
 
 class AntidromicTracePlot;
 class SystemState;

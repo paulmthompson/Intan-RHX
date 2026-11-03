@@ -10,15 +10,16 @@
 #define ANTIDROMICTRACEPLOT_X_SIZE 580
 #define ANTIDROMICTRACEPLOT_Y_SIZE 360
 
+#include "Antidromic/antidromictracecapture.hpp" // AntidromicTraceSnippet
+#include "plotutilities.h" // CoordinateTranslator, PlotDecorator
+
+#include <QtWidgets>
+
 #include <deque>
 #include <optional>
 #include <vector>
 
-#include <QtWidgets>
-
-#include "Antidromic/antidromictracecapture.hpp"
-#include "plotutilities.h"
-#include "systemstate.h"
+class SystemState;
 
 class AntidromicTracePlot : public QWidget
 {

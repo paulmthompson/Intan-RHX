@@ -6,15 +6,14 @@
 
 #include "antidromicstimulationdialog.hpp"
 
+#include "ui_antidromicstimulationdialog.h"
+
 #include "antidromicchannelselection.hpp"
 #include "Antidromic/antidromictraceplot.h"
 #include "channel.h"
 #include "signalsources.h"
 #include "systemstate.h"
-#include "ui_antidromicstimulationdialog.h"
 #include "waveformfifo.h"
-
-#include <cmath>
 
 #include <QCloseEvent>
 #include <QComboBox>
@@ -22,6 +21,8 @@
 #include <QDialogButtonBox>
 #include <QSpacerItem>
 #include <QVBoxLayout>
+
+#include <cmath>
 
 namespace {
 
