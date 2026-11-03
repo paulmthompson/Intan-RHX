@@ -54,7 +54,7 @@
 #include "spectrogramdialog.h"
 #include "spikesortingdialog.h"
 #include "Antidromic/antidromicstimulationdialog.hpp"
-#include "pulseresistancedialog.h"
+#include "PulseResponse/pulseresistancedialog.h"
 #include "xmlinterface.h"
 #include "stimparametersclipboard.h"
 #include "statusbars.h"

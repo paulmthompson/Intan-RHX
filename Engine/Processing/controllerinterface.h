@@ -69,7 +69,7 @@
 #include "spectrogramdialog.h"
 #include "spikesortingdialog.h"
 #include "Antidromic/antidromicstimulationdialog.hpp"
-#include "pulseresistancedialog.h"
+#include "PulseResponse/pulseresistancedialog.h"
 #include "rhsdigoutconfiguration.hpp"
 
 class AbstractPanel;

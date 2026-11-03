@@ -2,7 +2,7 @@
 // Golden vectors for external ADC + TTL pulse resistance helpers.
 //------------------------------------------------------------------------------
 
-#include "pulseelectroderesistance.hpp"
+#include "PulseResponse/pulseelectroderesistance.hpp"
 
 #include <cmath>
 #include <cstdlib>

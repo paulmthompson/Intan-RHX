@@ -6,7 +6,7 @@
 
 #include "antidromictracecapture.hpp"
 
-#include "pulseelectroderesistance.hpp"
+#include "PulseResponse/pulseelectroderesistance.hpp"
 
 #include <cmath>
 
