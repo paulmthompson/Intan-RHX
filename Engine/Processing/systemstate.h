@@ -372,6 +372,8 @@ public:
     DoubleRangeItem* pulseResistanceExternalCurrentNanoAmps;
     DiscreteItemList* pulseResistanceExternalTtlMarker;
     BooleanItem* pulseResistanceExternalTtlActiveHigh;
+    DoubleRangeItem* pulseResistanceWarningThresholdPercent;
+    StringItem* pulseResistanceWarningColor;
 
     // Antidromic stimulation (RHS)
     ChannelNameItem* antidromicStimChannel;

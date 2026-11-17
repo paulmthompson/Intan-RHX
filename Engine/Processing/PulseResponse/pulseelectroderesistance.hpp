@@ -28,6 +28,22 @@ constexpr uint16_t ComplianceFlag = 0x8000u;
 /** DC amplifier voltage resolution (10-bit, ±10 V) in volts; matches RHXDataReader scaling. */
 constexpr double DcAmplifierLsbVolts = 0.01923;
 
+/** Default relative resistance increase threshold (percent) for pipette clog / high-impedance warning. */
+constexpr double DefaultWarningThresholdPercent = 30.0;
+
+/**
+ * @brief Signed percentage difference of a measured resistance relative to a reference resistance.
+ * @pre resistanceOhms > 0 and referenceOhms > 0.
+ * @post Returns 100 * (resistanceOhms - referenceOhms) / referenceOhms, or std::nullopt if inputs are invalid.
+ */
+std::optional<double> relativePercentDifference(double resistanceOhms, double referenceOhms);
+
+/**
+ * @brief Check whether a signed percentage difference exceeds the positive increase threshold (e.g. > +30%).
+ */
+bool isRelativeIncreaseAboveThreshold(double percentDifference,
+                                      double thresholdPercent = DefaultWarningThresholdPercent);
+
 /**
  * @brief Relative resistance uncertainty (percent) from voltage quantization on baseline and plateau.
  * @pre deltaVolts is the estimated pulse amplitude in volts; voltageLsbVolts > 0.

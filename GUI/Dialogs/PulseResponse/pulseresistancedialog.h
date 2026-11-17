@@ -10,7 +10,10 @@
 #include "PulseResponse/pulseelectroderesistance.hpp"
 #include "systemstate.h"
 
+#include <QColor>
 #include <QDialog>
+
+#include <optional>
 
 class QLabel;
 class QPushButton;
@@ -53,7 +56,12 @@ private slots:
     }
     void toggleLock() { updateFromState(); }
     void setToSelected();
+    void captureAcsfReference();
+    void captureBrainReference();
+    void clearReferences();
     void clearHistory();
+    void setWarningThresholdPercent(double value);
+    void chooseWarningColor();
     void setMode(int index);
     void setExternalDcAdc(int index);
     void setExternalTraceAdc(int index);
@@ -76,7 +84,12 @@ private:
     void applyResult(const pulseElectrodeResistance::PulseResistanceResult& result);
     void updatePulseResistanceRhs(WaveformFifo* waveformFifo, int numSamples);
     void updatePulseResistanceExternal(WaveformFifo* waveformFifo, int numSamples);
+    QColor warningColor() const;
+    void updateWarningColorButtonStyle();
+    void refreshReferenceDisplays();
+    void updateHistoryRowReferenceColumns(int row);
     static QString formatResistanceOhms(double ohms);
+    static QString formatPercentDifference(double percentDiff);
     QString formatResistanceOhmsWithUncertainty(double ohms, double deltaVolts) const;
     static QString failureReasonText(pulseElectrodeResistance::PulseResistanceFailure failure);
 
@@ -98,9 +111,18 @@ private:
     QComboBox* externalTtlMarkerComboBox;
     QCheckBox* externalTtlActiveHighCheckbox;
 
+    QPushButton* captureAcsfButton;
+    QPushButton* captureBrainButton;
+    QPushButton* clearReferencesButton;
     QPushButton* clearHistoryButton;
+    QDoubleSpinBox* warningThresholdSpinBox;
+    QPushButton* warningColorButton;
 
     QLabel* resistanceValueLabel;
+    QLabel* acsfReferenceLabel;
+    QLabel* acsfDiffLabel;
+    QLabel* brainReferenceLabel;
+    QLabel* brainDiffLabel;
     QLabel* deltaVoltageLabel;
     QLabel* currentLabel;
     QLabel* statusLabel;
@@ -120,6 +142,11 @@ private:
     QString _watchedChannelNativeName;
     QString _configFingerprint;
     double _voltageQuantizationLsbVolts;
+    std::optional<double> _latestValidResistanceOhms;
+    std::optional<double> _acsfReferenceOhms;
+    std::optional<double> _brainReferenceOhms;
+    bool _captureAcsfOnNextPulse;
+    bool _captureBrainOnNextPulse;
 
     static constexpr int kMaxHistoryRows = 50;
 };

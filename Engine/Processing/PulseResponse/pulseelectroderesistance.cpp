@@ -21,6 +21,23 @@ double resistanceQuantizationUncertaintyPercent(double deltaVolts, double voltag
     return 100.0 * (2.0 * voltageLsbVolts) / magnitude;
 }
 
+std::optional<double> relativePercentDifference(double resistanceOhms, double referenceOhms)
+{
+    if (!std::isfinite(resistanceOhms) || !std::isfinite(referenceOhms) || resistanceOhms <= 0.0
+        || referenceOhms <= 0.0) {
+        return std::nullopt;
+    }
+    return 100.0 * (resistanceOhms - referenceOhms) / referenceOhms;
+}
+
+bool isRelativeIncreaseAboveThreshold(double percentDifference, double thresholdPercent)
+{
+    if (!std::isfinite(percentDifference) || !std::isfinite(thresholdPercent)) {
+        return false;
+    }
+    return percentDifference > thresholdPercent;
+}
+
 double boardAdcLsbVolts(ControllerType controllerType)
 {
     if (controllerType == ControllerRecordUSB2) {

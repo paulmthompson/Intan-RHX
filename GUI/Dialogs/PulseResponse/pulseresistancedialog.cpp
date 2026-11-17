@@ -21,7 +21,9 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     state(state_),
     _watchedChannelNativeName(QString()),
     _configFingerprint(QString()),
-    _voltageQuantizationLsbVolts(pulseElectrodeResistance::DcAmplifierLsbVolts)
+    _voltageQuantizationLsbVolts(pulseElectrodeResistance::DcAmplifierLsbVolts),
+    _captureAcsfOnNextPulse(false),
+    _captureBrainOnNextPulse(false)
 {
     connect(state, SIGNAL(stateChanged()), this, SLOT(updateFromState()));
 
@@ -77,14 +79,39 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     modeStack->addWidget(rhsPage);
     modeStack->addWidget(externalPage);
 
+    captureAcsfButton = new QPushButton(tr("Capture ACSF"), this);
+    connect(captureAcsfButton, SIGNAL(clicked()), this, SLOT(captureAcsfReference()));
+
+    captureBrainButton = new QPushButton(tr("Capture Brain"), this);
+    connect(captureBrainButton, SIGNAL(clicked()), this, SLOT(captureBrainReference()));
+
+    clearReferencesButton = new QPushButton(tr("Clear References"), this);
+    connect(clearReferencesButton, SIGNAL(clicked()), this, SLOT(clearReferences()));
+
     clearHistoryButton = new QPushButton(tr("Clear History"), this);
     connect(clearHistoryButton, SIGNAL(clicked()), this, SLOT(clearHistory()));
+
+    warningThresholdSpinBox = new QDoubleSpinBox(this);
+    state->pulseResistanceWarningThresholdPercent->setupSpinBox(warningThresholdSpinBox);
+    warningThresholdSpinBox->setDecimals(1);
+    warningThresholdSpinBox->setSingleStep(5.0);
+    warningThresholdSpinBox->setPrefix(tr("> +"));
+    warningThresholdSpinBox->setSuffix(tr("%"));
+    connect(warningThresholdSpinBox, SIGNAL(valueChanged(double)), this, SLOT(setWarningThresholdPercent(double)));
+
+    warningColorButton = new QPushButton(tr("Alert Color..."), this);
+    connect(warningColorButton, SIGNAL(clicked()), this, SLOT(chooseWarningColor()));
 
     resistanceValueLabel = new QLabel(tr("R: —"), this);
     QFont valueFont = resistanceValueLabel->font();
     valueFont.setPointSize(valueFont.pointSize() + 4);
     valueFont.setBold(true);
     resistanceValueLabel->setFont(valueFont);
+
+    acsfReferenceLabel = new QLabel(tr("ACSF Ref: —"), this);
+    acsfDiffLabel = new QLabel(tr("Δ vs ACSF: —"), this);
+    brainReferenceLabel = new QLabel(tr("Brain Ref: —"), this);
+    brainDiffLabel = new QLabel(tr("Δ vs Brain: —"), this);
 
     deltaVoltageLabel = new QLabel(tr("ΔV: —"), this);
     currentLabel = new QLabel(tr("I: —"), this);
@@ -110,16 +137,38 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
 
     responsePlot = new PulseResponsePlot(state, this);
 
-    historyTable = new QTableWidget(0, 5, this);
+    historyTable = new QTableWidget(0, 7, this);
     historyTable->setHorizontalHeaderLabels(
-        QStringList() << tr("Timestamp") << tr("R") << tr("ΔV (mV)") << tr("I (µA)") << tr("Status"));
+        QStringList() << tr("Timestamp") << tr("R") << tr("% vs ACSF") << tr("% vs Brain")
+                      << tr("ΔV (mV)") << tr("I (µA)") << tr("Status"));
     historyTable->horizontalHeader()->setStretchLastSection(true);
     historyTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     historyTable->setSelectionBehavior(QAbstractItemView::SelectRows);
 
     QHBoxLayout* buttonRow = new QHBoxLayout;
+    buttonRow->addWidget(captureAcsfButton);
+    buttonRow->addWidget(captureBrainButton);
+    buttonRow->addWidget(clearReferencesButton);
     buttonRow->addWidget(clearHistoryButton);
     buttonRow->addStretch(1);
+
+    QHBoxLayout* alertControlsRow = new QHBoxLayout;
+    alertControlsRow->addWidget(new QLabel(tr("Alert increase:"), this));
+    alertControlsRow->addWidget(warningThresholdSpinBox);
+    alertControlsRow->addWidget(warningColorButton);
+    alertControlsRow->addStretch(1);
+
+    QHBoxLayout* acsfReferenceRow = new QHBoxLayout;
+    acsfReferenceRow->addWidget(acsfReferenceLabel);
+    acsfReferenceRow->addSpacing(16);
+    acsfReferenceRow->addWidget(acsfDiffLabel);
+    acsfReferenceRow->addStretch(1);
+
+    QHBoxLayout* brainReferenceRow = new QHBoxLayout;
+    brainReferenceRow->addWidget(brainReferenceLabel);
+    brainReferenceRow->addSpacing(16);
+    brainReferenceRow->addWidget(brainDiffLabel);
+    brainReferenceRow->addStretch(1);
 
     QHBoxLayout* traceControlsRow = new QHBoxLayout;
     traceControlsRow->addWidget(new QLabel(tr("Trace time:"), this));
@@ -137,7 +186,10 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     mainLayout->addWidget(modeComboBox);
     mainLayout->addWidget(modeStack);
     mainLayout->addLayout(buttonRow);
+    mainLayout->addLayout(alertControlsRow);
     mainLayout->addWidget(resistanceValueLabel);
+    mainLayout->addLayout(acsfReferenceRow);
+    mainLayout->addLayout(brainReferenceRow);
     mainLayout->addWidget(deltaVoltageLabel);
     mainLayout->addWidget(currentLabel);
     mainLayout->addWidget(statusLabel);
@@ -147,7 +199,7 @@ PulseResistanceDialog::PulseResistanceDialog(SystemState* state_, QWidget* paren
     mainLayout->addWidget(historyTable);
     setLayout(mainLayout);
 
-    resize(560, 780);
+    resize(640, 820);
     refreshExternalAdcComboBoxes();
     updateFromState();
 }
@@ -426,6 +478,15 @@ void PulseResistanceDialog::updateFromState()
         traceYScaleDcComboBox->setCurrentIndex(state->pulseResistanceTraceYScaleDc->getIndex());
     }
 
+    if (std::abs(warningThresholdSpinBox->value() - state->pulseResistanceWarningThresholdPercent->getValue())
+        > 1.0e-9) {
+        warningThresholdSpinBox->blockSignals(true);
+        warningThresholdSpinBox->setValue(state->pulseResistanceWarningThresholdPercent->getValue());
+        warningThresholdSpinBox->blockSignals(false);
+    }
+    updateWarningColorButtonStyle();
+    refreshReferenceDisplays();
+
     updateTitle();
 }
 
@@ -439,10 +500,76 @@ void PulseResistanceDialog::setToSelected()
     changeCurrentChannel(channelNativeName);
 }
 
+void PulseResistanceDialog::captureAcsfReference()
+{
+    if (_latestValidResistanceOhms.has_value()) {
+        _acsfReferenceOhms = *_latestValidResistanceOhms;
+        _captureAcsfOnNextPulse = false;
+        statusLabel->setText(tr("Captured ACSF reference: %1").arg(formatResistanceOhms(*_acsfReferenceOhms)));
+    } else {
+        _captureAcsfOnNextPulse = true;
+        statusLabel->setText(tr("ACSF reference armed — will capture on next valid pulse."));
+    }
+    refreshReferenceDisplays();
+}
+
+void PulseResistanceDialog::captureBrainReference()
+{
+    if (_latestValidResistanceOhms.has_value()) {
+        _brainReferenceOhms = *_latestValidResistanceOhms;
+        _captureBrainOnNextPulse = false;
+        statusLabel->setText(tr("Captured brain reference: %1").arg(formatResistanceOhms(*_brainReferenceOhms)));
+    } else {
+        _captureBrainOnNextPulse = true;
+        statusLabel->setText(tr("Brain reference armed — will capture on next valid pulse."));
+    }
+    refreshReferenceDisplays();
+}
+
+void PulseResistanceDialog::clearReferences()
+{
+    _acsfReferenceOhms.reset();
+    _brainReferenceOhms.reset();
+    _captureAcsfOnNextPulse = false;
+    _captureBrainOnNextPulse = false;
+    refreshReferenceDisplays();
+}
+
+void PulseResistanceDialog::setWarningThresholdPercent(double value)
+{
+    state->pulseResistanceWarningThresholdPercent->setValue(value);
+    refreshReferenceDisplays();
+}
+
+void PulseResistanceDialog::chooseWarningColor()
+{
+    const QColor chosen = QColorDialog::getColor(warningColor(), this, tr("Select High Impedance Alert Color"));
+    if (chosen.isValid()) {
+        state->pulseResistanceWarningColor->setValue(chosen.name());
+        updateWarningColorButtonStyle();
+        refreshReferenceDisplays();
+    }
+}
+
+QColor PulseResistanceDialog::warningColor() const
+{
+    const QColor configured(state->pulseResistanceWarningColor->getValueString());
+    return configured.isValid() ? configured : QColor(Qt::red);
+}
+
+void PulseResistanceDialog::updateWarningColorButtonStyle()
+{
+    QPixmap swatch(12, 12);
+    swatch.fill(warningColor());
+    warningColorButton->setIcon(QIcon(swatch));
+}
+
 void PulseResistanceDialog::clearHistory()
 {
     historyTable->setRowCount(0);
+    _latestValidResistanceOhms.reset();
     resistanceValueLabel->setText(tr("R: —"));
+    resistanceValueLabel->setStyleSheet(QString());
     deltaVoltageLabel->setText(tr("ΔV: —"));
     currentLabel->setText(tr("I: —"));
     statusLabel->setText(state->pulseResistanceUsesExternalAdcTtl()
@@ -450,13 +577,16 @@ void PulseResistanceDialog::clearHistory()
                              : tr("Waiting for stim pulse on watched channel."));
     resetTrackerForChannelChange();
     responsePlot->clearSnippet();
+    refreshReferenceDisplays();
 }
 
 void PulseResistanceDialog::resetTrackerForChannelChange()
 {
     _trackerState = pulseElectrodeResistance::PulseResistanceTrackerState();
     _responseCaptureState = pulseElectrodeResistance::PulseResponseCaptureState();
+    _latestValidResistanceOhms.reset();
     responsePlot->clearSnippet();
+    refreshReferenceDisplays();
 }
 
 void PulseResistanceDialog::updateTitle()
@@ -478,6 +608,13 @@ QString PulseResistanceDialog::formatResistanceOhms(double ohms)
         return QString::number(ohms / 1.0e3, 'f', 2) + tr(" kΩ");
     }
     return QString::number(ohms, 'f', 1) + tr(" Ω");
+}
+
+QString PulseResistanceDialog::formatPercentDifference(double percentDiff)
+{
+    const double normalized = std::abs(percentDiff) < 0.05 ? 0.0 : percentDiff;
+    const QString signPrefix = normalized >= 0.0 ? QStringLiteral("+") : QString();
+    return signPrefix + QString::number(normalized, 'f', 1) + tr("%");
 }
 
 QString PulseResistanceDialog::formatResistanceOhmsWithUncertainty(double ohms, double deltaVolts) const
@@ -512,6 +649,127 @@ QString PulseResistanceDialog::failureReasonText(pulseElectrodeResistance::Pulse
     return tr("Invalid");
 }
 
+void PulseResistanceDialog::refreshReferenceDisplays()
+{
+    const double thresholdPercent = state->pulseResistanceWarningThresholdPercent->getValue();
+    const QColor alertColor = warningColor();
+    const QString alertStyle = QStringLiteral("QLabel { color: %1; font-weight: bold; }").arg(alertColor.name());
+
+    bool acsfExceeded = false;
+    if (_acsfReferenceOhms.has_value()) {
+        acsfReferenceLabel->setText(tr("ACSF Ref: ") + formatResistanceOhms(*_acsfReferenceOhms));
+        if (_latestValidResistanceOhms.has_value()) {
+            const std::optional<double> diff =
+                pulseElectrodeResistance::relativePercentDifference(*_latestValidResistanceOhms, *_acsfReferenceOhms);
+            if (diff.has_value()) {
+                acsfDiffLabel->setText(tr("Δ vs ACSF: ") + formatPercentDifference(*diff));
+                acsfExceeded = pulseElectrodeResistance::isRelativeIncreaseAboveThreshold(*diff, thresholdPercent);
+            } else {
+                acsfDiffLabel->setText(tr("Δ vs ACSF: —"));
+            }
+        } else {
+            acsfDiffLabel->setText(tr("Δ vs ACSF: —"));
+        }
+    } else if (_captureAcsfOnNextPulse) {
+        acsfReferenceLabel->setText(tr("ACSF Ref: (waiting for pulse...)"));
+        acsfDiffLabel->setText(tr("Δ vs ACSF: —"));
+    } else {
+        acsfReferenceLabel->setText(tr("ACSF Ref: —"));
+        acsfDiffLabel->setText(tr("Δ vs ACSF: —"));
+    }
+    acsfDiffLabel->setStyleSheet(acsfExceeded ? alertStyle : QString());
+
+    bool brainExceeded = false;
+    if (_brainReferenceOhms.has_value()) {
+        brainReferenceLabel->setText(tr("Brain Ref: ") + formatResistanceOhms(*_brainReferenceOhms));
+        if (_latestValidResistanceOhms.has_value()) {
+            const std::optional<double> diff =
+                pulseElectrodeResistance::relativePercentDifference(*_latestValidResistanceOhms, *_brainReferenceOhms);
+            if (diff.has_value()) {
+                brainDiffLabel->setText(tr("Δ vs Brain: ") + formatPercentDifference(*diff));
+                brainExceeded = pulseElectrodeResistance::isRelativeIncreaseAboveThreshold(*diff, thresholdPercent);
+            } else {
+                brainDiffLabel->setText(tr("Δ vs Brain: —"));
+            }
+        } else {
+            brainDiffLabel->setText(tr("Δ vs Brain: —"));
+        }
+    } else if (_captureBrainOnNextPulse) {
+        brainReferenceLabel->setText(tr("Brain Ref: (waiting for pulse...)"));
+        brainDiffLabel->setText(tr("Δ vs Brain: —"));
+    } else {
+        brainReferenceLabel->setText(tr("Brain Ref: —"));
+        brainDiffLabel->setText(tr("Δ vs Brain: —"));
+    }
+    brainDiffLabel->setStyleSheet(brainExceeded ? alertStyle : QString());
+
+    if (_latestValidResistanceOhms.has_value() && (acsfExceeded || brainExceeded)) {
+        resistanceValueLabel->setStyleSheet(QStringLiteral("QLabel { color: %1; }").arg(alertColor.name()));
+    } else {
+        resistanceValueLabel->setStyleSheet(QString());
+    }
+
+    for (int row = 0; row < historyTable->rowCount(); ++row) {
+        updateHistoryRowReferenceColumns(row);
+    }
+}
+
+void PulseResistanceDialog::updateHistoryRowReferenceColumns(int row)
+{
+    QTableWidgetItem* rItem = historyTable->item(row, 1);
+    QTableWidgetItem* acsfItem = historyTable->item(row, 2);
+    if (!acsfItem) {
+        acsfItem = new QTableWidgetItem();
+        historyTable->setItem(row, 2, acsfItem);
+    }
+    QTableWidgetItem* brainItem = historyTable->item(row, 3);
+    if (!brainItem) {
+        brainItem = new QTableWidgetItem();
+        historyTable->setItem(row, 3, brainItem);
+    }
+
+    const QVariant resistanceVar = rItem ? rItem->data(Qt::UserRole) : QVariant();
+    if (!resistanceVar.isValid()) {
+        acsfItem->setText(QString());
+        acsfItem->setData(Qt::ForegroundRole, QVariant());
+        brainItem->setText(QString());
+        brainItem->setData(Qt::ForegroundRole, QVariant());
+        return;
+    }
+
+    const double resistanceOhms = resistanceVar.toDouble();
+    const double thresholdPercent = state->pulseResistanceWarningThresholdPercent->getValue();
+    const QColor alertColor = warningColor();
+
+    auto applyDiffItem = [&](QTableWidgetItem* item, const std::optional<double>& referenceOhms) {
+        const std::optional<double> diff =
+            referenceOhms.has_value()
+                ? pulseElectrodeResistance::relativePercentDifference(resistanceOhms, *referenceOhms)
+                : std::nullopt;
+        if (!diff.has_value()) {
+            item->setText(QString());
+            item->setData(Qt::ForegroundRole, QVariant());
+            QFont f = item->font();
+            f.setBold(false);
+            item->setFont(f);
+            return;
+        }
+        item->setText(formatPercentDifference(*diff));
+        const bool exceeded = pulseElectrodeResistance::isRelativeIncreaseAboveThreshold(*diff, thresholdPercent);
+        if (exceeded) {
+            item->setForeground(QBrush(alertColor));
+        } else {
+            item->setData(Qt::ForegroundRole, QVariant());
+        }
+        QFont f = item->font();
+        f.setBold(exceeded);
+        item->setFont(f);
+    };
+
+    applyDiffItem(acsfItem, _acsfReferenceOhms);
+    applyDiffItem(brainItem, _brainReferenceOhms);
+}
+
 void PulseResistanceDialog::applyResult(const pulseElectrodeResistance::PulseResistanceResult& result)
 {
     QString status;
@@ -523,6 +781,16 @@ void PulseResistanceDialog::applyResult(const pulseElectrodeResistance::PulseRes
     statusLabel->setText(status);
 
     if (result.m_valid) {
+        _latestValidResistanceOhms = result.m_resistanceOhms;
+        if (_captureAcsfOnNextPulse) {
+            _acsfReferenceOhms = result.m_resistanceOhms;
+            _captureAcsfOnNextPulse = false;
+        }
+        if (_captureBrainOnNextPulse) {
+            _brainReferenceOhms = result.m_resistanceOhms;
+            _captureBrainOnNextPulse = false;
+        }
+
         resistanceValueLabel->setText(tr("R: ")
                                       + formatResistanceOhmsWithUncertainty(result.m_resistanceOhms, result.m_deltaVolts));
         deltaVoltageLabel->setText(tr("ΔV: ") + QString::number(result.m_deltaVolts * 1000.0, 'f', 3) + tr(" mV"));
@@ -531,21 +799,28 @@ void PulseResistanceDialog::applyResult(const pulseElectrodeResistance::PulseRes
 
     historyTable->insertRow(0);
     historyTable->setItem(0, 0, new QTableWidgetItem(QString::number(result.m_timestamp)));
-    historyTable->setItem(0, 1,
-                          new QTableWidgetItem(result.m_valid
-                                                   ? formatResistanceOhmsWithUncertainty(result.m_resistanceOhms,
-                                                                                         result.m_deltaVolts)
-                                                   : QString()));
-    historyTable->setItem(0, 2,
+    auto* rItem = new QTableWidgetItem(result.m_valid
+                                           ? formatResistanceOhmsWithUncertainty(result.m_resistanceOhms,
+                                                                                 result.m_deltaVolts)
+                                           : QString());
+    if (result.m_valid) {
+        rItem->setData(Qt::UserRole, result.m_resistanceOhms);
+    }
+    historyTable->setItem(0, 1, rItem);
+    historyTable->setItem(0, 2, new QTableWidgetItem());
+    historyTable->setItem(0, 3, new QTableWidgetItem());
+    historyTable->setItem(0, 4,
                           new QTableWidgetItem(result.m_valid ? QString::number(result.m_deltaVolts * 1000.0, 'f', 3)
                                                               : QString()));
-    historyTable->setItem(0, 3,
+    historyTable->setItem(0, 5,
                           new QTableWidgetItem(QString::number(result.m_currentAmps * 1.0e6, 'f', 3)));
-    historyTable->setItem(0, 4, new QTableWidgetItem(status));
+    historyTable->setItem(0, 6, new QTableWidgetItem(status));
 
     while (historyTable->rowCount() > kMaxHistoryRows) {
         historyTable->removeRow(historyTable->rowCount() - 1);
     }
+
+    refreshReferenceDisplays();
 }
 
 void PulseResistanceDialog::updatePulseResistance(WaveformFifo* waveformFifo, int numSamples)

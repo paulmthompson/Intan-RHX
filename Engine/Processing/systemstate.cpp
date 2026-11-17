@@ -802,6 +802,10 @@ SystemState::SystemState(const AbstractRHXController* controller_, StimStepSize 
     pulseResistanceExternalTtlMarker->setIndex(0);
     pulseResistanceExternalTtlActiveHigh =
         new BooleanItem("PulseResistanceExternalTtlActiveHigh", globalItems, this, true);
+    pulseResistanceWarningThresholdPercent =
+        new DoubleRangeItem("PulseResistanceWarningThresholdPercent", globalItems, this, 0.0, 1000.0, 30.0);
+    pulseResistanceWarningColor =
+        new StringItem("PulseResistanceWarningColor", globalItems, this, "#ff0000");
 
     antidromicStimChannel = new ChannelNameItem("AntidromicStimChannel", globalItems, this, "N/A");
     antidromicRecordingSource = new DiscreteItemList("AntidromicRecordingSource", globalItems, this);
